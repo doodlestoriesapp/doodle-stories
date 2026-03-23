@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
- 
+
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
   { label: "Tiny Tots",      range: "2–4",  emoji: "🍼", prompt: "very simple, 2-3 sentences, magical and whimsical, easy words" },
@@ -7,7 +7,7 @@ const AGE_GROUPS = [
   { label: "Story Lovers",   range: "8–10", emoji: "🌟", prompt: "4-5 paragraphs, imaginative with some twists, richer vocabulary" },
   { label: "Big Kids",       range: "11–13",emoji: "🚀", prompt: "5-6 paragraphs, exciting plot with a surprise ending, expressive language" },
 ];
- 
+
 const VOICE_LINES = {
   1: "Woohoo! Welcome to Doodle Stories! You can upload your drawing OR draw one right here! Let's make some magic!",
   draw: "Time to get creative! Pick a colour, grab the brush, and draw anything you like! When you're done tap Use This Doodle!",
@@ -18,21 +18,21 @@ const VOICE_LINES = {
   loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
   liked: "Wow, someone loved that story! What an amazing little author!",
 };
- 
+
 const PALETTE = [
   "#000000","#FFFFFF","#FF6B6B","#FF8E53","#FFD93D","#6BCB77",
   "#4D96FF","#9B59B6","#FF69B4","#A0522D","#708090","#00CED1",
 ];
- 
+
 const BRUSH_SIZES = [3, 7, 13, 20];
- 
+
 const COLORS = {
   bg:"#FFF9F0", card:"#FFFFFF",
   accent1:"#FF6B6B", accent2:"#FFD93D", accent3:"#6BCB77", accent4:"#4D96FF", accent5:"#FF4ECD",
   night1:"#1a1035", night2:"#2d1b6e", night3:"#4a2fa0",
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
- 
+
 // ── Confetti ─────────────────────────────────────────────────────
 function Confetti({ active, onDone }) {
   const pieces = Array.from({ length: 50 }, (_, i) => ({
@@ -51,7 +51,7 @@ function Confetti({ active, onDone }) {
     </div>
   );
 }
- 
+
 // ── Speech ───────────────────────────────────────────────────────
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
@@ -73,13 +73,13 @@ function useSpeech() {
   const stop = useCallback(()=>{ window.speechSynthesis?.cancel(); setSpeaking(false); },[]);
   return { speak, stop, speaking };
 }
- 
+
 // ── Storage ──────────────────────────────────────────────────────
 async function loadLibrary() { try { const r=await window.storage.get("doodle-library",true); return r?JSON.parse(r.value):[]; } catch { return []; } }
 async function saveLibrary(s) { try { await window.storage.set("doodle-library",JSON.stringify(s),true); } catch {} }
 async function loadVotes() { try { const r=await window.storage.get("doodle-votes",false); return r?JSON.parse(r.value):{}; } catch { return {}; } }
 async function saveVotes(v) { try { await window.storage.set("doodle-votes",JSON.stringify(v),false); } catch {} }
- 
+
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
 function DoodlePad({ onUse, onCancel }) {
   const canvasRef = useRef(null);
@@ -92,7 +92,7 @@ function DoodlePad({ onUse, onCancel }) {
   const historyRef = useRef([]);
   const [canUndo, setCanUndo] = useState(false);
   const { speak } = useSpeech();
- 
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -100,14 +100,14 @@ function DoodlePad({ onUse, onCancel }) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     speak(VOICE_LINES.draw);
   }, []);
- 
+
   const saveHistory = () => {
     const canvas = canvasRef.current;
     historyRef.current.push(canvas.toDataURL());
     if (historyRef.current.length > 20) historyRef.current.shift();
     setCanUndo(true);
   };
- 
+
   const getPos = (e, canvas) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -115,26 +115,26 @@ function DoodlePad({ onUse, onCancel }) {
     const src = e.touches ? e.touches[0] : e;
     return { x:(src.clientX - rect.left)*scaleX, y:(src.clientY - rect.top)*scaleY };
   };
- 
+
   const floodFill = (ctx, startX, startY, fillColor) => {
     startX = Math.round(startX); startY = Math.round(startY);
     const canvas = canvasRef.current;
     const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const data = imageData.data;
     const w = canvas.width;
- 
+
     const idx = (x,y) => (y*w+x)*4;
     const start = idx(startX, startY);
     const sr=data[start], sg=data[start+1], sb=data[start+2], sa=data[start+3];
- 
+
     const hex = fillColor.replace("#","");
     const tr=parseInt(hex.slice(0,2),16), tg=parseInt(hex.slice(2,4),16), tb=parseInt(hex.slice(4,6),16);
     if (sr===tr&&sg===tg&&sb===tb) return;
- 
+
     const match = (i) => Math.abs(data[i]-sr)<30&&Math.abs(data[i+1]-sg)<30&&Math.abs(data[i+2]-sb)<30&&Math.abs(data[i+3]-sa)<30;
     const stack = [[startX,startY]];
     const visited = new Uint8Array(w*canvas.height);
- 
+
     while (stack.length) {
       const [x,y] = stack.pop();
       if (x<0||x>=w||y<0||y>=canvas.height) continue;
@@ -146,7 +146,7 @@ function DoodlePad({ onUse, onCancel }) {
     }
     ctx.putImageData(imageData,0,0);
   };
- 
+
   const startDraw = (e) => {
     e.preventDefault();
     const canvas = canvasRef.current;
@@ -165,7 +165,7 @@ function DoodlePad({ onUse, onCancel }) {
     ctx.fillStyle = tool==="eraser" ? "#FFFFFF" : color;
     ctx.fill();
   };
- 
+
   const draw = (e) => {
     e.preventDefault();
     if (!drawing || tool==="fill") return;
@@ -182,9 +182,9 @@ function DoodlePad({ onUse, onCancel }) {
     ctx.stroke();
     lastPos.current = pos;
   };
- 
+
   const stopDraw = (e) => { e?.preventDefault(); setDrawing(false); lastPos.current=null; };
- 
+
   const undo = () => {
     if (!historyRef.current.length) return;
     const canvas = canvasRef.current;
@@ -195,7 +195,7 @@ function DoodlePad({ onUse, onCancel }) {
     img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); };
     img.src = prev;
   };
- 
+
   const clearCanvas = () => {
     saveHistory();
     const canvas = canvasRef.current;
@@ -203,14 +203,14 @@ function DoodlePad({ onUse, onCancel }) {
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0,0,canvas.width,canvas.height);
   };
- 
+
   const handleUse = () => {
     const canvas = canvasRef.current;
     const dataURL = canvas.toDataURL("image/png");
     const base64 = dataURL.split(",")[1];
     onUse(dataURL, base64);
   };
- 
+
   const ToolBtn = ({ id, icon, label }) => (
     <button onClick={()=>setTool(id)} title={label} style={{
       width:40, height:40, borderRadius:12,
@@ -221,7 +221,7 @@ function DoodlePad({ onUse, onCancel }) {
       transition:"all 0.15s",
     }}>{icon}</button>
   );
- 
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
       {/* Top toolbar */}
@@ -236,9 +236,9 @@ function DoodlePad({ onUse, onCancel }) {
           <ToolBtn id="eraser" icon="🧹" label="Eraser"/>
           <ToolBtn id="fill" icon="🪣" label="Fill"/>
         </div>
- 
+
         <div style={{ width:1, height:32, background:COLORS.border }}/>
- 
+
         {/* Brush sizes */}
         <div style={{ display:"flex", gap:5, alignItems:"center" }}>
           {BRUSH_SIZES.map((sz,i)=>(
@@ -252,9 +252,9 @@ function DoodlePad({ onUse, onCancel }) {
             </button>
           ))}
         </div>
- 
+
         <div style={{ width:1, height:32, background:COLORS.border }}/>
- 
+
         {/* Color picker */}
         <div style={{ position:"relative" }}>
           <button onClick={()=>setShowPalette(p=>!p)} style={{
@@ -280,13 +280,13 @@ function DoodlePad({ onUse, onCancel }) {
             </div>
           )}
         </div>
- 
+
         <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
           <button onClick={undo} disabled={!canUndo} title="Undo" style={{ width:36,height:36,borderRadius:10,border:`2px solid ${COLORS.border}`,background:"white",cursor:canUndo?"pointer":"not-allowed",fontSize:16,opacity:canUndo?1:0.4 }}>↩️</button>
           <button onClick={clearCanvas} title="Clear" style={{ width:36,height:36,borderRadius:10,border:`2px solid ${COLORS.border}`,background:"white",cursor:"pointer",fontSize:16 }}>🗑️</button>
         </div>
       </div>
- 
+
       {/* Canvas */}
       <div style={{ position:"relative", lineHeight:0 }}>
         <canvas
@@ -301,7 +301,7 @@ function DoodlePad({ onUse, onCancel }) {
           {tool==="brush"?"✏️ Drawing":tool==="eraser"?"🧹 Erasing":"🪣 Filling"}
         </div>
       </div>
- 
+
       {/* Bottom bar */}
       <div style={{
         background:"white", borderRadius:"0 0 20px 20px", padding:"12px 16px",
@@ -323,7 +323,7 @@ function DoodlePad({ onUse, onCancel }) {
     </div>
   );
 }
- 
+
 // ── Stars ────────────────────────────────────────────────────────
 function StarryBg() {
   const stars = Array.from({length:40},(_,i)=>({id:i,x:Math.random()*100,y:Math.random()*100,size:Math.random()*2.5+1,delay:Math.random()*3}));
@@ -333,7 +333,7 @@ function StarryBg() {
     </div>
   );
 }
- 
+
 // ── Badge ────────────────────────────────────────────────────────
 function Badge({ likes=0, loves=0, small=false }) {
   if (!likes&&!loves) return null;
@@ -347,7 +347,7 @@ function Badge({ likes=0, loves=0, small=false }) {
     </div>
   );
 }
- 
+
 // ── Reaction Buttons ─────────────────────────────────────────────
 function ReactionButtons({ story, votes, onVote, nightMode }) {
   const myVote=votes[story.id];
@@ -363,7 +363,7 @@ function ReactionButtons({ story, votes, onVote, nightMode }) {
     </div>
   );
 }
- 
+
 // ── Story Card ───────────────────────────────────────────────────
 function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
   const isTop=(story.loves||0)>=5||(story.likes||0)>=5;
@@ -380,7 +380,7 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
     </div>
   );
 }
- 
+
 // ── Reading Modal ────────────────────────────────────────────────
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   const { speak, stop, speaking } = useSpeech();
@@ -413,7 +413,7 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
     </div>
   );
 }
- 
+
 // ── Save Modal ───────────────────────────────────────────────────
 function SaveModal({ story, onSave }) {
   return (
@@ -433,7 +433,7 @@ function SaveModal({ story, onSave }) {
     </div>
   );
 }
- 
+
 // ── HOME ─────────────────────────────────────────────────────────
 function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
   const HeroCard = ({ story, rank, accent }) => (
@@ -449,7 +449,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
       </div>
     </div>
   );
- 
+
   return (
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden"}}>
       <style>{`
@@ -509,7 +509,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
     </div>
   );
 }
- 
+
 // ── LIBRARY ──────────────────────────────────────────────────────
 function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
   const [tab,setTab]=useState("all");
@@ -519,20 +519,20 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
   const [nightMode,setNightMode]=useState(false);
   const [showConfetti,setShowConfetti]=useState(false);
   const spokenLib=useRef(false);
- 
+
   useEffect(()=>{ if(!spokenLib.current){spokenLib.current=true;setTimeout(()=>speak(VOICE_LINES.library),500);} },[speak]);
- 
+
   const handleVote=(id,type)=>{ onVote(id,type); setShowConfetti(true); speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked); if(readingStory?.id===id) setReadingStory(s=>s?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s); };
- 
+
   const sorted=(tab==="loved"?[...library].sort((a,b)=>(b.loves||0)-(a.loves||0)):tab==="liked"?[...library].sort((a,b)=>(b.likes||0)-(a.likes||0)):library);
   const filtered=sorted.filter(s=>{
     const am=filterAge==="all"||s.ageLabel===filterAge;
     const q=searchQuery.toLowerCase();
     return am&&(!q||s.title.toLowerCase().includes(q)||s.preview.toLowerCase().includes(q)||(s.tags||[]).some(t=>t.toLowerCase().includes(q)));
   });
- 
+
   const nBg=nightMode?`linear-gradient(160deg,${COLORS.night1} 0%,${COLORS.night2} 60%,#0d0826 100%)`:`radial-gradient(ellipse at 20% 20%,#E8F4FF 0%,#FFF9F0 60%,#FFE8D6 100%)`;
- 
+
   return (
     <div style={{minHeight:"100vh",background:nBg,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden",transition:"background 0.5s"}}>
       {nightMode&&<StarryBg/>}
@@ -580,7 +580,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
     </div>
   );
 }
- 
+
 // ── CREATE ───────────────────────────────────────────────────────
 function CreateScreen({ onNavigate, onStoryAdded }) {
   const [mode, setMode] = useState(null); // null | "upload" | "draw"
@@ -597,9 +597,9 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
   const fileRef = useRef();
   const { speak, stop, speaking } = useSpeech();
   const spokenKeys = useRef(new Set());
- 
+
   const getVoiceKey=(s,l,st)=>s===3&&l?"loading":s===3&&st?"story":String(s);
- 
+
   useEffect(()=>{
     if(!voiceEnabled) return;
     const key=getVoiceKey(step,loading,story);
@@ -608,9 +608,9 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key]);},500);
     return()=>clearTimeout(t);
   },[step,loading,story,voiceEnabled,speak]);
- 
+
   const replayVoice=()=>{const key=getVoiceKey(step,loading,story);if(VOICE_LINES[key])speak(VOICE_LINES[key]);};
- 
+
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
     setImage(URL.createObjectURL(file));
@@ -618,19 +618,19 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     reader.onload=e=>{setImageBase64(e.target.result.split(",")[1]);spokenKeys.current.delete("2");setStep(2);};
     reader.readAsDataURL(file);
   },[]);
- 
+
   const handleCanvasUse=(dataURL,base64)=>{
     setImage(dataURL); setImageBase64(base64);
     spokenKeys.current.delete("2"); setMode(null); setStep(2);
   };
- 
+
   const handleDrop=(e)=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0]);};
- 
+
   const generateStory=async()=>{
     if(!imageBase64||!ageGroup) return;
     setLoading(true);setError(null);spokenKeys.current.delete("loading");setStep(3);
     try {
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const res=await fetch("/api/generate-story",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-20250514",max_tokens:1000,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/png",data:imageBase64}},{type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}]}],
@@ -642,7 +642,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     } catch {setError("Oops! The story magic fizzled. Try again!");setStep(2);}
     finally{setLoading(false);}
   };
- 
+
   const handleSave=async(share)=>{
     setShowSaveModal(false);
     if(!share||!story) return;
@@ -651,9 +651,9 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     const updated=[newEntry,...existing];
     await saveLibrary(updated);onStoryAdded(updated);
   };
- 
+
   const reset=()=>{stop();setImage(null);setImageBase64(null);setAgeGroup(null);setStory(null);setError(null);setMode(null);spokenKeys.current.clear();setStep(1);};
- 
+
   const VoiceBubble=({text})=>(
     <div style={{display:"flex",alignItems:"flex-start",gap:10,background:"linear-gradient(135deg,#FFF8E1,#FFFDF5)",border:`2px solid ${COLORS.accent2}`,borderRadius:18,padding:"11px 13px",marginBottom:18,boxShadow:"0 4px 16px rgba(255,217,61,0.18)"}}>
       <div style={{fontSize:24,flexShrink:0,animation:speaking?"mascotBounce 0.5s infinite alternate":"none"}}>🌟</div>
@@ -664,7 +664,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
       </div>
     </div>
   );
- 
+
   return (
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden"}}>
       <div style={{position:"fixed",top:-80,right:-80,width:300,height:300,borderRadius:"50%",background:"rgba(255,107,107,0.12)",zIndex:0}}/>
@@ -673,12 +673,12 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
           <button onClick={()=>mode?setMode(null):onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← {mode?"Cancel":"Home"}</button>
           <button onClick={()=>onNavigate("library")} style={{background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,border:"none",borderRadius:12,padding:"7px 13px",cursor:"pointer",color:"white",fontSize:"0.8rem",fontFamily:"Georgia,serif"}}>🌙 Library</button>
         </div>
- 
+
         <div style={{textAlign:"center",marginBottom:20}}>
           <div style={{fontSize:40,marginBottom:4}}>🎨</div>
           <h1 style={{fontSize:"clamp(1.5rem,5vw,2.2rem)",color:COLORS.text,margin:0,letterSpacing:"-0.02em"}}>Doodle <span style={{color:COLORS.accent1}}>Stories</span></h1>
         </div>
- 
+
         {/* Step indicators */}
         {!mode&&(
           <div style={{display:"flex",justifyContent:"center",gap:7,marginBottom:22}}>
@@ -693,7 +693,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             ))}
           </div>
         )}
- 
+
         {/* STEP 1 — choose mode */}
         {step===1&&!mode&&(
           <div>
@@ -718,12 +718,12 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <p style={{textAlign:"center",color:"#ccc",fontSize:"0.74rem",margin:0}}>Any drawing turns into a magical story ✨</p>
           </div>
         )}
- 
+
         {/* Draw mode */}
         {step===1&&mode==="draw"&&(
           <DoodlePad onUse={handleCanvasUse} onCancel={()=>setMode(null)}/>
         )}
- 
+
         {/* STEP 2 */}
         {step===2&&(
           <div>
@@ -745,7 +745,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             </div>
           </div>
         )}
- 
+
         {/* STEP 3 */}
         {step===3&&(
           <div>
@@ -797,18 +797,18 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     </div>
   );
 }
- 
+
 // ── ROOT ─────────────────────────────────────────────────────────
 export default function App() {
   const [view,setView]=useState("home");
   const [library,setLibrary]=useState([]);
   const [votes,setVotes]=useState({});
   const { speak }=useSpeech();
- 
+
   useEffect(()=>{
     Promise.all([loadLibrary(),loadVotes()]).then(([lib,v])=>{ setLibrary(lib); setVotes(v); });
   },[]);
- 
+
   const handleVote=async(id,type)=>{
     if(votes[id]) return;
     const newVotes={...votes,[id]:type};
@@ -816,10 +816,10 @@ export default function App() {
     const updated=library.map(s=>s.id===id?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s);
     setLibrary(updated); await saveLibrary(updated);
   };
- 
+
   const topLoved=[...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
   const topLiked=[...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
- 
+
   if(view==="home") return <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>;
   if(view==="library") return <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>;
   if(view==="create") return <CreateScreen onNavigate={setView} onStoryAdded={setLibrary}/>;
