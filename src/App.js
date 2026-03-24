@@ -55,7 +55,7 @@ function useSpeech() {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate=1.05; utter.pitch=1.35; utter.volume=1;
+    utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
     const trySpeak = () => {
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(v=>v.name.toLowerCase().includes("samantha")||v.name.toLowerCase().includes("karen")||v.name.toLowerCase().includes("moira")||(v.lang.startsWith("en")&&v.localService));
