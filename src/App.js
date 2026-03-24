@@ -728,7 +728,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <h2 style={{textAlign:"center",color:COLORS.text,fontSize:"1rem",fontWeight:"normal",marginBottom:12}}>How old is the little artist? 👇</h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
               {AGE_GROUPS.map(group=>(
-                <button key={group.range} onClick={()=>setAgeGroup(group)} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
+                <button key={group.range} onClick={()=>{ setAgeGroup(group); speak(VOICE_LINES.ageSelected); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
                   <div style={{fontSize:24,marginBottom:3}}>{group.emoji}</div>
                   <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.85rem"}}>{group.label}</div>
                   <div style={{color:COLORS.muted,fontSize:"0.72rem",marginTop:1}}>Ages {group.range}</div>
