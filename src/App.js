@@ -12,7 +12,7 @@ const VOICE_LINES = {
   1: "Woohoo! Welcome to Doodle Stories! You can upload your drawing OR draw one right here! Let's make some magic!",
   draw: "Time to get creative! Pick a colour, grab the brush, and draw anything you like! When you're done tap Use This Doodle!",
   2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
-  ageSelected: "Yaaaay! Great choice! Now tap the big orange Make My Story button!",
+  ageSelected: "Yaaaay! Now tap the big orange Make My Story button!",
 };
 
 const PALETTE = [
