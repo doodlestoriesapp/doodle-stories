@@ -6,13 +6,19 @@ export default async function handler(req, res) {
   try {
     const body = req.body;
 
-    // Fix media_type if needed
+    // Auto-detect media type from base64 data
     if (body.messages) {
       body.messages = body.messages.map(msg => {
         if (Array.isArray(msg.content)) {
           msg.content = msg.content.map(block => {
-            if (block.type === 'image' && block.source) {
-              block.source.media_type = 'image/png';
+            if (block.type === 'image' && block.source?.data) {
+              const base64 = block.source.data;
+              const signature = base64.substring(0, 16);
+              let mediaType = 'image/png';
+              if (signature.startsWith('/9j/')) mediaType = 'image/jpeg';
+              else if (signature.startsWith('R0lG')) mediaType = 'image/gif';
+              else if (signature.startsWith('UklG')) mediaType = 'image/webp';
+              block.source.media_type = mediaType;
             }
             return block;
           });
