@@ -13,6 +13,11 @@ const VOICE_LINES = {
   draw: "Time to get creative! Pick a colour, grab the brush, and draw anything you like! When you're done tap Use This Doodle!",
   2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
   ageSelected: "Let's go make a story by tapping the big orange Make My Story button!",
+  loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
+  story: "Ta-daaa! Your very own story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
+  library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
+  loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
+  liked: "Wow, someone loved that story! What an amazing little author!",
 };
 
 const PALETTE = [
@@ -79,9 +84,9 @@ async function saveVotes(v) { try { await window.storage.set("doodle-votes",JSON
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
 function DoodlePad({ onUse, onCancel }) {
   const canvasRef = useRef(null);
-  const [tool, setTool] = useState("brush"); // brush | eraser | fill
+  const [tool, setTool] = useState("brush");
   const [color, setColor] = useState("#000000");
-  const [brushSize, setBrushSize] = useState(1); // index into BRUSH_SIZES
+  const [brushSize, setBrushSize] = useState(1);
   const [drawing, setDrawing] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const lastPos = useRef(null);
@@ -118,19 +123,15 @@ function DoodlePad({ onUse, onCancel }) {
     const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const data = imageData.data;
     const w = canvas.width;
-
     const idx = (x,y) => (y*w+x)*4;
     const start = idx(startX, startY);
     const sr=data[start], sg=data[start+1], sb=data[start+2], sa=data[start+3];
-
     const hex = fillColor.replace("#","");
     const tr=parseInt(hex.slice(0,2),16), tg=parseInt(hex.slice(2,4),16), tb=parseInt(hex.slice(4,6),16);
     if (sr===tr&&sg===tg&&sb===tb) return;
-
     const match = (i) => Math.abs(data[i]-sr)<30&&Math.abs(data[i+1]-sg)<30&&Math.abs(data[i+2]-sb)<30&&Math.abs(data[i+3]-sa)<30;
     const stack = [[startX,startY]];
     const visited = new Uint8Array(w*canvas.height);
-
     while (stack.length) {
       const [x,y] = stack.pop();
       if (x<0||x>=w||y<0||y>=canvas.height) continue;
@@ -148,11 +149,7 @@ function DoodlePad({ onUse, onCancel }) {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const pos = getPos(e, canvas);
-    if (tool==="fill") {
-      saveHistory();
-      floodFill(ctx, pos.x, pos.y, color);
-      return;
-    }
+    if (tool==="fill") { saveHistory(); floodFill(ctx, pos.x, pos.y, color); return; }
     saveHistory();
     setDrawing(true);
     lastPos.current = pos;
@@ -220,101 +217,47 @@ function DoodlePad({ onUse, onCancel }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
-      {/* Top toolbar */}
-      <div style={{
-        background:"white", borderRadius:"20px 20px 0 0", padding:"12px 16px",
-        border:`2px solid ${COLORS.border}`, borderBottom:"none",
-        display:"flex", alignItems:"center", gap:10, flexWrap:"wrap",
-      }}>
-        {/* Tools */}
+      <div style={{ background:"white", borderRadius:"20px 20px 0 0", padding:"12px 16px", border:`2px solid ${COLORS.border}`, borderBottom:"none", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
         <div style={{ display:"flex", gap:6 }}>
           <ToolBtn id="brush" icon="✏️" label="Brush"/>
           <ToolBtn id="eraser" icon="🧹" label="Eraser"/>
           <ToolBtn id="fill" icon="🪣" label="Fill"/>
         </div>
-
         <div style={{ width:1, height:32, background:COLORS.border }}/>
-
-        {/* Brush sizes */}
         <div style={{ display:"flex", gap:5, alignItems:"center" }}>
           {BRUSH_SIZES.map((sz,i)=>(
-            <button key={i} onClick={()=>setBrushSize(i)} style={{
-              width:sz+10, height:sz+10, minWidth:18, minHeight:18, maxWidth:36, maxHeight:36,
-              borderRadius:"50%", border:`2px solid ${brushSize===i?COLORS.accent1:COLORS.border}`,
-              background:brushSize===i?color:"white", cursor:"pointer", transition:"all 0.15s",
-              display:"flex", alignItems:"center", justifyContent:"center",
-            }}>
+            <button key={i} onClick={()=>setBrushSize(i)} style={{ width:sz+10, height:sz+10, minWidth:18, minHeight:18, maxWidth:36, maxHeight:36, borderRadius:"50%", border:`2px solid ${brushSize===i?COLORS.accent1:COLORS.border}`, background:brushSize===i?color:"white", cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <div style={{ width:sz/1.5, height:sz/1.5, borderRadius:"50%", background:brushSize===i?"white":color }}/>
             </button>
           ))}
         </div>
-
         <div style={{ width:1, height:32, background:COLORS.border }}/>
-
-        {/* Color picker */}
         <div style={{ position:"relative" }}>
-          <button onClick={()=>setShowPalette(p=>!p)} style={{
-            width:36, height:36, borderRadius:10, border:`3px solid ${COLORS.border}`,
-            background:color, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)",
-            transition:"transform 0.15s",
-          }}/>
+          <button onClick={()=>setShowPalette(p=>!p)} style={{ width:36, height:36, borderRadius:10, border:`3px solid ${COLORS.border}`, background:color, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", transition:"transform 0.15s" }}/>
           {showPalette && (
-            <div style={{
-              position:"absolute", top:44, left:0, zIndex:10,
-              background:"white", borderRadius:14, padding:10, border:`2px solid ${COLORS.border}`,
-              boxShadow:"0 8px 24px rgba(0,0,0,0.12)",
-              display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, width:160,
-            }}>
+            <div style={{ position:"absolute", top:44, left:0, zIndex:10, background:"white", borderRadius:14, padding:10, border:`2px solid ${COLORS.border}`, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, width:160 }}>
               {PALETTE.map(c=>(
-                <button key={c} onClick={()=>{ setColor(c); setShowPalette(false); }} style={{
-                  width:30, height:30, borderRadius:8, border:`3px solid ${color===c?COLORS.accent1:"transparent"}`,
-                  background:c, cursor:"pointer",
-                  boxShadow:c==="#FFFFFF"?"inset 0 0 0 1px #eee":"none",
-                  transform:color===c?"scale(1.15)":"scale(1)", transition:"all 0.12s",
-                }}/>
+                <button key={c} onClick={()=>{ setColor(c); setShowPalette(false); }} style={{ width:30, height:30, borderRadius:8, border:`3px solid ${color===c?COLORS.accent1:"transparent"}`, background:c, cursor:"pointer", boxShadow:c==="#FFFFFF"?"inset 0 0 0 1px #eee":"none", transform:color===c?"scale(1.15)":"scale(1)", transition:"all 0.12s" }}/>
               ))}
             </div>
           )}
         </div>
-
         <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
           <button onClick={undo} disabled={!canUndo} title="Undo" style={{ width:36,height:36,borderRadius:10,border:`2px solid ${COLORS.border}`,background:"white",cursor:canUndo?"pointer":"not-allowed",fontSize:16,opacity:canUndo?1:0.4 }}>↩️</button>
           <button onClick={clearCanvas} title="Clear" style={{ width:36,height:36,borderRadius:10,border:`2px solid ${COLORS.border}`,background:"white",cursor:"pointer",fontSize:16 }}>🗑️</button>
         </div>
       </div>
-
-      {/* Canvas */}
       <div style={{ position:"relative", lineHeight:0 }}>
-        <canvas
-          ref={canvasRef}
-          width={600} height={400}
-          style={{ width:"100%", aspectRatio:"3/2", display:"block", cursor:tool==="fill"?"crosshair":tool==="eraser"?"cell":"default", borderLeft:`2px solid ${COLORS.border}`, borderRight:`2px solid ${COLORS.border}`, touchAction:"none", background:"white" }}
+        <canvas ref={canvasRef} width={600} height={400} style={{ width:"100%", aspectRatio:"3/2", display:"block", cursor:tool==="fill"?"crosshair":tool==="eraser"?"cell":"default", borderLeft:`2px solid ${COLORS.border}`, borderRight:`2px solid ${COLORS.border}`, touchAction:"none", background:"white" }}
           onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-        />
-        {/* Cursor hint */}
+          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}/>
         <div style={{ position:"absolute", top:8, right:10, background:"rgba(0,0,0,0.35)", color:"white", fontSize:"0.72rem", borderRadius:8, padding:"3px 10px", pointerEvents:"none" }}>
           {tool==="brush"?"✏️ Drawing":tool==="eraser"?"🧹 Erasing":"🪣 Filling"}
         </div>
       </div>
-
-      {/* Bottom bar */}
-      <div style={{
-        background:"white", borderRadius:"0 0 20px 20px", padding:"12px 16px",
-        border:`2px solid ${COLORS.border}`, borderTop:"none",
-        display:"flex", gap:10,
-      }}>
-        <button onClick={onCancel} style={{ flex:1, padding:"12px", borderRadius:14, border:`2px solid ${COLORS.border}`, background:"transparent", cursor:"pointer", color:COLORS.muted, fontSize:"0.9rem", fontFamily:"Georgia,serif" }}>
-          ← Back
-        </button>
-        <button onClick={handleUse} style={{
-          flex:2, padding:"12px", borderRadius:14, border:"none",
-          background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,
-          color:"white", fontSize:"0.95rem", fontWeight:"bold", cursor:"pointer",
-          boxShadow:"0 6px 20px rgba(255,107,107,0.35)", fontFamily:"Georgia,serif",
-        }}>
-          ✨ Use This Doodle!
-        </button>
+      <div style={{ background:"white", borderRadius:"0 0 20px 20px", padding:"12px 16px", border:`2px solid ${COLORS.border}`, borderTop:"none", display:"flex", gap:10 }}>
+        <button onClick={onCancel} style={{ flex:1, padding:"12px", borderRadius:14, border:`2px solid ${COLORS.border}`, background:"transparent", cursor:"pointer", color:COLORS.muted, fontSize:"0.9rem", fontFamily:"Georgia,serif" }}>← Back</button>
+        <button onClick={handleUse} style={{ flex:2, padding:"12px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`, color:"white", fontSize:"0.95rem", fontWeight:"bold", cursor:"pointer", boxShadow:"0 6px 20px rgba(255,107,107,0.35)", fontFamily:"Georgia,serif" }}>✨ Use This Doodle!</button>
       </div>
     </div>
   );
@@ -450,7 +393,6 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden"}}>
       <style>{`
         @keyframes mascotBounce{from{transform:translateY(0)}to{transform:translateY(-5px)}}
-        @keyframes arrowBounce{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(6px)}}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes dot{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
         @keyframes twinkle{from{opacity:0.2}to{opacity:0.8}}
@@ -491,7 +433,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
           </div>
         )}
         {topLiked.length>0&&(
-          <div>
+          <div style={{marginBottom:32}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
               <span style={{fontSize:22}}>⭐</span>
               <div><h2 style={{margin:0,fontSize:"1.1rem",color:COLORS.text}}>Most Liked Stories</h2><p style={{margin:0,fontSize:"0.75rem",color:COLORS.muted}}>Popular picks</p></div>
@@ -501,6 +443,15 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
             </div>
           </div>
         )}
+
+        {/* Footer */}
+        <div style={{textAlign:"center",marginTop:40,paddingTop:24,borderTop:`1px solid ${COLORS.border}`}}>
+          <p style={{color:COLORS.muted,fontSize:"0.78rem",margin:"0 0 10px"}}>Made with ❤️ for little storytellers everywhere</p>
+          <div style={{display:"flex",justifyContent:"center",gap:20}}>
+            <button onClick={()=>onNavigate("about")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>About Us</button>
+            <button onClick={()=>onNavigate("contact")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Contact Us</button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -579,7 +530,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 
 // ── CREATE ───────────────────────────────────────────────────────
 function CreateScreen({ onNavigate, onStoryAdded }) {
-  const [mode, setMode] = useState(null); // null | "upload" | "draw"
+  const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
   const [ageGroup, setAgeGroup] = useState(null);
@@ -669,13 +620,10 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
           <button onClick={()=>mode?setMode(null):onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← {mode?"Cancel":"Home"}</button>
           <button onClick={()=>onNavigate("library")} style={{background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,border:"none",borderRadius:12,padding:"7px 13px",cursor:"pointer",color:"white",fontSize:"0.8rem",fontFamily:"Georgia,serif"}}>🌙 Library</button>
         </div>
-
         <div style={{textAlign:"center",marginBottom:20}}>
           <div style={{fontSize:40,marginBottom:4}}>🎨</div>
           <h1 style={{fontSize:"clamp(1.5rem,5vw,2.2rem)",color:COLORS.text,margin:0,letterSpacing:"-0.02em"}}>Doodle <span style={{color:COLORS.accent1}}>Stories</span></h1>
         </div>
-
-        {/* Step indicators */}
         {!mode&&(
           <div style={{display:"flex",justifyContent:"center",gap:7,marginBottom:22}}>
             {["Doodle","Age","Story"].map((label,i)=>(
@@ -689,21 +637,16 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             ))}
           </div>
         )}
-
-        {/* STEP 1 — choose mode */}
         {step===1&&!mode&&(
           <div>
             <VoiceBubble text={VOICE_LINES[1]}/>
-            {/* Two equal buttons */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-              {/* Upload */}
               <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()} style={{border:`3px dashed ${dragOver?COLORS.accent1:COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(255,107,107,0.04)":COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
                 <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
                 <div style={{fontSize:44,marginBottom:10}}>📸</div>
                 <h3 style={{color:COLORS.text,fontSize:"1rem",margin:"0 0 5px",fontWeight:"bold"}}>Upload Drawing</h3>
                 <p style={{color:COLORS.muted,margin:0,fontSize:"0.78rem",lineHeight:1.4}}>Tap to upload a photo of your drawing</p>
               </div>
-              {/* Draw */}
               <div onClick={()=>setMode("draw")} style={{border:`3px solid ${COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent3;e.currentTarget.style.background="rgba(107,203,119,0.04)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background=COLORS.card;}}>
                 <div style={{fontSize:44,marginBottom:10}}>✏️</div>
@@ -714,13 +657,9 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <p style={{textAlign:"center",color:"#ccc",fontSize:"0.74rem",margin:0}}>Any drawing turns into a magical story ✨</p>
           </div>
         )}
-
-        {/* Draw mode */}
         {step===1&&mode==="draw"&&(
           <DoodlePad onUse={handleCanvasUse} onCancel={()=>setMode(null)}/>
         )}
-
-        {/* STEP 2 */}
         {step===2&&(
           <div>
             <VoiceBubble text={VOICE_LINES[2]}/>
@@ -728,7 +667,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <h2 style={{textAlign:"center",color:COLORS.text,fontSize:"1rem",fontWeight:"normal",marginBottom:12}}>How old is the little artist? 👇</h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
               {AGE_GROUPS.map(group=>(
-                <button key={group.range} onClick={()=>{ setAgeGroup(group); speak(VOICE_LINES.ageSelected); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
+                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected),300); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
                   <div style={{fontSize:24,marginBottom:3}}>{group.emoji}</div>
                   <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.85rem"}}>{group.label}</div>
                   <div style={{color:COLORS.muted,fontSize:"0.72rem",marginTop:1}}>Ages {group.range}</div>
@@ -741,8 +680,6 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             </div>
           </div>
         )}
-
-        {/* STEP 3 */}
         {step===3&&(
           <div>
             {loading&&(
@@ -794,6 +731,163 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
   );
 }
 
+// ── ABOUT ────────────────────────────────────────────────────────
+function AboutScreen({ onNavigate }) {
+  const SOCIALS = [
+    { icon: "🎵", label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
+    { icon: "📸", label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
+    { icon: "▶️", label: "YouTube", url: "https://youtube.com/@DoodleStoriesapp" },
+    { icon: "📘", label: "Facebook", url: "https://facebook.com/doodlestoriesapp" },
+  ];
+  return (
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif"}}>
+      <div style={{maxWidth:680,margin:"0 auto",padding:"30px 24px 60px"}}>
+        <div style={{display:"flex",alignItems:"center",marginBottom:32}}>
+          <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
+        </div>
+        <div style={{textAlign:"center",marginBottom:40}}>
+          <div style={{fontSize:60,marginBottom:12}}>🎨</div>
+          <h1 style={{fontSize:"clamp(1.8rem,5vw,2.5rem)",color:COLORS.text,margin:"0 0 10px",letterSpacing:"-0.02em"}}>About <span style={{color:COLORS.accent1}}>Doodle Stories</span></h1>
+          <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",lineHeight:1.6,margin:0}}>Where every drawing becomes a story worth telling</p>
+        </div>
+        <div style={{background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,borderRadius:24,padding:"28px 32px",marginBottom:24,color:"white"}}>
+          <div style={{fontSize:"0.7rem",letterSpacing:"0.12em",textTransform:"uppercase",color:COLORS.accent2,fontWeight:"bold",marginBottom:10}}>✦ Our Mission</div>
+          <p style={{fontSize:"1.1rem",lineHeight:1.8,margin:0,fontStyle:"italic"}}>"To turn every child's drawing into a story worth telling — and a story worth sharing."</p>
+        </div>
+        <div style={{background:"white",borderRadius:20,padding:"24px 28px",marginBottom:20,border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+          <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 14px"}}>Our Story 🌟</h2>
+          <p style={{color:COLORS.text,lineHeight:1.85,fontSize:"0.95rem",margin:"0 0 12px"}}>Doodle Stories was born from a simple belief — that every child's imagination deserves to be celebrated. Kids draw extraordinary things: dragons made of spaghetti, houses that float on clouds, cats who run bakeries. But too often those drawings stay folded in a backpack or stuck to a fridge.</p>
+          <p style={{color:COLORS.text,lineHeight:1.85,fontSize:"0.95rem",margin:0}}>We built Doodle Stories to change that. Upload or draw a doodle, pick an age group, and watch as AI transforms that drawing into a personalized story — narrated, shareable, and saved forever in our Bedtime Story Library for kids everywhere to enjoy.</p>
+        </div>
+        <div style={{background:"white",borderRadius:20,padding:"24px 28px",marginBottom:20,border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+          <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 16px"}}>What We Believe 💛</h2>
+          {[
+            ["🎨","Every child is a storyteller","Their imagination just needs a little magic to come alive."],
+            ["🌍","Stories connect us","A child's drawing in Houston can inspire a bedtime story in London."],
+            ["🔒","Kids deserve safe spaces","No accounts required. No personal data collected. Just creativity."],
+            ["✨","Creativity is a superpower","We celebrate every doodle — wobbly lines and all."],
+          ].map(([icon,title,desc])=>(
+            <div key={title} style={{display:"flex",gap:14,marginBottom:16,alignItems:"flex-start"}}>
+              <div style={{fontSize:26,flexShrink:0,marginTop:2}}>{icon}</div>
+              <div>
+                <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.92rem",marginBottom:3}}>{title}</div>
+                <div style={{color:COLORS.muted,fontSize:"0.84rem",lineHeight:1.6}}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"white",borderRadius:20,padding:"24px 28px",marginBottom:24,border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+          <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 12px"}}>Follow Our Journey 🚀</h2>
+          <p style={{color:COLORS.muted,fontSize:"0.88rem",lineHeight:1.6,margin:"0 0 16px"}}>We share kids' stories, new features, and behind-the-scenes moments on social media. Come say hi!</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {SOCIALS.map(s=>(
+              <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:14,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.9rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
+                <span style={{fontSize:22}}>{s.icon}</span>
+                <span style={{fontWeight:"bold"}}>{s.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <button onClick={()=>onNavigate("create")} style={{padding:"14px 32px",borderRadius:18,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 8px 28px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif"}}>🎨 Create Your Story</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CONTACT ───────────────────────────────────────────────────────
+function ContactScreen({ onNavigate }) {
+  const [form,setForm]=useState({name:"",email:"",reason:"",message:""});
+  const [submitted,setSubmitted]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [error,setError]=useState(null);
+  const REASONS=["General enquiry","School or classroom inquiry","Bug report","Press or media","Partnership opportunity","Feature request"];
+  const SOCIALS=[
+    {icon:"🎵",label:"TikTok",url:"https://tiktok.com/@doodlestoriesapp"},
+    {icon:"📸",label:"Instagram",url:"https://instagram.com/doodlestoriesapp"},
+    {icon:"▶️",label:"YouTube",url:"https://youtube.com/@DoodleStoriesapp"},
+    {icon:"📘",label:"Facebook",url:"https://facebook.com/doodlestoriesapp"},
+  ];
+  const handleSubmit=async()=>{
+    if(!form.name||!form.email||!form.reason||!form.message){setError("Please fill in all fields before sending.");return;}
+    setSending(true);setError(null);
+    try {
+      await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({name:form.name,email:form.email,reason:form.reason,message:form.message,_subject:`DoodleStories Contact: ${form.reason}`})});
+      setSubmitted(true);
+    } catch {setError("Something went wrong. Please email us directly at doodlestoriesapp@gmail.com");}
+    setSending(false);
+  };
+  const inputStyle={width:"100%",padding:"12px 14px",borderRadius:12,border:`2px solid ${COLORS.border}`,fontSize:"0.92rem",fontFamily:"Georgia,serif",color:COLORS.text,background:"white",outline:"none",boxSizing:"border-box",marginTop:6};
+  const labelStyle={fontSize:"0.82rem",fontWeight:"bold",color:COLORS.text,display:"block"};
+  return (
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif"}}>
+      <div style={{maxWidth:620,margin:"0 auto",padding:"30px 24px 60px"}}>
+        <div style={{display:"flex",alignItems:"center",marginBottom:32}}>
+          <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
+        </div>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:52,marginBottom:10}}>💌</div>
+          <h1 style={{fontSize:"clamp(1.8rem,5vw,2.5rem)",color:COLORS.text,margin:"0 0 10px",letterSpacing:"-0.02em"}}>Get in <span style={{color:COLORS.accent1}}>Touch</span></h1>
+          <p style={{color:COLORS.muted,fontSize:"0.95rem",lineHeight:1.6,margin:0}}>We'd love to hear from you — whether you're a parent, teacher, or just curious!</p>
+        </div>
+        {submitted?(
+          <div style={{background:"white",borderRadius:24,padding:"40px 32px",textAlign:"center",border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+            <div style={{fontSize:56,marginBottom:16}}>🎉</div>
+            <h2 style={{color:COLORS.text,margin:"0 0 12px"}}>Message sent!</h2>
+            <p style={{color:COLORS.muted,lineHeight:1.7,margin:"0 0 24px"}}>Thank you for reaching out! The DoodleStories team will get back to you within 1–2 business days.</p>
+            <button onClick={()=>onNavigate("home")} style={{padding:"12px 28px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Back to Home</button>
+          </div>
+        ):(
+          <div>
+            <div style={{background:"white",borderRadius:24,padding:"28px 32px",border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)",marginBottom:20}}>
+              <div style={{marginBottom:16}}>
+                <label style={labelStyle}>Your Name</label>
+                <input style={inputStyle} placeholder="e.g. Sarah Johnson" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+              </div>
+              <div style={{marginBottom:16}}>
+                <label style={labelStyle}>Email Address</label>
+                <input style={inputStyle} type="email" placeholder="e.g. sarah@email.com" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/>
+              </div>
+              <div style={{marginBottom:16}}>
+                <label style={labelStyle}>Reason for Contact</label>
+                <select style={{...inputStyle,cursor:"pointer"}} value={form.reason} onChange={e=>setForm(f=>({...f,reason:e.target.value}))}>
+                  <option value="">Select a reason...</option>
+                  {REASONS.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div style={{marginBottom:20}}>
+                <label style={labelStyle}>Message</label>
+                <textarea style={{...inputStyle,minHeight:120,resize:"vertical"}} placeholder="Tell us what's on your mind..." value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))}/>
+              </div>
+              {error&&<p style={{color:COLORS.accent1,fontSize:"0.84rem",margin:"0 0 14px"}}>{error}</p>}
+              <button onClick={handleSubmit} disabled={sending} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:sending?COLORS.border:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:sending?"not-allowed":"pointer",boxShadow:sending?"none":"0 6px 20px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif"}}>
+                {sending?"Sending...":"✉️ Send Message"}
+              </button>
+              <p style={{textAlign:"center",color:COLORS.muted,fontSize:"0.78rem",margin:"14px 0 0"}}>Or email us directly at <strong>doodlestoriesapp@gmail.com</strong></p>
+            </div>
+            <div style={{background:"white",borderRadius:20,padding:"20px 28px",border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+              <p style={{color:COLORS.text,fontSize:"0.88rem",fontWeight:"bold",margin:"0 0 12px"}}>Follow us on social media</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {SOCIALS.map(s=>(
+                  <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.86rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
+                    <span style={{fontSize:18}}>{s.icon}</span>
+                    <span>{s.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ─────────────────────────────────────────────────────────
 export default function App() {
   const [view,setView]=useState("home");
@@ -819,5 +913,7 @@ export default function App() {
   if(view==="home") return <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>;
   if(view==="library") return <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>;
   if(view==="create") return <CreateScreen onNavigate={setView} onStoryAdded={setLibrary}/>;
+  if(view==="about") return <AboutScreen onNavigate={setView}/>;
+  if(view==="contact") return <ContactScreen onNavigate={setView}/>;
   return null;
 }
