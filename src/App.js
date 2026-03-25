@@ -56,22 +56,54 @@ function Confetti({ active, onDone }) {
 // ── Speech ───────────────────────────────────────────────────────
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
-  const speak = useCallback((text) => {
-    if (!window.speechSynthesis) return;
+  const audioRef = useRef(null);
+
+  const fallbackSpeak = (text) => {
+    if (!window.speechSynthesis) { setSpeaking(false); return; }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
-    const trySpeak = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v=>v.name.toLowerCase().includes("samantha")||v.name.toLowerCase().includes("karen")||v.name.toLowerCase().includes("moira")||(v.lang.startsWith("en")&&v.localService));
-      if (preferred) utter.voice=preferred;
-      utter.onstart=()=>setSpeaking(true); utter.onend=()=>setSpeaking(false); utter.onerror=()=>setSpeaking(false);
-      window.speechSynthesis.speak(utter);
-    };
-    if (window.speechSynthesis.getVoices().length>0) trySpeak();
-    else window.speechSynthesis.onvoiceschanged=trySpeak;
+    utter.onend=()=>setSpeaking(false);
+    utter.onerror=()=>setSpeaking(false);
+    window.speechSynthesis.speak(utter);
+  };
+
+  const speak = useCallback(async (text, prompt) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setSpeaking(true);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, prompt }),
+      });
+      const data = await res.json();
+      if (data.audio) {
+        const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
+        audioRef.current = audio;
+        audio.onended = () => { setSpeaking(false); audioRef.current = null; };
+        audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
+        audio.play();
+      } else {
+        fallbackSpeak(text);
+      }
+    } catch {
+      fallbackSpeak(text);
+    }
   }, []);
-  const stop = useCallback(()=>{ window.speechSynthesis?.cancel(); setSpeaking(false); },[]);
+
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }, []);
+
   return { speak, stop, speaking };
 }
 
