@@ -57,23 +57,15 @@ function Confetti({ active, onDone }) {
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
+  const queueRef = useRef([]);
+  const playingRef = useRef(false);
 
-  const fallbackSpeak = (text) => {
-    if (!window.speechSynthesis) { setSpeaking(false); return; }
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
-    utter.onend=()=>setSpeaking(false);
-    utter.onerror=()=>setSpeaking(false);
-    window.speechSynthesis.speak(utter);
-  };
-
-  const speak = useCallback(async (text, prompt) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+  const playNext = useCallback(async () => {
+    if (playingRef.current || queueRef.current.length === 0) return;
+    const { text, prompt } = queueRef.current.shift();
+    playingRef.current = true;
     setSpeaking(true);
+
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
@@ -81,26 +73,68 @@ function useSpeech() {
         body: JSON.stringify({ text, prompt }),
       });
       const data = await res.json();
+
       if (data.audio) {
         const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
         audioRef.current = audio;
-        audio.onended = () => { setSpeaking(false); audioRef.current = null; };
-        audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
+        audio.onended = () => {
+          playingRef.current = false;
+          audioRef.current = null;
+          if (queueRef.current.length > 0) {
+            playNext();
+          } else {
+            setSpeaking(false);
+          }
+        };
+        audio.onerror = () => {
+          playingRef.current = false;
+          audioRef.current = null;
+          fallbackSpeak(text);
+        };
         audio.play();
       } else {
+        playingRef.current = false;
         fallbackSpeak(text);
       }
     } catch {
+      playingRef.current = false;
       fallbackSpeak(text);
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const fallbackSpeak = (text) => {
+    if (!window.speechSynthesis) { setSpeaking(false); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
+    utter.onend=()=>{ playingRef.current=false; setSpeaking(false); };
+    utter.onerror=()=>{ playingRef.current=false; setSpeaking(false); };
+    window.speechSynthesis.speak(utter);
+  };
+
+  const speak = useCallback((text, prompt) => {
+    // Clear queue and stop current — fresh line takes priority
+    queueRef.current = [];
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
     window.speechSynthesis?.cancel();
+    playingRef.current = false;
+    setSpeaking(false);
+    // Add to queue and play
+    queueRef.current.push({ text, prompt });
+    playNext();
+  }, [playNext]);
+
+  const stop = useCallback(() => {
+    queueRef.current = [];
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+    playingRef.current = false;
     setSpeaking(false);
   }, []);
 
