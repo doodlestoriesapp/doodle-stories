@@ -11,7 +11,7 @@ const AGE_GROUPS = [
 const VOICE_LINES = {
   1: "Woohoo! Welcome to Doodle Stories! You can upload your drawing OR draw one right here! Let's make some magic!",
   draw: "Time to get creative! Pick a colour, grab the brush, and draw anything you like! When you're done tap Use This Doodle!",
-  2: "Oh wow, what an AMAZING drawing! Now... how old is the little artist?",
+  2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
   ageSelected: "Let's go make a story by tapping the big orange Make My Story button!",
   loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
   story: "Ta-daaa! Your very own story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
@@ -56,38 +56,8 @@ function Confetti({ active, onDone }) {
 // ── Speech ───────────────────────────────────────────────────────
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
-  const audioRef = useRef(null);
-  const cacheRef = useRef({});
-  const generatingRef = useRef(false);
-
-  // Load voices from localStorage or generate them
-  useEffect(() => {
-    const cached = localStorage.getItem('doodle-voices-v1');
-    if (cached) {
-      try {
-        cacheRef.current = JSON.parse(cached);
-        console.log('✅ Voice cache loaded');
-        return;
-      } catch {}
-    }
-    // Not cached — generate now
-    if (generatingRef.current) return;
-    generatingRef.current = true;
-    console.log('🎙️ Generating voice cache...');
-    fetch('/api/generate-voices', { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.voices) {
-          cacheRef.current = data.voices;
-          localStorage.setItem('doodle-voices-v1', JSON.stringify(data.voices));
-          console.log('✅ Voice cache saved');
-        }
-      })
-      .catch(err => console.log('Voice cache failed:', err));
-  }, []);
-
-  const fallbackSpeak = useCallback((text) => {
-    if (!window.speechSynthesis) { setSpeaking(false); return; }
+  const speak = useCallback((text) => {
+    if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
@@ -95,49 +65,13 @@ function useSpeech() {
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(v=>v.name.toLowerCase().includes("samantha")||v.name.toLowerCase().includes("karen")||v.name.toLowerCase().includes("moira")||(v.lang.startsWith("en")&&v.localService));
       if (preferred) utter.voice=preferred;
-      utter.onstart=()=>setSpeaking(true);
-      utter.onend=()=>setSpeaking(false);
-      utter.onerror=()=>setSpeaking(false);
+      utter.onstart=()=>setSpeaking(true); utter.onend=()=>setSpeaking(false); utter.onerror=()=>setSpeaking(false);
       window.speechSynthesis.speak(utter);
     };
     if (window.speechSynthesis.getVoices().length>0) trySpeak();
     else window.speechSynthesis.onvoiceschanged=trySpeak;
   }, []);
-
-  const speak = useCallback((text, cacheKey) => {
-    // Stop anything currently playing
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
-
-    // Use cached audio if available
-    const cachedAudio = cacheKey && cacheRef.current[cacheKey];
-    if (cachedAudio) {
-      const audio = new Audio(`data:audio/wav;base64,${cachedAudio}`);
-      audioRef.current = audio;
-      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
-      audio.onerror = () => { setSpeaking(false); fallbackSpeak(text); };
-      setSpeaking(true);
-      audio.play();
-      return;
-    }
-
-    // No cache — use browser speech as fallback
-    fallbackSpeak(text);
-  }, [fallbackSpeak]);
-
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
-  }, []);
-
+  const stop = useCallback(()=>{ window.speechSynthesis?.cancel(); setSpeaking(false); },[]);
   return { speak, stop, speaking };
 }
 
@@ -165,7 +99,7 @@ function DoodlePad({ onUse, onCancel }) {
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    speak(VOICE_LINES.draw);
+    speak(VOICE_LINES.draw, 'draw');
   }, []);
 
   const saveHistory = () => {
@@ -314,7 +248,8 @@ function DoodlePad({ onUse, onCancel }) {
         </div>
       </div>
       <div style={{ position:"relative", lineHeight:0 }}>
-        <canvas ref={canvasRef} width={600} height={400} style={{ width:"100%", aspectRatio:"3/2", display:"block", cursor:tool==="fill"?"crosshair":tool==="eraser"?"cell":"default", borderLeft:`2px solid ${COLORS.border}`, borderRight:`2px solid ${COLORS.border}`, touchAction:"none", background:"white" }}
+        <canvas ref={canvasRef} width={600} height={400}
+          style={{ width:"100%", aspectRatio:"3/2", display:"block", cursor:tool==="fill"?"crosshair":tool==="eraser"?"cell":"default", borderLeft:`2px solid ${COLORS.border}`, borderRight:`2px solid ${COLORS.border}`, touchAction:"none", background:"white" }}
           onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
           onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}/>
         <div style={{ position:"absolute", top:8, right:10, background:"rgba(0,0,0,0.35)", color:"white", fontSize:"0.72rem", borderRadius:8, padding:"3px 10px", pointerEvents:"none" }}>
@@ -487,6 +422,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
             </button>
           </div>
         </div>
+
         {topLoved.length>0&&(
           <div style={{marginBottom:32}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
@@ -498,6 +434,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
             </div>
           </div>
         )}
+
         {topLiked.length>0&&(
           <div style={{marginBottom:32}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
@@ -533,9 +470,9 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
   const [showConfetti,setShowConfetti]=useState(false);
   const spokenLib=useRef(false);
 
-  useEffect(()=>{ if(!spokenLib.current){spokenLib.current=true;setTimeout(()=>speak(VOICE_LINES.library),500);} },[speak]);
+  useEffect(()=>{ if(!spokenLib.current){spokenLib.current=true;setTimeout(()=>speak(VOICE_LINES.library,'library'),500);} },[speak]);
 
-  const handleVote=(id,type)=>{ onVote(id,type); setShowConfetti(true); speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked); if(readingStory?.id===id) setReadingStory(s=>s?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s); };
+  const handleVote=(id,type)=>{ onVote(id,type); setShowConfetti(true); speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked, type==="love"?"loved":"liked"); if(readingStory?.id===id) setReadingStory(s=>s?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s); };
 
   const sorted=(tab==="loved"?[...library].sort((a,b)=>(b.loves||0)-(a.loves||0)):tab==="liked"?[...library].sort((a,b)=>(b.likes||0)-(a.likes||0)):library);
   const filtered=sorted.filter(s=>{
@@ -618,11 +555,12 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     const key=getVoiceKey(step,loading,story);
     if(spokenKeys.current.has(key)) return;
     spokenKeys.current.add(key);
-    const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key]);},500);
+    const keyMap = { '1': 'welcome', '2': 'age', 'loading': 'loading', 'story': 'story' };
+    const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key], keyMap[key]);},500);
     return()=>clearTimeout(t);
   },[step,loading,story,voiceEnabled,speak]);
 
-  const replayVoice=()=>{const key=getVoiceKey(step,loading,story);if(VOICE_LINES[key])speak(VOICE_LINES[key]);};
+  const replayVoice=()=>{const key=getVoiceKey(step,loading,story);const keyMap={'1':'welcome','2':'age','loading':'loading','story':'story'};if(VOICE_LINES[key])speak(VOICE_LINES[key],keyMap[key]);};
 
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
@@ -733,7 +671,7 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <h2 style={{textAlign:"center",color:COLORS.text,fontSize:"1rem",fontWeight:"normal",marginBottom:12}}>How old is the little artist? 👇</h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
               {AGE_GROUPS.map(group=>(
-                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected),300); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
+                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected,'ageSelected'),300); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
                   <div style={{fontSize:24,marginBottom:3}}>{group.emoji}</div>
                   <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.85rem"}}>{group.label}</div>
                   <div style={{color:COLORS.muted,fontSize:"0.72rem",marginTop:1}}>Ages {group.range}</div>
