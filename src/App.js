@@ -56,8 +56,32 @@ function Confetti({ active, onDone }) {
 // ── Speech ───────────────────────────────────────────────────────
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
-  const speak = useCallback((text) => {
-    if (!window.speechSynthesis) return;
+  const audioRef = useRef(null);
+  const cacheRef = useRef({});
+  const generatingRef = useRef(false);
+
+  useEffect(() => {
+    const cached = localStorage.getItem('doodle-voices-v1');
+    if (cached) {
+      try { cacheRef.current = JSON.parse(cached); console.log('✅ Voice cache loaded'); return; } catch {}
+    }
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    console.log('🎙️ Generating voice cache...');
+    fetch('/api/generate-voices', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.voices) {
+          cacheRef.current = data.voices;
+          localStorage.setItem('doodle-voices-v1', JSON.stringify(data.voices));
+          console.log('✅ Voice cache saved');
+        }
+      })
+      .catch(err => console.log('Voice cache failed:', err));
+  }, []);
+
+  const fallbackSpeak = useCallback((text) => {
+    if (!window.speechSynthesis) { setSpeaking(false); return; }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
@@ -71,7 +95,30 @@ function useSpeech() {
     if (window.speechSynthesis.getVoices().length>0) trySpeak();
     else window.speechSynthesis.onvoiceschanged=trySpeak;
   }, []);
-  const stop = useCallback(()=>{ window.speechSynthesis?.cancel(); setSpeaking(false); },[]);
+
+  const speak = useCallback((text, cacheKey) => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+    const cachedAudio = cacheKey && cacheRef.current[cacheKey];
+    if (cachedAudio) {
+      const audio = new Audio(`data:audio/wav;base64,${cachedAudio}`);
+      audioRef.current = audio;
+      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
+      audio.onerror = () => { setSpeaking(false); fallbackSpeak(text); };
+      setSpeaking(true);
+      audio.play();
+      return;
+    }
+    fallbackSpeak(text);
+  }, [fallbackSpeak]);
+
+  const stop = useCallback(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }, []);
+
   return { speak, stop, speaking };
 }
 
