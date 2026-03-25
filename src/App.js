@@ -57,84 +57,84 @@ function Confetti({ active, onDone }) {
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
-  const queueRef = useRef([]);
-  const playingRef = useRef(false);
+  const cacheRef = useRef({});
+  const generatingRef = useRef(false);
 
-  const playNext = useCallback(async () => {
-    if (playingRef.current || queueRef.current.length === 0) return;
-    const { text, prompt } = queueRef.current.shift();
-    playingRef.current = true;
-    setSpeaking(true);
-
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, prompt }),
-      });
-      const data = await res.json();
-
-      if (data.audio) {
-        const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
-        audioRef.current = audio;
-        audio.onended = () => {
-          playingRef.current = false;
-          audioRef.current = null;
-          if (queueRef.current.length > 0) {
-            playNext();
-          } else {
-            setSpeaking(false);
-          }
-        };
-        audio.onerror = () => {
-          playingRef.current = false;
-          audioRef.current = null;
-          fallbackSpeak(text);
-        };
-        audio.play();
-      } else {
-        playingRef.current = false;
-        fallbackSpeak(text);
-      }
-    } catch {
-      playingRef.current = false;
-      fallbackSpeak(text);
+  // Load voices from localStorage or generate them
+  useEffect(() => {
+    const cached = localStorage.getItem('doodle-voices-v1');
+    if (cached) {
+      try {
+        cacheRef.current = JSON.parse(cached);
+        console.log('✅ Voice cache loaded');
+        return;
+      } catch {}
     }
+    // Not cached — generate now
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    console.log('🎙️ Generating voice cache...');
+    fetch('/api/generate-voices', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.voices) {
+          cacheRef.current = data.voices;
+          localStorage.setItem('doodle-voices-v1', JSON.stringify(data.voices));
+          console.log('✅ Voice cache saved');
+        }
+      })
+      .catch(err => console.log('Voice cache failed:', err));
   }, []);
 
-  const fallbackSpeak = (text) => {
+  const fallbackSpeak = useCallback((text) => {
     if (!window.speechSynthesis) { setSpeaking(false); return; }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
-    utter.onend=()=>{ playingRef.current=false; setSpeaking(false); };
-    utter.onerror=()=>{ playingRef.current=false; setSpeaking(false); };
-    window.speechSynthesis.speak(utter);
-  };
+    const trySpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v=>v.name.toLowerCase().includes("samantha")||v.name.toLowerCase().includes("karen")||v.name.toLowerCase().includes("moira")||(v.lang.startsWith("en")&&v.localService));
+      if (preferred) utter.voice=preferred;
+      utter.onstart=()=>setSpeaking(true);
+      utter.onend=()=>setSpeaking(false);
+      utter.onerror=()=>setSpeaking(false);
+      window.speechSynthesis.speak(utter);
+    };
+    if (window.speechSynthesis.getVoices().length>0) trySpeak();
+    else window.speechSynthesis.onvoiceschanged=trySpeak;
+  }, []);
 
-  const speak = useCallback((text, prompt) => {
-    // Clear queue and stop current — fresh line takes priority
-    queueRef.current = [];
+  const speak = useCallback((text, cacheKey) => {
+    // Stop anything currently playing
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
     window.speechSynthesis?.cancel();
-    playingRef.current = false;
     setSpeaking(false);
-    // Add to queue and play
-    queueRef.current.push({ text, prompt });
-    playNext();
-  }, [playNext]);
+
+    // Use cached audio if available
+    const cachedAudio = cacheKey && cacheRef.current[cacheKey];
+    if (cachedAudio) {
+      const audio = new Audio(`data:audio/wav;base64,${cachedAudio}`);
+      audioRef.current = audio;
+      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
+      audio.onerror = () => { setSpeaking(false); fallbackSpeak(text); };
+      setSpeaking(true);
+      audio.play();
+      return;
+    }
+
+    // No cache — use browser speech as fallback
+    fallbackSpeak(text);
+  }, [fallbackSpeak]);
 
   const stop = useCallback(() => {
-    queueRef.current = [];
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
     window.speechSynthesis?.cancel();
-    playingRef.current = false;
     setSpeaking(false);
   }, []);
 
