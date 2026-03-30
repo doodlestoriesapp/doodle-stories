@@ -34,6 +34,29 @@ const COLORS = {
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
 
+// ── Storage ──────────────────────────────────────────────────────
+// Single source of truth — always read from storage, never assume in-memory is fresh
+async function loadLibrary() {
+  try {
+    const r = await window.storage.get("doodle-library", true);
+    if (!r) return [];
+    const parsed = JSON.parse(r.value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+async function saveLibrary(stories) {
+  try { await window.storage.set("doodle-library", JSON.stringify(stories), true); } catch {}
+}
+async function loadVotes() {
+  try {
+    const r = await window.storage.get("doodle-votes", false);
+    return r ? JSON.parse(r.value) : {};
+  } catch { return {}; }
+}
+async function saveVotes(v) {
+  try { await window.storage.set("doodle-votes", JSON.stringify(v), false); } catch {}
+}
+
 // ── Confetti ─────────────────────────────────────────────────────
 function Confetti({ active, onDone }) {
   const pieces = Array.from({ length: 50 }, (_, i) => ({
@@ -121,12 +144,6 @@ function useSpeech() {
 
   return { speak, stop, speaking };
 }
-
-// ── Storage ──────────────────────────────────────────────────────
-async function loadLibrary() { try { const r=await window.storage.get("doodle-library",true); return r?JSON.parse(r.value):[]; } catch { return []; } }
-async function saveLibrary(s) { try { await window.storage.set("doodle-library",JSON.stringify(s),true); } catch {} }
-async function loadVotes() { try { const r=await window.storage.get("doodle-votes",false); return r?JSON.parse(r.value):{}; } catch { return {}; } }
-async function saveVotes(v) { try { await window.storage.set("doodle-votes",JSON.stringify(v),false); } catch {} }
 
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
 function DoodlePad({ onUse, onCancel }) {
@@ -494,7 +511,6 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
           </div>
         )}
 
-        {/* Footer */}
         <div style={{textAlign:"center",marginTop:40,paddingTop:24,borderTop:`1px solid ${COLORS.border}`}}>
           <p style={{color:COLORS.muted,fontSize:"0.78rem",margin:"0 0 10px"}}>Made with ❤️ for little storytellers everywhere</p>
           <div style={{display:"flex",justifyContent:"center",gap:20}}>
@@ -509,68 +525,173 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
 
 // ── LIBRARY ──────────────────────────────────────────────────────
 function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
-  const [tab,setTab]=useState("all");
-  const [filterAge,setFilterAge]=useState("all");
-  const [searchQuery,setSearchQuery]=useState("");
-  const [readingStory,setReadingStory]=useState(null);
-  const [nightMode,setNightMode]=useState(false);
-  const [showConfetti,setShowConfetti]=useState(false);
-  const spokenLib=useRef(false);
+  const [tab, setTab] = useState("all");
+  const [filterAge, setFilterAge] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [readingStory, setReadingStory] = useState(null);
+  const [nightMode, setNightMode] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const spokenLib = useRef(false);
 
   useEffect(()=>{ if(!spokenLib.current){spokenLib.current=true;setTimeout(()=>speak(VOICE_LINES.library,'library'),500);} },[speak]);
 
-  const handleVote=(id,type)=>{ onVote(id,type); setShowConfetti(true); speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked, type==="love"?"loved":"liked"); if(readingStory?.id===id) setReadingStory(s=>s?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s); };
+  const handleVote = (id, type) => {
+    onVote(id, type);
+    setShowConfetti(true);
+    speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked, type==="love"?"loved":"liked");
+    // Update open modal's counts immediately
+    if (readingStory?.id===id) {
+      setReadingStory(s => s ? { ...s, [type==="love"?"loves":"likes"]: (s[type==="love"?"loves":"likes"]||0)+1 } : s);
+    }
+  };
 
-  const sorted=(tab==="loved"?[...library].sort((a,b)=>(b.loves||0)-(a.loves||0)):tab==="liked"?[...library].sort((a,b)=>(b.likes||0)-(a.likes||0)):library);
-  const filtered=sorted.filter(s=>{
-    const am=filterAge==="all"||s.ageLabel===filterAge;
-    const q=searchQuery.toLowerCase();
-    return am&&(!q||s.title.toLowerCase().includes(q)||s.preview.toLowerCase().includes(q)||(s.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  // Sort based on active tab
+  const sorted = tab==="loved"
+    ? [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0)
+    : tab==="liked"
+      ? [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0)
+      : [...library];
+
+  // Filter by age group and search
+  const filtered = sorted.filter(s => {
+    const ageMatch = filterAge==="all" || s.ageLabel===filterAge;
+    const q = searchQuery.toLowerCase();
+    return ageMatch && (!q || s.title.toLowerCase().includes(q) || s.preview.toLowerCase().includes(q) || (s.tags||[]).some(t=>t.toLowerCase().includes(q)));
   });
 
-  const nBg=nightMode?`linear-gradient(160deg,${COLORS.night1} 0%,${COLORS.night2} 60%,#0d0826 100%)`:`radial-gradient(ellipse at 20% 20%,#E8F4FF 0%,#FFF9F0 60%,#FFE8D6 100%)`;
+  // Counts for tab badges
+  const lovedCount = library.filter(s=>(s.loves||0)>0).length;
+  const likedCount = library.filter(s=>(s.likes||0)>0).length;
+
+  const nBg = nightMode
+    ? `linear-gradient(160deg,${COLORS.night1} 0%,${COLORS.night2} 60%,#0d0826 100%)`
+    : `radial-gradient(ellipse at 20% 20%,#E8F4FF 0%,#FFF9F0 60%,#FFE8D6 100%)`;
+
+  const TabBtn = ({ id, label, count }) => (
+    <button onClick={()=>setTab(id)} style={{
+      padding:"8px 16px", borderRadius:20, border:"none", cursor:"pointer",
+      fontSize:"0.82rem", fontWeight:"bold", fontFamily:"Georgia,serif", transition:"all 0.15s",
+      background: tab===id
+        ? (id==="loved" ? `linear-gradient(135deg,${COLORS.accent5},#FF8E53)`
+          : id==="liked" ? `linear-gradient(135deg,${COLORS.accent2},#FF8E53)`
+          : `linear-gradient(135deg,${COLORS.accent4},#7B61FF)`)
+        : (nightMode?"rgba(255,255,255,0.08)":"white"),
+      color: tab===id ? "white" : (nightMode?"rgba(255,255,255,0.6)":COLORS.muted),
+      boxShadow: tab===id ? "0 4px 14px rgba(0,0,0,0.15)" : "none",
+      display:"flex", alignItems:"center", gap:5,
+    }}>
+      {label}
+      {count>0 && (
+        <span style={{
+          background: tab===id ? "rgba(255,255,255,0.3)" : (nightMode?"rgba(255,255,255,0.15)":"rgba(0,0,0,0.1)"),
+          borderRadius:20, padding:"1px 7px", fontSize:"0.7rem", fontWeight:"bold",
+        }}>{count}</span>
+      )}
+    </button>
+  );
 
   return (
     <div style={{minHeight:"100vh",background:nBg,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden",transition:"background 0.5s"}}>
       {nightMode&&<StarryBg/>}
       <Confetti active={showConfetti} onDone={()=>setShowConfetti(false)}/>
       <div style={{position:"relative",zIndex:1,maxWidth:820,margin:"0 auto",padding:"30px 20px 60px"}}>
+
+        {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
           <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
-          <div style={{textAlign:"center"}}><h1 style={{margin:0,fontSize:"clamp(1.2rem,4vw,1.8rem)",color:nightMode?"white":COLORS.text}}>🌙 Bedtime Library</h1><p style={{margin:"2px 0 0",fontSize:"0.74rem",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,fontStyle:"italic"}}>Stories by kids, for kids</p></div>
+          <div style={{textAlign:"center"}}>
+            <h1 style={{margin:0,fontSize:"clamp(1.2rem,4vw,1.8rem)",color:nightMode?"white":COLORS.text}}>🌙 Bedtime Library</h1>
+            <p style={{margin:"2px 0 0",fontSize:"0.74rem",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,fontStyle:"italic"}}>{library.length} {library.length===1?"story":"stories"} · by kids, for kids</p>
+          </div>
           <button onClick={()=>setNightMode(n=>!n)} style={{background:nightMode?"rgba(255,255,255,0.1)":COLORS.card,border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 12px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.95rem"}}>{nightMode?"☀️":"🌙"}</button>
         </div>
-        <div style={{display:"flex",gap:7,marginBottom:18,flexWrap:"wrap"}}>
-          {[["all","✨ All"],["loved","🏆 Most Loved"],["liked","⭐ Most Liked"]].map(([key,label])=>(
-            <button key={key} onClick={()=>setTab(key)} style={{padding:"8px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:"0.82rem",fontWeight:"bold",fontFamily:"Georgia,serif",transition:"all 0.15s",background:tab===key?(key==="loved"?`linear-gradient(135deg,${COLORS.accent5},#FF8E53)`:key==="liked"?`linear-gradient(135deg,${COLORS.accent2},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`):(nightMode?"rgba(255,255,255,0.08)":"white"),color:tab===key?"white":(nightMode?"rgba(255,255,255,0.6)":COLORS.muted),boxShadow:tab===key?"0 4px 14px rgba(0,0,0,0.15)":"none"}}>{label}</button>
-          ))}
+
+        {/* Tabs with counts */}
+        <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
+          <TabBtn id="all"   label="✨ All Stories" count={library.length}/>
+          <TabBtn id="loved" label="❤️ Most Loved"  count={lovedCount}/>
+          <TabBtn id="liked" label="👍 Most Liked"  count={likedCount}/>
         </div>
-        <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-          <input type="text" placeholder="🔍 Search stories, themes..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{flex:1,minWidth:150,padding:"8px 13px",borderRadius:12,border:`2px solid ${nightMode?"rgba(255,255,255,0.15)":COLORS.border}`,background:nightMode?"rgba(255,255,255,0.07)":"white",color:nightMode?"white":COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif",outline:"none"}}/>
-          <button onClick={()=>{const idx=["all",...AGE_GROUPS.map(a=>a.label)];setFilterAge(idx[(idx.indexOf(filterAge)+1)%idx.length]);}} style={{padding:"8px 13px",borderRadius:12,cursor:"pointer",fontSize:"0.82rem",fontFamily:"Georgia,serif",border:`2px solid ${filterAge!=="all"?COLORS.accent1:(nightMode?"rgba(255,255,255,0.15)":COLORS.border)}`,background:filterAge!=="all"?"rgba(255,107,107,0.1)":(nightMode?"rgba(255,255,255,0.07)":"white"),color:filterAge!=="all"?COLORS.accent1:(nightMode?"white":COLORS.text)}}>
-            {filterAge==="all"?"All Ages ↓":AGE_GROUPS.find(a=>a.label===filterAge)?.emoji+" "+filterAge}
-          </button>
-          <button onClick={()=>{if(filtered.length>0)setReadingStory(filtered[Math.floor(Math.random()*filtered.length)]);}} style={{padding:"8px 13px",borderRadius:12,cursor:"pointer",fontSize:"0.82rem",fontFamily:"Georgia,serif",border:`2px solid ${nightMode?"rgba(255,255,255,0.15)":COLORS.border}`,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white"}}>🎲 Random</button>
-        </div>
-        <div style={{display:"flex",gap:5,marginBottom:20,flexWrap:"wrap"}}>
+
+        {/* Age group filter pills */}
+        <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>
           {["all",...AGE_GROUPS.map(a=>a.label)].map(label=>(
-            <button key={label} onClick={()=>setFilterAge(label)} style={{padding:"4px 11px",borderRadius:20,border:"none",cursor:"pointer",fontSize:"0.74rem",background:filterAge===label?COLORS.accent1:(nightMode?"rgba(255,255,255,0.08)":COLORS.border),color:filterAge===label?"white":(nightMode?"rgba(255,255,255,0.6)":COLORS.muted),transition:"all 0.15s"}}>
-              {label==="all"?"✨ All":AGE_GROUPS.find(a=>a.label===label)?.emoji+" "+label}
+            <button key={label} onClick={()=>setFilterAge(label)} style={{
+              padding:"5px 13px", borderRadius:20, border:"none", cursor:"pointer", fontSize:"0.74rem",
+              background: filterAge===label ? COLORS.accent1 : (nightMode?"rgba(255,255,255,0.08)":COLORS.border),
+              color: filterAge===label ? "white" : (nightMode?"rgba(255,255,255,0.6)":COLORS.muted),
+              fontWeight: filterAge===label ? "bold" : "normal",
+              transition:"all 0.15s",
+            }}>
+              {label==="all" ? "✨ All Ages" : AGE_GROUPS.find(a=>a.label===label)?.emoji+" "+label}
             </button>
           ))}
         </div>
-        {filtered.length===0&&(
-          <div style={{textAlign:"center",padding:"52px 20px"}}>
-            <div style={{fontSize:44,marginBottom:12}}>{library.length===0?"📭":"🔍"}</div>
-            <h3 style={{color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,fontWeight:"normal"}}>{library.length===0?"No stories yet! Be the first!":"No stories match your search."}</h3>
-            {library.length===0&&<button onClick={()=>onNavigate("create")} style={{marginTop:12,padding:"11px 24px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>🎨 Create the First Story!</button>}
+
+        {/* Search + Random row */}
+        <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
+          <input type="text" placeholder="🔍 Search stories, themes..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
+            style={{flex:1,minWidth:150,padding:"8px 13px",borderRadius:12,border:`2px solid ${nightMode?"rgba(255,255,255,0.15)":COLORS.border}`,background:nightMode?"rgba(255,255,255,0.07)":"white",color:nightMode?"white":COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif",outline:"none"}}/>
+          <button onClick={()=>{if(filtered.length>0)setReadingStory(filtered[Math.floor(Math.random()*filtered.length)]);}}
+            style={{padding:"8px 13px",borderRadius:12,cursor:"pointer",fontSize:"0.82rem",fontFamily:"Georgia,serif",border:`2px solid ${nightMode?"rgba(255,255,255,0.15)":COLORS.border}`,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white"}}>
+            🎲 Random
+          </button>
+        </div>
+
+        {/* Tab context banner */}
+        {tab!=="all" && filtered.length>0 && (
+          <div style={{marginBottom:16,padding:"10px 16px",borderRadius:14,background:tab==="loved"?"rgba(255,78,205,0.08)":"rgba(255,217,61,0.08)",border:`1px solid ${tab==="loved"?COLORS.accent5:COLORS.accent2}30`}}>
+            <p style={{margin:0,fontSize:"0.84rem",color:nightMode?"rgba(255,255,255,0.7)":COLORS.text}}>
+              {tab==="loved"
+                ? `❤️ Showing ${filtered.length} ${filtered.length===1?"story":"stories"} sorted by most loved`
+                : `👍 Showing ${filtered.length} ${filtered.length===1?"story":"stories"} sorted by most liked`}
+            </p>
           </div>
         )}
+
+        {/* Empty states */}
+        {filtered.length===0 && (
+          <div style={{textAlign:"center",padding:"52px 20px"}}>
+            <div style={{fontSize:44,marginBottom:12}}>
+              {library.length===0 ? "📭" : tab==="loved" ? "❤️" : tab==="liked" ? "👍" : "🔍"}
+            </div>
+            <h3 style={{color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,fontWeight:"normal"}}>
+              {library.length===0
+                ? "No stories yet! Be the first!"
+                : tab==="loved"
+                  ? "No loved stories yet — go show some love!"
+                  : tab==="liked"
+                    ? "No liked stories yet — go give some thumbs up!"
+                    : "No stories match your search."}
+            </h3>
+            {library.length===0 && (
+              <button onClick={()=>onNavigate("create")} style={{marginTop:12,padding:"11px 24px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                🎨 Create the First Story!
+              </button>
+            )}
+            {(tab==="loved"||tab==="liked") && library.length>0 && (
+              <button onClick={()=>setTab("all")} style={{marginTop:12,padding:"11px 24px",borderRadius:14,border:`2px solid ${COLORS.border}`,background:"transparent",color:nightMode?"white":COLORS.text,fontSize:"0.9rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                ✨ Browse All Stories
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Story grid */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
-          {filtered.map((s,i)=><StoryCard key={s.id} story={s} onRead={setReadingStory} nightMode={nightMode} votes={votes} onVote={handleVote} highlight={tab==="loved"&&i<3}/>)}
+          {filtered.map((s,i)=>(
+            <StoryCard
+              key={s.id} story={s} onRead={setReadingStory}
+              nightMode={nightMode} votes={votes} onVote={handleVote}
+              highlight={tab==="loved" && i<3}
+            />
+          ))}
         </div>
+
         <div style={{textAlign:"center",marginTop:32}}>
-          <button onClick={()=>onNavigate("create")} style={{padding:"12px 24px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.92rem",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>🎨 Add Your Story</button>
+          <button onClick={()=>onNavigate("create")} style={{padding:"12px 24px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.92rem",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
+            🎨 Add Your Story
+          </button>
         </div>
       </div>
       {readingStory&&<ReadingModal story={readingStory} onClose={()=>setReadingStory(null)} nightMode={nightMode} votes={votes} onVote={handleVote}/>}
@@ -579,7 +700,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -602,18 +723,26 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
     const key=getVoiceKey(step,loading,story);
     if(spokenKeys.current.has(key)) return;
     spokenKeys.current.add(key);
-    const keyMap = { '1': 'welcome', '2': 'age', 'loading': 'loading', 'story': 'story' };
-    const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key], keyMap[key]);},500);
+    const keyMap = { '1':'welcome', '2':'age', 'loading':'loading', 'story':'story' };
+    const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key],keyMap[key]);},500);
     return()=>clearTimeout(t);
   },[step,loading,story,voiceEnabled,speak]);
 
-  const replayVoice=()=>{const key=getVoiceKey(step,loading,story);const keyMap={'1':'welcome','2':'age','loading':'loading','story':'story'};if(VOICE_LINES[key])speak(VOICE_LINES[key],keyMap[key]);};
+  const replayVoice=()=>{
+    const key=getVoiceKey(step,loading,story);
+    const keyMap={'1':'welcome','2':'age','loading':'loading','story':'story'};
+    if(VOICE_LINES[key]) speak(VOICE_LINES[key],keyMap[key]);
+  };
 
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
     setImage(URL.createObjectURL(file));
     const reader=new FileReader();
-    reader.onload=e=>{setImageBase64(e.target.result.split(",")[1]);spokenKeys.current.delete("2");setStep(2);};
+    reader.onload=e=>{
+      setImageBase64(e.target.result.split(",")[1]);
+      spokenKeys.current.delete("2");
+      setStep(2);
+    };
     reader.readAsDataURL(file);
   },[]);
 
@@ -626,31 +755,59 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
 
   const generateStory=async()=>{
     if(!imageBase64||!ageGroup) return;
-    setLoading(true);setError(null);spokenKeys.current.delete("loading");setStep(3);
+    setLoading(true); setError(null);
+    spokenKeys.current.delete("loading"); setStep(3);
     try {
       const res=await fetch("/api/generate-story",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:1000,
+        model:"claude-sonnet-4-20250514", max_tokens:1000,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
-        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/png",data:imageBase64}},{type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}]}],
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:"image/png",data:imageBase64}},
+          {type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}
+        ]}],
       })});
       const data=await res.json();
       const text=data.content?.find(b=>b.type==="text")?.text||"";
       const parsed=JSON.parse(text);
-      spokenKeys.current.delete("story");setStory(parsed);
-    } catch {setError("Oops! The story magic fizzled. Try again!");setStep(2);}
-    finally{setLoading(false);}
+      spokenKeys.current.delete("story"); setStory(parsed);
+    } catch {
+      setError("Oops! The story magic fizzled. Try again!");
+      setStep(2);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ── KEY FIX: use currentLibrary from root state — no stale re-fetch ──
   const handleSave=async(share)=>{
     setShowSaveModal(false);
     if(!share||!story) return;
-    const existing=await loadLibrary();
-    const newEntry={id:Date.now(),title:story.title,text:story.story,preview:story.story.split("\n\n")[0].slice(0,120)+"...",tags:story.tags||[],ageLabel:ageGroup.label,ageEmoji:ageGroup.emoji,ageRange:ageGroup.range,doodleUrl:image,likes:0,loves:0,date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})};
-    const updated=[newEntry,...existing];
-    await saveLibrary(updated);onStoryAdded(updated);
+    const newEntry = {
+      id: Date.now(),
+      title: story.title,
+      text: story.story,
+      preview: story.story.split("\n\n")[0].slice(0,120)+"...",
+      tags: story.tags||[],
+      ageLabel: ageGroup.label,
+      ageEmoji: ageGroup.emoji,
+      ageRange: ageGroup.range,
+      doodleUrl: image,
+      likes: 0,
+      loves: 0,
+      date: new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
+    };
+    // Prepend new story to the full live library — guaranteed to contain all previous entries
+    const updated = [newEntry, ...currentLibrary];
+    await saveLibrary(updated);
+    onStoryAdded(updated);
   };
 
-  const reset=()=>{stop();setImage(null);setImageBase64(null);setAgeGroup(null);setStory(null);setError(null);setMode(null);spokenKeys.current.clear();setStep(1);};
+  const reset=()=>{
+    stop();
+    setImage(null); setImageBase64(null); setAgeGroup(null);
+    setStory(null); setError(null); setMode(null);
+    spokenKeys.current.clear(); setStep(1);
+  };
 
   const VoiceBubble=({text})=>(
     <div style={{display:"flex",alignItems:"flex-start",gap:10,background:"linear-gradient(135deg,#FFF8E1,#FFFDF5)",border:`2px solid ${COLORS.accent2}`,borderRadius:18,padding:"11px 13px",marginBottom:18,boxShadow:"0 4px 16px rgba(255,217,61,0.18)"}}>
@@ -688,18 +845,22 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             ))}
           </div>
         )}
+
         {step===1&&!mode&&(
           <div>
             <VoiceBubble text={VOICE_LINES[1]}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-              <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()} style={{border:`3px dashed ${dragOver?COLORS.accent1:COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(255,107,107,0.04)":COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
+              <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()}
+                style={{border:`3px dashed ${dragOver?COLORS.accent1:COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(255,107,107,0.04)":COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
                 <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
                 <div style={{fontSize:44,marginBottom:10}}>📸</div>
                 <h3 style={{color:COLORS.text,fontSize:"1rem",margin:"0 0 5px",fontWeight:"bold"}}>Upload Drawing</h3>
                 <p style={{color:COLORS.muted,margin:0,fontSize:"0.78rem",lineHeight:1.4}}>Tap to upload a photo of your drawing</p>
               </div>
-              <div onClick={()=>setMode("draw")} style={{border:`3px solid ${COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent3;e.currentTarget.style.background="rgba(107,203,119,0.04)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background=COLORS.card;}}>
+              <div onClick={()=>setMode("draw")}
+                style={{border:`3px solid ${COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent3;e.currentTarget.style.background="rgba(107,203,119,0.04)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background=COLORS.card;}}>
                 <div style={{fontSize:44,marginBottom:10}}>✏️</div>
                 <h3 style={{color:COLORS.text,fontSize:"1rem",margin:"0 0 5px",fontWeight:"bold"}}>Draw Here!</h3>
                 <p style={{color:COLORS.muted,margin:0,fontSize:"0.78rem",lineHeight:1.4}}>Create your doodle right in the app</p>
@@ -708,17 +869,23 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             <p style={{textAlign:"center",color:"#ccc",fontSize:"0.74rem",margin:0}}>Any drawing turns into a magical story ✨</p>
           </div>
         )}
+
         {step===1&&mode==="draw"&&(
           <DoodlePad onUse={handleCanvasUse} onCancel={()=>setMode(null)}/>
         )}
+
         {step===2&&(
           <div>
             <VoiceBubble text={VOICE_LINES[2]}/>
-            {image&&<div style={{textAlign:"center",marginBottom:18}}><img src={image} alt="Doodle" style={{maxWidth:"100%",maxHeight:170,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,0.12)",border:"4px solid white"}}/><p style={{color:COLORS.muted,fontSize:"0.8rem",marginTop:6,fontStyle:"italic"}}>What an AMAZING drawing! 🌟</p></div>}
+            {image&&<div style={{textAlign:"center",marginBottom:18}}>
+              <img src={image} alt="Doodle" style={{maxWidth:"100%",maxHeight:170,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,0.12)",border:"4px solid white"}}/>
+              <p style={{color:COLORS.muted,fontSize:"0.8rem",marginTop:6,fontStyle:"italic"}}>What an AMAZING drawing! 🌟</p>
+            </div>}
             <h2 style={{textAlign:"center",color:COLORS.text,fontSize:"1rem",fontWeight:"normal",marginBottom:12}}>How old is the little artist? 👇</h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
               {AGE_GROUPS.map(group=>(
-                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected,'ageSelected'),300); }} style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
+                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected,'ageSelected'),300); }}
+                  style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
                   <div style={{fontSize:24,marginBottom:3}}>{group.emoji}</div>
                   <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.85rem"}}>{group.label}</div>
                   <div style={{color:COLORS.muted,fontSize:"0.72rem",marginTop:1}}>Ages {group.range}</div>
@@ -727,10 +894,14 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
             </div>
             <div style={{display:"flex",gap:8}}>
               <button onClick={reset} style={{flex:1,padding:"11px",borderRadius:13,border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",color:COLORS.muted,fontSize:"0.86rem"}}>← New Doodle</button>
-              <button onClick={generateStory} disabled={!ageGroup} style={{flex:2,padding:"11px",borderRadius:13,border:"none",background:ageGroup?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:COLORS.border,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:ageGroup?"pointer":"not-allowed",boxShadow:ageGroup?"0 6px 20px rgba(255,107,107,0.35)":"none",fontFamily:"Georgia,serif"}}>✨ Make My Story!</button>
+              <button onClick={generateStory} disabled={!ageGroup}
+                style={{flex:2,padding:"11px",borderRadius:13,border:"none",background:ageGroup?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:COLORS.border,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:ageGroup?"pointer":"not-allowed",boxShadow:ageGroup?"0 6px 20px rgba(255,107,107,0.35)":"none",fontFamily:"Georgia,serif"}}>
+                ✨ Make My Story!
+              </button>
             </div>
           </div>
         )}
+
         {step===3&&(
           <div>
             {loading&&(
@@ -746,7 +917,13 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
                 </div>
               </div>
             )}
-            {error&&<div style={{textAlign:"center",padding:28}}><div style={{fontSize:38}}>😬</div><p style={{color:COLORS.accent1}}>{error}</p><button onClick={()=>setStep(2)} style={{padding:"9px 22px",borderRadius:12,border:"none",background:COLORS.accent1,color:"white",cursor:"pointer",fontSize:"0.9rem"}}>Try Again</button></div>}
+            {error&&(
+              <div style={{textAlign:"center",padding:28}}>
+                <div style={{fontSize:38}}>😬</div>
+                <p style={{color:COLORS.accent1}}>{error}</p>
+                <button onClick={()=>setStep(2)} style={{padding:"9px 22px",borderRadius:12,border:"none",background:COLORS.accent1,color:"white",cursor:"pointer",fontSize:"0.9rem"}}>Try Again</button>
+              </div>
+            )}
             {story&&!loading&&(
               <div>
                 <VoiceBubble text={VOICE_LINES.story}/>
@@ -767,13 +944,22 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
                     </p>
                   ))}
                 </div>
-                {/* ── Read Aloud button ── */}
-                <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.story}`)} style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>{speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}</button>
-                {/* ── Save to Library button ── */}
-                <button onClick={()=>setShowSaveModal(true)} style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(45,27,110,0.3)",fontFamily:"Georgia,serif"}}>🌙 Save to Bedtime Library</button>
+                {/* ── Read Aloud ── */}
+                <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.story}`)}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
+                  {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+                </button>
+                {/* ── Save to Library ── */}
+                <button onClick={()=>setShowSaveModal(true)}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(45,27,110,0.3)",fontFamily:"Georgia,serif"}}>
+                  🌙 Save to Bedtime Library
+                </button>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={reset} style={{flex:1,padding:"10px",borderRadius:12,border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>🎨 New Doodle</button>
-                  <button onClick={()=>{setStory(null);spokenKeys.current.delete("loading");spokenKeys.current.delete("story");generateStory();}} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.86rem",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(77,150,255,0.3)"}}>✨ New Story</button>
+                  <button onClick={()=>{setStory(null);spokenKeys.current.delete("loading");spokenKeys.current.delete("story");generateStory();}}
+                    style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.86rem",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(77,150,255,0.3)"}}>
+                    ✨ New Story
+                  </button>
                 </div>
               </div>
             )}
@@ -788,10 +974,10 @@ function CreateScreen({ onNavigate, onStoryAdded }) {
 // ── ABOUT ────────────────────────────────────────────────────────
 function AboutScreen({ onNavigate }) {
   const SOCIALS = [
-    { icon: "🎵", label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
-    { icon: "📸", label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
-    { icon: "▶️", label: "YouTube", url: "https://youtube.com/@DoodleStoriesapp" },
-    { icon: "📘", label: "Facebook", url: "https://facebook.com/doodlestoriesapp" },
+    { icon:"🎵", label:"TikTok",    url:"https://tiktok.com/@doodlestoriesapp" },
+    { icon:"📸", label:"Instagram", url:"https://instagram.com/doodlestoriesapp" },
+    { icon:"▶️", label:"YouTube",   url:"https://youtube.com/@DoodleStoriesapp" },
+    { icon:"📘", label:"Facebook",  url:"https://facebook.com/doodlestoriesapp" },
   ];
   return (
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif"}}>
@@ -835,9 +1021,10 @@ function AboutScreen({ onNavigate }) {
           <p style={{color:COLORS.muted,fontSize:"0.88rem",lineHeight:1.6,margin:"0 0 16px"}}>We share kids' stories, new features, and behind-the-scenes moments on social media. Come say hi!</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             {SOCIALS.map(s=>(
-              <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:14,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.9rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
+              <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
+                style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:14,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.9rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
                 <span style={{fontSize:22}}>{s.icon}</span>
                 <span style={{fontWeight:"bold"}}>{s.label}</span>
               </a>
@@ -871,7 +1058,7 @@ function ContactScreen({ onNavigate }) {
     try {
       await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({name:form.name,email:form.email,reason:form.reason,message:form.message,_subject:`DoodleStories Contact: ${form.reason}`})});
       setSubmitted(true);
-    } catch {setError("Something went wrong. Please email us directly at doodlestoriesapp@gmail.com");}
+    } catch { setError("Something went wrong. Please email us directly at doodlestoriesapp@gmail.com"); }
     setSending(false);
   };
   const inputStyle={width:"100%",padding:"12px 14px",borderRadius:12,border:`2px solid ${COLORS.border}`,fontSize:"0.92rem",fontFamily:"Georgia,serif",color:COLORS.text,background:"white",outline:"none",boxSizing:"border-box",marginTop:6};
@@ -917,7 +1104,8 @@ function ContactScreen({ onNavigate }) {
                 <textarea style={{...inputStyle,minHeight:120,resize:"vertical"}} placeholder="Tell us what's on your mind..." value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))}/>
               </div>
               {error&&<p style={{color:COLORS.accent1,fontSize:"0.84rem",margin:"0 0 14px"}}>{error}</p>}
-              <button onClick={handleSubmit} disabled={sending} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:sending?COLORS.border:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:sending?"not-allowed":"pointer",boxShadow:sending?"none":"0 6px 20px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif"}}>
+              <button onClick={handleSubmit} disabled={sending}
+                style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:sending?COLORS.border:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:sending?"not-allowed":"pointer",boxShadow:sending?"none":"0 6px 20px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif"}}>
                 {sending?"Sending...":"✉️ Send Message"}
               </button>
               <p style={{textAlign:"center",color:COLORS.muted,fontSize:"0.78rem",margin:"14px 0 0"}}>Or email us directly at <strong>doodlestoriesapp@gmail.com</strong></p>
@@ -926,9 +1114,10 @@ function ContactScreen({ onNavigate }) {
               <p style={{color:COLORS.text,fontSize:"0.88rem",fontWeight:"bold",margin:"0 0 12px"}}>Follow us on social media</p>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {SOCIALS.map(s=>(
-                  <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.86rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
-                  onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
+                  <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
+                    style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`2px solid ${COLORS.border}`,textDecoration:"none",color:COLORS.text,background:"#FAFAFA",fontSize:"0.86rem",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=COLORS.accent1;e.currentTarget.style.background="rgba(255,107,107,0.04)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.background="#FAFAFA";}}>
                     <span style={{fontSize:18}}>{s.icon}</span>
                     <span>{s.label}</span>
                   </a>
@@ -944,30 +1133,49 @@ function ContactScreen({ onNavigate }) {
 
 // ── ROOT ─────────────────────────────────────────────────────────
 export default function App() {
-  const [view,setView]=useState("home");
-  const [library,setLibrary]=useState([]);
-  const [votes,setVotes]=useState({});
-  const { speak }=useSpeech();
+  const [view, setView] = useState("home");
+  const [library, setLibrary] = useState([]);
+  const [votes, setVotes] = useState({});
+  const { speak } = useSpeech();
 
+  // Initial load from storage
   useEffect(()=>{
-    Promise.all([loadLibrary(),loadVotes()]).then(([lib,v])=>{ setLibrary(lib); setVotes(v); });
+    Promise.all([loadLibrary(), loadVotes()]).then(([lib, v])=>{
+      setLibrary(lib);
+      setVotes(v);
+    });
   },[]);
 
-  const handleVote=async(id,type)=>{
-    if(votes[id]) return;
-    const newVotes={...votes,[id]:type};
-    setVotes(newVotes); await saveVotes(newVotes);
-    const updated=library.map(s=>s.id===id?{...s,[type==="love"?"loves":"likes"]:(s[type==="love"?"loves":"likes"]||0)+1}:s);
-    setLibrary(updated); await saveLibrary(updated);
+  // Re-sync library from storage whenever navigating to home or library
+  // Guarantees we never show stale data after adding stories
+  useEffect(()=>{
+    if(view==="home"||view==="library"){
+      loadLibrary().then(lib => setLibrary(lib));
+    }
+  },[view]);
+
+  const handleVote = async (id, type) => {
+    if (votes[id]) return;
+    const newVotes = { ...votes, [id]: type };
+    setVotes(newVotes);
+    await saveVotes(newVotes);
+    // Increment the count on the story and persist it so it survives page refresh
+    const updated = library.map(s =>
+      s.id===id
+        ? { ...s, [type==="love"?"loves":"likes"]: (s[type==="love"?"loves":"likes"]||0)+1 }
+        : s
+    );
+    setLibrary(updated);
+    await saveLibrary(updated);
   };
 
-  const topLoved=[...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
-  const topLiked=[...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
+  const topLoved = [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
+  const topLiked = [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
 
-  if(view==="home") return <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>;
-  if(view==="library") return <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>;
-  if(view==="create") return <CreateScreen onNavigate={setView} onStoryAdded={setLibrary}/>;
-  if(view==="about") return <AboutScreen onNavigate={setView}/>;
-  if(view==="contact") return <ContactScreen onNavigate={setView}/>;
+  if (view==="home")    return <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>;
+  if (view==="library") return <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>;
+  if (view==="create")  return <CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library}/>;
+  if (view==="about")   return <AboutScreen onNavigate={setView}/>;
+  if (view==="contact") return <ContactScreen onNavigate={setView}/>;
   return null;
 }
