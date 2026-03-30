@@ -45,7 +45,10 @@ async function loadLibrary() {
   } catch { return []; }
 }
 async function saveLibrary(stories) {
-  try { await window.storage.set("doodle-library", JSON.stringify(stories), true); } catch {}
+  try {
+    await window.storage.set("doodle-library", JSON.stringify(stories), true);
+    console.log("✅ Library saved:", stories.length, "stories");
+  } catch(e) { console.error("❌ saveLibrary failed:", e); }
 }
 async function loadVotes() {
   try {
@@ -798,8 +801,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     };
     // Prepend new story to the full live library — guaranteed to contain all previous entries
     const updated = [newEntry, ...currentLibrary];
+    console.log("💾 Saving story. Library will have", updated.length, "entries.");
     await saveLibrary(updated);
     onStoryAdded(updated);
+    console.log("✅ onStoryAdded called with", updated.length, "entries.");
   };
 
   const reset=()=>{
@@ -1145,14 +1150,6 @@ export default function App() {
       setVotes(v);
     });
   },[]);
-
-  // Re-sync library from storage whenever navigating to home or library
-  // Guarantees we never show stale data after adding stories
-  useEffect(()=>{
-    if(view==="home"||view==="library"){
-      loadLibrary().then(lib => setLibrary(lib));
-    }
-  },[view]);
 
   const handleVote = async (id, type) => {
     if (votes[id]) return;
