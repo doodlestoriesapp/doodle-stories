@@ -252,13 +252,27 @@ function DoodlePad({ onUse, onCancel }) {
   };
 
   const ToolBtn = ({ id, icon, label }) => (
-    <button onClick={()=>setTool(id)} title={label} style={{
-      width:40, height:40, borderRadius:12,
-      border:`2px solid ${tool===id?COLORS.accent1:COLORS.border}`,
-      background:tool===id?"rgba(255,107,107,0.1)":"white",
-      cursor:"pointer", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center",
-      boxShadow:tool===id?`0 3px 10px rgba(255,107,107,0.3)`:"none",
-      transition:"all 0.15s",
+    <<button
+  onClick={() => speaking ? stop() : speak(`${story.title}. ${story.story}`)}
+  style={{
+    width: "100%", padding: "12px", borderRadius: 14, border: "none",
+    marginBottom: 9,
+    background: speaking
+      ? `linear-gradient(135deg,${COLORS.accent1},#FF8E53)`
+      : `linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,
+    color: "white", fontSize: "0.92rem", fontWeight: "bold",
+    cursor: "pointer",
+    boxShadow: speaking
+      ? "0 6px 20px rgba(255,107,107,0.35)"
+      : "0 6px 20px rgba(77,150,255,0.3)",
+    fontFamily: "Georgia,serif",
+    transition: "all 0.2s",
+  }}
+>
+  {speaking ? "⏹ Stop Reading" : "🔊 Read This Story Aloud"}
+</button>
+
+<button onClick={()=>setShowSaveModal(true)} style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(45,27,110,0.3)",fontFamily:"Georgia,serif"}}>🌙 Save to Bedtime Library</button>
     }}>{icon}</button>
   );
 
