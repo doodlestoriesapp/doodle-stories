@@ -770,6 +770,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ]}],
       })});
       const data=await res.json();
+      // ── Compliance block — show a clear friendly message ──
+      if (data.error==="compliance_failed") {
+        setError(data.message);
+        setStep(2);
+        return;
+      }
       const text=data.content?.find(b=>b.type==="text")?.text||"";
       const parsed=JSON.parse(text);
       spokenKeys.current.delete("story"); setStory(parsed);
@@ -924,9 +930,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             )}
             {error&&(
               <div style={{textAlign:"center",padding:28}}>
-                <div style={{fontSize:38}}>😬</div>
-                <p style={{color:COLORS.accent1}}>{error}</p>
-                <button onClick={()=>setStep(2)} style={{padding:"9px 22px",borderRadius:12,border:"none",background:COLORS.accent1,color:"white",cursor:"pointer",fontSize:"0.9rem"}}>Try Again</button>
+                <div style={{fontSize:38}}>{error.includes("safety check")?"🛡️":"😬"}</div>
+                <p style={{color:error.includes("safety check")?COLORS.accent5:COLORS.accent1,fontSize:"0.95rem",lineHeight:1.6,margin:"12px 0 20px"}}>{error}</p>
+                <button onClick={reset} style={{padding:"9px 22px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",cursor:"pointer",fontSize:"0.9rem",fontFamily:"Georgia,serif"}}>🎨 Try a Different Drawing</button>
               </div>
             )}
             {story&&!loading&&(
