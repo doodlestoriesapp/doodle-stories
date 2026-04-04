@@ -710,7 +710,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [ageGroup, setAgeGroup] = useState(null);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState(1);
@@ -771,14 +770,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ]}],
       })});
       const data=await res.json();
-      // ── Compliance block — show modal, reset to step 1 ──
-      if (data.error==="compliance_failed") {
-        setShowBlockedModal(true);
-        setStep(1);
-        setImage(null);
-        setImageBase64(null);
-        return;
-      }
       const text=data.content?.find(b=>b.type==="text")?.text||"";
       const parsed=JSON.parse(text);
       spokenKeys.current.delete("story"); setStory(parsed);
@@ -933,9 +924,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             )}
             {error&&(
               <div style={{textAlign:"center",padding:28}}>
-                <div style={{fontSize:38}}>{error.includes("safety check")?"🛡️":"😬"}</div>
-                <p style={{color:error.includes("safety check")?COLORS.accent5:COLORS.accent1,fontSize:"0.95rem",lineHeight:1.6,margin:"12px 0 20px"}}>{error}</p>
-                <button onClick={reset} style={{padding:"9px 22px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",cursor:"pointer",fontSize:"0.9rem",fontFamily:"Georgia,serif"}}>🎨 Try a Different Drawing</button>
+                <div style={{fontSize:38}}>😬</div>
+                <p style={{color:COLORS.accent1,fontSize:"0.95rem",lineHeight:1.6,margin:"12px 0 20px"}}>{error}</p>
+                <button onClick={()=>setStep(2)} style={{padding:"9px 22px",borderRadius:12,border:"none",background:COLORS.accent1,color:"white",cursor:"pointer",fontSize:"0.9rem",fontFamily:"Georgia,serif"}}>Try Again</button>
               </div>
             )}
             {story&&!loading&&(
@@ -981,26 +972,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         )}
       </div>
       {showSaveModal&&story&&<SaveModal story={story} onSave={handleSave}/>}
-
-      {/* ── Safety blocked modal ── */}
-      {showBlockedModal&&(
-        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-          <div style={{background:"white",borderRadius:28,padding:"36px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 24px 80px rgba(0,0,0,0.3)"}}>
-            <div style={{fontSize:56,marginBottom:12}}>🛡️</div>
-            <h2 style={{color:COLORS.text,fontSize:"1.2rem",margin:"0 0 12px",lineHeight:1.3}}>This drawing can't be used</h2>
-            <p style={{color:COLORS.muted,fontSize:"0.92rem",lineHeight:1.7,margin:"0 0 24px"}}>
-              Doodle Stories is a safe space for kids 🌟<br/>
-              This image doesn't meet our <strong style={{color:COLORS.text}}>kids' content safety guidelines</strong> and we're unable to generate a story from it.<br/><br/>
-              Please try uploading a different drawing!
-            </p>
-            <button
-              onClick={()=>setShowBlockedModal(false)}
-              style={{width:"100%",padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
-              🎨 Try a Different Drawing
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
