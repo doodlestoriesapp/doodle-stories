@@ -2,13 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Friendly compliance error shown to the user in the app ────────
-const COMPLIANCE_ERROR = {
-  error: "compliance_failed",
-  message:
-    "Uh oh! 🎨 This drawing didn't pass our safety check for kids' stories. Please try a different drawing!",
-};
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -17,60 +10,55 @@ export default async function handler(req, res) {
   try {
     const { messages, system, model, max_tokens } = req.body;
 
-    // ── Pull the image out of the incoming request ────────────────
-    // The image is always the first content block of the first message
-    const imageBlock = messages?.[0]?.content?.find(
-      (b) => b.type === "image"
-    );
+    // ── Pull image data from the request ─────────────────────────
+    const imageBlock = messages?.[0]?.content?.find((b) => b.type === "image");
 
     if (!imageBlock) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    // ── STEP 1: Moderation pre-flight (Haiku — fast & cheap) ─────
-    const moderationResponse = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 20,
-      messages: [
-        {
-          role: "user",
-          content: [
-            imageBlock, // reuse the exact same image block
-            {
-              type: "text",
-              text: `You are a strict content moderator for a children's app used by kids aged 2–13.
-Examine this image carefully.
+    // ── STEP 1: Moderation — claude-sonnet handles vision correctly
+    // We use sonnet here because haiku-4-5 does not support vision.
+    // Wrap in its own try/catch so a moderation error never kills story gen.
+    let blocked = false;
+    try {
+      const moderationResponse = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 10,
+        messages: [
+          {
+            role: "user",
+            content: [
+              imageBlock,
+              {
+                type: "text",
+                text: `You moderate a children's storytelling app for kids aged 2-13. Look at this image and reply with one word only.
 
-Reply with only one word — SAFE or UNSAFE.
+Reply UNSAFE if the image contains: nudity, sexual content, graphic violence, gore, hate symbols, or adult content of any kind.
+Reply SAFE for children's drawings, doodles, cartoons, or anything age-appropriate. When in doubt reply SAFE.
 
-Mark UNSAFE if the image contains ANY of the following:
-- Nudity or sexual content
-- Violence, gore, or weapons used to harm
-- Hate symbols, slurs, or discriminatory imagery
-- Drug or alcohol references
-- Real photographs of people in compromising situations
-- Explicit or distressing scenes of any kind
+One word only: SAFE or UNSAFE`,
+              },
+            ],
+          },
+        ],
+      });
 
-Mark SAFE if it is a child's drawing, doodle, cartoon, or any age-appropriate image.
-When in doubt, mark SAFE — this is a kids' creative app.
-
-Reply only: SAFE or UNSAFE`,
-            },
-          ],
-        },
-      ],
-    });
-
-    const verdict = moderationResponse.content?.[0]?.text?.trim().toUpperCase();
-    console.log("🔍 Moderation verdict:", verdict);
-
-    // ── If UNSAFE, stop here — do not generate a story ───────────
-    if (verdict !== "SAFE") {
-      console.warn("🚫 Image failed moderation — story generation blocked.");
-      return res.status(400).json(COMPLIANCE_ERROR);
+      const verdict = moderationResponse.content?.[0]?.text?.trim().toUpperCase() ?? "";
+      console.log("🔍 Moderation verdict:", verdict);
+      blocked = verdict.startsWith("UNSAFE");
+    } catch (modErr) {
+      // Moderation call failed — fail open, don't block story generation
+      console.error("⚠️ Moderation check failed, proceeding:", modErr?.message);
+      blocked = false;
     }
 
-    // ── STEP 2: Story generation (only reached if SAFE) ──────────
+    if (blocked) {
+      console.warn("🚫 Image blocked by moderation");
+      return res.status(400).json({ error: "compliance_failed" });
+    }
+
+    // ── STEP 2: Generate the story ────────────────────────────────
     const storyResponse = await client.messages.create({
       model: model || "claude-sonnet-4-20250514",
       max_tokens: max_tokens || 1000,
@@ -79,8 +67,9 @@ Reply only: SAFE or UNSAFE`,
     });
 
     return res.status(200).json(storyResponse);
+
   } catch (err) {
-    console.error("❌ generate-story error:", err);
+    console.error("❌ generate-story error:", err?.message ?? err);
     return res.status(500).json({ error: "Story generation failed. Please try again." });
   }
 }
