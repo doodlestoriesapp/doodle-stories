@@ -1,51 +1,86 @@
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Friendly compliance error shown to the user in the app ────────
+const COMPLIANCE_ERROR = {
+  error: "compliance_failed",
+  message:
+    "Uh oh! 🎨 This drawing didn't pass our safety check for kids' stories. Please try a different drawing!",
+};
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const body = req.body;
+    const { messages, system, model, max_tokens } = req.body;
 
-    // Auto-detect media type from base64 data
-    if (body.messages) {
-      body.messages = body.messages.map(msg => {
-        if (Array.isArray(msg.content)) {
-          msg.content = msg.content.map(block => {
-            if (block.type === 'image' && block.source?.data) {
-              const base64 = block.source.data;
-              const signature = base64.substring(0, 16);
-              let mediaType = 'image/png';
-              if (signature.startsWith('/9j/')) mediaType = 'image/jpeg';
-              else if (signature.startsWith('R0lG')) mediaType = 'image/gif';
-              else if (signature.startsWith('UklG')) mediaType = 'image/webp';
-              block.source.media_type = mediaType;
-            }
-            return block;
-          });
-        }
-        return msg;
-      });
+    // ── Pull the image out of the incoming request ────────────────
+    // The image is always the first content block of the first message
+    const imageBlock = messages?.[0]?.content?.find(
+      (b) => b.type === "image"
+    );
+
+    if (!imageBlock) {
+      return res.status(400).json({ error: "No image provided" });
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(body),
+    // ── STEP 1: Moderation pre-flight (Haiku — fast & cheap) ─────
+    const moderationResponse = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 20,
+      messages: [
+        {
+          role: "user",
+          content: [
+            imageBlock, // reuse the exact same image block
+            {
+              type: "text",
+              text: `You are a strict content moderator for a children's app used by kids aged 2–13.
+Examine this image carefully.
+
+Reply with only one word — SAFE or UNSAFE.
+
+Mark UNSAFE if the image contains ANY of the following:
+- Nudity or sexual content
+- Violence, gore, or weapons used to harm
+- Hate symbols, slurs, or discriminatory imagery
+- Drug or alcohol references
+- Real photographs of people in compromising situations
+- Explicit or distressing scenes of any kind
+
+Mark SAFE if it is a child's drawing, doodle, cartoon, or any age-appropriate image.
+When in doubt, mark SAFE — this is a kids' creative app.
+
+Reply only: SAFE or UNSAFE`,
+            },
+          ],
+        },
+      ],
     });
 
-    const data = await response.json();
+    const verdict = moderationResponse.content?.[0]?.text?.trim().toUpperCase();
+    console.log("🔍 Moderation verdict:", verdict);
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data });
+    // ── If UNSAFE, stop here — do not generate a story ───────────
+    if (verdict !== "SAFE") {
+      console.warn("🚫 Image failed moderation — story generation blocked.");
+      return res.status(400).json(COMPLIANCE_ERROR);
     }
 
-    return res.status(200).json(data);
+    // ── STEP 2: Story generation (only reached if SAFE) ──────────
+    const storyResponse = await client.messages.create({
+      model: model || "claude-sonnet-4-20250514",
+      max_tokens: max_tokens || 1000,
+      system,
+      messages,
+    });
 
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(200).json(storyResponse);
+  } catch (err) {
+    console.error("❌ generate-story error:", err);
+    return res.status(500).json({ error: "Story generation failed. Please try again." });
   }
 }
