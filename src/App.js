@@ -710,6 +710,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [ageGroup, setAgeGroup] = useState(null);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [moderating, setModerating] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState(1);
@@ -737,19 +739,51 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     if(VOICE_LINES[key]) speak(VOICE_LINES[key],keyMap[key]);
   };
 
-  const handleFile=useCallback((file)=>{
+  // ── Moderation pre-flight ─────────────────────────────────────
+  // Runs BEFORE step 2 is shown — image is rejected at the gate
+  const checkModeration = useCallback(async (base64, mediaType="image/png") => {
+    setModerating(true);
+    try {
+      const res = await fetch("/api/moderate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mediaType }),
+      });
+      const data = await res.json();
+      return data.safe !== false; // fail open if network error
+    } catch {
+      return true; // fail open — don't block kids on a network hiccup
+    } finally {
+      setModerating(false);
+    }
+  }, []);
+
+  const handleFile=useCallback(async (file)=>{
     if(!file||!file.type.startsWith("image/")) return;
-    setImage(URL.createObjectURL(file));
     const reader=new FileReader();
-    reader.onload=e=>{
-      setImageBase64(e.target.result.split(",")[1]);
+    reader.onload=async e=>{
+      const base64 = e.target.result.split(",")[1];
+      const safe = await checkModeration(base64, file.type);
+      if (!safe) {
+        // Clear everything — never advance, never praise the image
+        setShowBlockedModal(true);
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+      setImage(URL.createObjectURL(file));
+      setImageBase64(base64);
       spokenKeys.current.delete("2");
       setStep(2);
     };
     reader.readAsDataURL(file);
-  },[]);
+  },[checkModeration]);
 
-  const handleCanvasUse=(dataURL,base64)=>{
+  const handleCanvasUse=async(dataURL,base64)=>{
+    const safe = await checkModeration(base64);
+    if (!safe) {
+      setShowBlockedModal(true);
+      return;
+    }
     setImage(dataURL); setImageBase64(base64);
     spokenKeys.current.delete("2"); setMode(null); setStep(2);
   };
@@ -978,6 +1012,35 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         )}
       </div>
       {showSaveModal&&story&&<SaveModal story={story} onSave={handleSave}/>}
+
+      {/* ── Moderation loading overlay ── */}
+      {moderating&&(
+        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(255,249,240,0.92)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+          <div style={{fontSize:48,animation:"spin 1.5s linear infinite",display:"inline-block"}}>🔍</div>
+          <h2 style={{color:COLORS.text,fontSize:"1.1rem",fontWeight:"normal",margin:0}}>Checking your drawing...</h2>
+          <p style={{color:COLORS.muted,fontSize:"0.85rem",margin:0,fontStyle:"italic"}}>Making sure it's safe for our story world ✨</p>
+        </div>
+      )}
+
+      {/* ── Safety blocked modal ── */}
+      {showBlockedModal&&(
+        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:"white",borderRadius:28,padding:"36px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 24px 80px rgba(0,0,0,0.3)"}}>
+            <div style={{fontSize:56,marginBottom:12}}>🛡️</div>
+            <h2 style={{color:COLORS.text,fontSize:"1.2rem",margin:"0 0 12px",lineHeight:1.3}}>This drawing can't be used</h2>
+            <p style={{color:COLORS.muted,fontSize:"0.92rem",lineHeight:1.7,margin:"0 0 24px"}}>
+              Doodle Stories is a safe space for kids 🌟<br/>
+              This image doesn't meet our <strong style={{color:COLORS.text}}>kids' content safety guidelines</strong> and we're unable to generate a story from it.<br/><br/>
+              Please try uploading a different drawing!
+            </p>
+            <button
+              onClick={()=>setShowBlockedModal(false)}
+              style={{width:"100%",padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
+              🎨 Try a Different Drawing
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
