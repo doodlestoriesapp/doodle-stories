@@ -710,7 +710,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [ageGroup, setAgeGroup] = useState(null);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [moderating, setModerating] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -739,51 +738,19 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     if(VOICE_LINES[key]) speak(VOICE_LINES[key],keyMap[key]);
   };
 
-  // ── Moderation pre-flight ─────────────────────────────────────
-  // Runs BEFORE step 2 is shown — image is rejected at the gate
-  const checkModeration = useCallback(async (base64, mediaType="image/png") => {
-    setModerating(true);
-    try {
-      const res = await fetch("/api/moderate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64, mediaType }),
-      });
-      const data = await res.json();
-      return data.safe !== false; // fail open if network error
-    } catch {
-      return true; // fail open — don't block kids on a network hiccup
-    } finally {
-      setModerating(false);
-    }
-  }, []);
-
-  const handleFile=useCallback(async (file)=>{
+  const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
+    setImage(URL.createObjectURL(file));
     const reader=new FileReader();
-    reader.onload=async e=>{
-      const base64 = e.target.result.split(",")[1];
-      const safe = await checkModeration(base64, file.type);
-      if (!safe) {
-        // Clear everything — never advance, never praise the image
-        setShowBlockedModal(true);
-        if (fileRef.current) fileRef.current.value = "";
-        return;
-      }
-      setImage(URL.createObjectURL(file));
-      setImageBase64(base64);
+    reader.onload=e=>{
+      setImageBase64(e.target.result.split(",")[1]);
       spokenKeys.current.delete("2");
       setStep(2);
     };
     reader.readAsDataURL(file);
-  },[checkModeration]);
+  },[]);
 
-  const handleCanvasUse=async(dataURL,base64)=>{
-    const safe = await checkModeration(base64);
-    if (!safe) {
-      setShowBlockedModal(true);
-      return;
-    }
+  const handleCanvasUse=(dataURL,base64)=>{
     setImage(dataURL); setImageBase64(base64);
     spokenKeys.current.delete("2"); setMode(null); setStep(2);
   };
@@ -804,10 +771,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ]}],
       })});
       const data=await res.json();
-      // ── Compliance block — show a clear friendly message ──
+      // ── Compliance block — show modal, reset to step 1 ──
       if (data.error==="compliance_failed") {
-        setError(data.message);
-        setStep(2);
+        setShowBlockedModal(true);
+        setStep(1);
+        setImage(null);
+        setImageBase64(null);
         return;
       }
       const text=data.content?.find(b=>b.type==="text")?.text||"";
@@ -1012,15 +981,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         )}
       </div>
       {showSaveModal&&story&&<SaveModal story={story} onSave={handleSave}/>}
-
-      {/* ── Moderation loading overlay ── */}
-      {moderating&&(
-        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(255,249,240,0.92)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
-          <div style={{fontSize:48,animation:"spin 1.5s linear infinite",display:"inline-block"}}>🔍</div>
-          <h2 style={{color:COLORS.text,fontSize:"1.1rem",fontWeight:"normal",margin:0}}>Checking your drawing...</h2>
-          <p style={{color:COLORS.muted,fontSize:"0.85rem",margin:0,fontStyle:"italic"}}>Making sure it's safe for our story world ✨</p>
-        </div>
-      )}
 
       {/* ── Safety blocked modal ── */}
       {showBlockedModal&&(
