@@ -1,11 +1,6 @@
-// v4 - clean, no moderation
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
+// v5 - raw fetch, no SDK import
 export default async function handler(req, res) {
-  // Log so we can confirm this version is live
-  console.log("generate-story v4 called, method:", req.method);
+  console.log("generate-story v5 called");
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -14,21 +9,32 @@ export default async function handler(req, res) {
   try {
     const { messages, system, model, max_tokens } = req.body;
 
-    console.log("Calling Anthropic, model:", model || "claude-sonnet-4-20250514");
-
-    const response = await client.messages.create({
-      model: model || "claude-sonnet-4-20250514",
-      max_tokens: max_tokens || 1000,
-      system,
-      messages,
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: model || "claude-sonnet-4-20250514",
+        max_tokens: max_tokens || 1000,
+        system,
+        messages,
+      }),
     });
 
-    console.log("Anthropic call succeeded");
-    return res.status(200).json(response);
+    const data = await anthropicRes.json();
+    console.log("Anthropic status:", anthropicRes.status);
+
+    if (!anthropicRes.ok) {
+      return res.status(500).json({ error: data?.error?.message || "Anthropic API error" });
+    }
+
+    return res.status(200).json(data);
 
   } catch (err) {
-    console.error("generate-story error:", err?.message ?? err);
-    // Always return JSON — never plain text
+    console.error("generate-story v5 error:", err?.message ?? err);
     return res.status(500).json({ error: err?.message ?? "Story generation failed" });
   }
 }
