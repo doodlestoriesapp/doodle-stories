@@ -919,7 +919,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           + 90;                         // branding
 
         // Center the whole block with equal top/bottom padding
-        const topSafe = 100, bottomSafe = 100;
+        // topSafe=160 accounts for Instagram's top crop on 4:5 images
+        const topSafe = 160, bottomSafe = 160;
         const available = H - topSafe - bottomSafe;
         const startY = topSafe + Math.max(0, (available - totalH) / 2);
         const imgY = startY;
@@ -981,8 +982,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Story text — calculate total height first, then center it
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
-        const footerTop = H - 190; // where footer begins
-        const topSafe = 120;       // Instagram safe zone at top
+        const topSafe = 160;       // Instagram safe zone at top
+        const footerTop = H - 220; // where footer begins (branding at H-110, divider at H-180)
 
         // Pre-calculate total text block height
         let totalTextH = 0;
