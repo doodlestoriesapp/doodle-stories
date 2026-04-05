@@ -959,10 +959,28 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const isLast = pi === pages.length - 1;
         const cardNum = pi + 2;
 
-        // Story text — large, readable, centered
+        // Story text — calculate total height first, then center it
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
-        let curY = 200; // increased top safe zone for Instagram
+        const footerTop = H - 190; // where footer begins
+        const topSafe = 120;       // Instagram safe zone at top
+
+        // Pre-calculate total text block height
+        let totalTextH = 0;
+        for (let pp = 0; pp < pageParas.length; pp++) {
+          const para = pageParas[pp];
+          if (pi === 0 && pp === 0) {
+            const restLines = wrapText(ctx, para.slice(1), W-240, 42);
+            totalTextH += Math.max(restLines.length * 56 + 20, 110) + 40;
+          } else {
+            const lines = wrapText(ctx, para, W-160, 42);
+            totalTextH += lines.length * 56 + 48;
+          }
+        }
+
+        // Start Y so text block is centered in available space
+        const availableH = footerTop - topSafe;
+        let curY = topSafe + Math.max(0, (availableH - totalTextH) / 2);
 
         for (const para of pageParas) {
           // Drop cap on first paragraph of first story page
@@ -1186,12 +1204,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
               {/* Left arrow */}
               {shareCards.length>1&&shareCardIndex>0&&(
-                <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-16,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",border:"none",background:"white",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.text}}>‹</button>
+                <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>‹</button>
               )}
 
               {/* Right arrow */}
               {shareCards.length>1&&shareCardIndex<shareCards.length-1&&(
-                <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:-16,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",border:"none",background:"white",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.text}}>›</button>
+                <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>›</button>
               )}
 
               {/* Dot indicators */}
@@ -1268,7 +1286,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
             {/* Platform links */}
             <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>\n              {[
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+              {[
                 {label:"Instagram", emoji:"📸", color:"#E1306C", bg:"rgba(225,48,108,0.08)", url:"https://www.instagram.com/"},
                 {label:"TikTok",    emoji:"🎵", color:"#010101", bg:"rgba(0,0,0,0.06)",      url:"https://www.tiktok.com/upload"},
                 {label:"Facebook",  emoji:"📘", color:"#1877F2", bg:"rgba(24,119,242,0.08)", url:"https://www.facebook.com/"},
