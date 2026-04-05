@@ -901,7 +901,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         drawBg(ctx);
 
         // Doodle image
-        const imgPad = 60, imgY = 80, imgW = W - imgPad*2, imgH = 500;
+        const imgPad = 60, imgY = 140, imgW = W - imgPad*2, imgH = 480;
         ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
         drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.fillStyle = "#FFFFFF"; ctx.fill(); ctx.restore();
 
@@ -962,19 +962,19 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Story text — large, readable, centered
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
-        let curY = 160;
+        let curY = 200; // increased top safe zone for Instagram
 
         for (const para of pageParas) {
           // Drop cap on first paragraph of first story page
           if (pi === 0 && para === pageParas[0]) {
             const firstChar = para.charAt(0);
             const rest = para.slice(1);
-            ctx.font = "bold 110px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
-            ctx.fillText(firstChar, W/2 - ctx.measureText(rest.split(" ")[0]).width/2 - 40, curY + 80);
-            const restLines = wrapText(ctx, rest, W-160, 42);
+            ctx.font = "bold 100px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
+            ctx.fillText(firstChar, 160, curY + 72);
+            const restLines = wrapText(ctx, rest, W-240, 42);
             ctx.fillStyle = "#2D2D2D";
-            restLines.forEach((line,i) => ctx.fillText(line, W/2, curY + (i===0?0:0) + i*56 + 40));
-            curY += restLines.length * 56 + 60;
+            restLines.forEach((line,i) => ctx.fillText(line, W/2 + 40, curY + i*56 + 20));
+            curY += Math.max(restLines.length * 56 + 20, 110) + 40;
           } else {
             const lines = wrapText(ctx, para, W-160, 42);
             ctx.fillStyle = "#2D2D2D";
