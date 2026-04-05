@@ -818,6 +818,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   };
 
   const [sharing, setSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageUrl, setShareImageUrl] = useState(null);
 
   // ── Generate and share/download a 4:5 portrait card ──────────
   const handleShare = async () => {
@@ -950,25 +952,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       ctx.fillStyle = "#8A8A8A";
       ctx.fillText("Turn your doodle into a magical story", W/2, footerY + 44);
 
-      // ── Export ──
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], "doodle-story.png", { type: "image/png" });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          // Mobile — native share sheet
-          await navigator.share({
-            files: [file],
-            title: story.title,
-            text: `✨ ${story.title} — a magical story from DoodleStories! doodlestories.app`,
-          });
-        } else {
-          // Desktop — download the card
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = `doodle-story-${Date.now()}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
+      // ── Export → show custom share modal ──
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        setShareImageUrl(url);
         setSharing(false);
+        setShowShareModal(true);
       }, "image/png");
     } catch (err) {
       console.error("Share failed:", err);
@@ -1147,6 +1136,50 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         )}
       </div>
       {showSaveModal&&story&&<SaveModal story={story} onSave={handleSave}/>}
+
+      {/* ── Social Share Modal ── */}
+      {showShareModal&&shareImageUrl&&(
+        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"28px 24px",maxWidth:400,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
+            {/* Preview thumbnail */}
+            <img src={shareImageUrl} alt="story card" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:16,marginBottom:20,boxShadow:"0 8px 24px rgba(0,0,0,0.12)"}}/>
+            <h2 style={{margin:"0 0 6px",color:COLORS.text,fontSize:"1.1rem",fontFamily:"Georgia,serif"}}>Share this story</h2>
+            <p style={{margin:"0 0 20px",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",lineHeight:1.5}}>
+              Save the card below, then post it to your chosen platform.
+            </p>
+            {/* Download button */}
+            <button
+              onClick={()=>{
+                const a=document.createElement("a");
+                a.href=shareImageUrl;
+                a.download=`doodle-story-${Date.now()}.png`;
+                a.click();
+              }}
+              style={{width:"100%",padding:"13px",borderRadius:16,border:"none",marginBottom:16,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.95rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
+              ⬇️ Save Card to Device
+            </button>
+            {/* Platform buttons */}
+            <p style={{margin:"0 0 12px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Then open your app to post:</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[
+                {label:"Instagram", emoji:"📸", color:"#E1306C", bg:"rgba(225,48,108,0.08)", url:"https://www.instagram.com/"},
+                {label:"TikTok",    emoji:"🎵", color:"#010101", bg:"rgba(0,0,0,0.06)",      url:"https://www.tiktok.com/upload"},
+                {label:"Facebook",  emoji:"📘", color:"#1877F2", bg:"rgba(24,119,242,0.08)", url:"https://www.facebook.com/"},
+                {label:"YouTube",   emoji:"▶️", color:"#FF0000", bg:"rgba(255,0,0,0.07)",    url:"https://studio.youtube.com/"},
+              ].map(p=>(
+                <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"11px 14px",borderRadius:14,border:`2px solid ${p.color}30`,background:p.bg,textDecoration:"none",cursor:"pointer",transition:"all 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=p.bg.replace("0.0","0.1")}
+                  onMouseLeave={e=>e.currentTarget.style.background=p.bg}>
+                  <span style={{fontSize:20}}>{p.emoji}</span>
+                  <span style={{fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:"0.88rem",color:p.color}}>{p.label}</span>
+                </a>
+              ))}
+            </div>
+            <button onClick={()=>setShowShareModal(false)} style={{marginTop:16,background:"none",border:"none",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Done</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
