@@ -817,7 +817,164 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     console.log("✅ onStoryAdded called with", updated.length, "entries.");
   };
 
-  const reset=()=>{
+  const [sharing, setSharing] = useState(false);
+
+  // ── Generate and share/download a 4:5 portrait card ──────────
+  const handleShare = async () => {
+    if (!story || !ageGroup) return;
+    setSharing(true);
+    try {
+      const W = 1080, H = 1350; // 4:5 portrait
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // ── Background gradient (warm peach/cream) ──
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0,   "#FFF4EC");
+      bg.addColorStop(0.5, "#FFF9F0");
+      bg.addColorStop(1,   "#FFF0E8");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Soft decorative circles ──
+      const drawCircle = (x, y, r, color) => {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.fillStyle = color; ctx.fill();
+      };
+      drawCircle(-60, -60,  240, "rgba(255,107,107,0.08)");
+      drawCircle(W+60, H+60, 280, "rgba(77,150,255,0.07)");
+      drawCircle(W+40, 120,  160, "rgba(255,217,61,0.09)");
+      drawCircle(60, H-80,  120, "rgba(107,203,119,0.08)");
+
+      // ── Doodle image (rounded rect, upper section) ──
+      const imgPad = 60, imgY = 80;
+      const imgW = W - imgPad*2, imgH = 560;
+      const drawRounded = (x, y, w, h, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x+r, y);
+        ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+        ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+        ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+        ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+        ctx.closePath();
+      };
+
+      // White card shadow for doodle
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.10)";
+      ctx.shadowBlur = 32;
+      ctx.shadowOffsetY = 8;
+      drawRounded(imgPad, imgY, imgW, imgH, 28);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fill();
+      ctx.restore();
+
+      // Draw doodle image clipped to rounded rect
+      if (image) {
+        await new Promise(resolve => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            ctx.save();
+            drawRounded(imgPad, imgY, imgW, imgH, 28);
+            ctx.clip();
+            // Cover-fit the image
+            const scale = Math.max(imgW / img.width, imgH / img.height);
+            const sw = img.width * scale, sh = img.height * scale;
+            const sx = imgPad + (imgW - sw)/2, sy = imgY + (imgH - sh)/2;
+            ctx.drawImage(img, sx, sy, sw, sh);
+            ctx.restore();
+            resolve();
+          };
+          img.onerror = resolve;
+          img.src = image;
+        });
+      }
+
+      // Age badge on doodle
+      const badgeX = imgPad + 20, badgeY = imgY + 20;
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.beginPath(); ctx.roundRect(badgeX, badgeY, 160, 48, 24); ctx.fill();
+      ctx.font = "bold 26px Georgia, serif";
+      ctx.fillStyle = "#2D2D2D";
+      ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, badgeX+16, badgeY+32);
+      ctx.restore();
+
+      // ── Story title ──
+      const titleY = imgY + imgH + 54;
+      ctx.font = "bold 58px Georgia, serif";
+      ctx.fillStyle = "#2D2D2D";
+      ctx.textAlign = "center";
+      // Word-wrap title
+      const titleWords = story.title.split(" ");
+      let titleLines = [], titleLine = "";
+      for (const word of titleWords) {
+        const test = titleLine ? titleLine+" "+word : word;
+        if (ctx.measureText(test).width > W - 120) { titleLines.push(titleLine); titleLine = word; }
+        else titleLine = test;
+      }
+      titleLines.push(titleLine);
+      titleLines.forEach((line, i) => ctx.fillText(line, W/2, titleY + i*70));
+
+      // ── Teaser line (first ~100 chars of story) ──
+      const teaserY = titleY + titleLines.length*70 + 32;
+      const rawTeaser = story.story.replace(/\n\n/g," ").slice(0, 110) + "…";
+      ctx.font = "italic 32px Georgia, serif";
+      ctx.fillStyle = "#8A8A8A";
+      // Word-wrap teaser
+      const teaserWords = rawTeaser.split(" ");
+      let tLines = [], tLine = "";
+      for (const word of teaserWords) {
+        const test = tLine ? tLine+" "+word : word;
+        if (ctx.measureText(test).width > W - 160) { tLines.push(tLine); tLine = word; }
+        else tLine = test;
+      }
+      tLines.push(tLine);
+      tLines.slice(0,3).forEach((line, i) => ctx.fillText(line, W/2, teaserY + i*44));
+
+      // ── Divider ──
+      const divY = teaserY + Math.min(tLines.length,3)*44 + 36;
+      ctx.beginPath();
+      ctx.moveTo(W/2 - 60, divY); ctx.lineTo(W/2 + 60, divY);
+      ctx.strokeStyle = "rgba(255,107,107,0.35)"; ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // ── Branding footer ──
+      const footerY = divY + 52;
+      ctx.font = "bold 36px Georgia, serif";
+      ctx.fillStyle = "#FF6B6B";
+      ctx.fillText("🎨 doodlestories.app", W/2, footerY);
+      ctx.font = "28px Georgia, serif";
+      ctx.fillStyle = "#8A8A8A";
+      ctx.fillText("Turn your doodle into a magical story", W/2, footerY + 44);
+
+      // ── Export ──
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], "doodle-story.png", { type: "image/png" });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          // Mobile — native share sheet
+          await navigator.share({
+            files: [file],
+            title: story.title,
+            text: `✨ ${story.title} — a magical story from DoodleStories! doodlestories.app`,
+          });
+        } else {
+          // Desktop — download the card
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `doodle-story-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+        setSharing(false);
+      }, "image/png");
+    } catch (err) {
+      console.error("Share failed:", err);
+      setSharing(false);
+    }
+  };
     stop();
     setImage(null); setImageBase64(null); setImageMediaType("image/png"); setAgeGroup(null);
     setStory(null); setError(null); setMode(null);
@@ -964,6 +1121,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                 <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.story}`)}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
                   {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+                </button>
+                {/* ── Share Story Card ── */}
+                <button onClick={handleShare} disabled={sharing}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:sharing?"#ccc":`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:sharing?"not-allowed":"pointer",boxShadow:sharing?"none":"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
+                  {sharing?"✨ Creating card...":"📲 Share This Story"}
                 </button>
                 {/* ── Save to Library ── */}
                 <button onClick={()=>setShowSaveModal(true)}
