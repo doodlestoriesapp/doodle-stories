@@ -707,6 +707,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
+  const [imageMediaType, setImageMediaType] = useState("image/png");
   const [ageGroup, setAgeGroup] = useState(null);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -740,6 +741,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
     setImage(URL.createObjectURL(file));
+    // Capture the real media type (jpeg, png, webp, gif)
+    const allowedTypes = ["image/jpeg","image/png","image/gif","image/webp"];
+    const mediaType = allowedTypes.includes(file.type) ? file.type : "image/png";
+    setImageMediaType(mediaType);
     const reader=new FileReader();
     reader.onload=e=>{
       setImageBase64(e.target.result.split(",")[1]);
@@ -765,20 +770,21 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         model:"claude-sonnet-4-20250514", max_tokens:1000,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[
-          {type:"image",source:{type:"base64",media_type:"image/png",data:imageBase64}},
+          {type:"image",source:{type:"base64",media_type:imageMediaType,data:imageBase64}},
           {type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}
         ]}],
       })});
       const data=await res.json();
+      console.log("🌐 API status:", res.status, "| data:", JSON.stringify(data).slice(0,300));
+      if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
       const raw=data.content?.find(b=>b.type==="text")?.text||"";
-      console.log("📖 Raw story response:", raw.slice(0,200));
-      // Strip markdown fences if Claude wrapped the JSON
+      console.log("📖 Raw story response:", raw.slice(0,300));
       const cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
       const parsed=JSON.parse(cleaned);
       spokenKeys.current.delete("story"); setStory(parsed);
     } catch(err) {
       console.error("❌ Story generation error:", err);
-      setError("Oops! The story magic fizzled. Try again!");
+      setError(err?.message||"Oops! The story magic fizzled. Try again!");
       setStep(2);
     } finally {
       setLoading(false);
@@ -813,7 +819,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
   const reset=()=>{
     stop();
-    setImage(null); setImageBase64(null); setAgeGroup(null);
+    setImage(null); setImageBase64(null); setImageMediaType("image/png"); setAgeGroup(null);
     setStory(null); setError(null); setMode(null);
     spokenKeys.current.clear(); setStep(1);
   };
