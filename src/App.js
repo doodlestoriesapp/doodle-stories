@@ -1206,12 +1206,45 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
             {/* Card counter */}
             <p style={{margin:"16px 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
-              Card {shareCardIndex+1} of {shareCards.length} · Swipe to preview all cards
+              Card {shareCardIndex+1} of {shareCards.length} · Use arrows to preview all cards
             </p>
 
-            <h2 style={{margin:"0 0 16px",color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif"}}>Save each card then post as a carousel</h2>
+            <h2 style={{margin:"0 0 8px",color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif"}}>Download all cards as a folder, then post as a carousel</h2>
+            <p style={{margin:"0 0 14px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif",lineHeight:1.5}}>
+              All {shareCards.length} cards will download as a single ZIP folder — open it, select all images, and upload to Instagram as a carousel post.
+            </p>
 
-            {/* Save current card */}
+            {/* Download ZIP — primary action */}
+            <button
+              onClick={async()=>{
+                // Load JSZip dynamically
+                if(!window.JSZip){
+                  await new Promise((resolve,reject)=>{
+                    const s=document.createElement("script");
+                    s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+                    s.onload=resolve; s.onerror=reject;
+                    document.head.appendChild(s);
+                  });
+                }
+                const zip=new window.JSZip();
+                const storySlug=story.title.replace(/[^a-z0-9]/gi,"-").toLowerCase().slice(0,30);
+                const folder=zip.folder(`doodle-story-${storySlug}`);
+                for(let i=0;i<shareCards.length;i++){
+                  const res=await fetch(shareCards[i]);
+                  const blob=await res.blob();
+                  folder.file(`card-${String(i+1).padStart(2,"0")}-of-${shareCards.length}.png`,blob);
+                }
+                const zipBlob=await zip.generateAsync({type:"blob"});
+                const a=document.createElement("a");
+                a.href=URL.createObjectURL(zipBlob);
+                a.download=`doodle-story-${storySlug}.zip`;
+                a.click();
+              }}
+              style={{width:"100%",padding:"13px",borderRadius:14,border:"none",marginBottom:8,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
+              📦 Download All {shareCards.length} Cards as ZIP
+            </button>
+
+            {/* Save single card — secondary */}
             <button
               onClick={()=>{
                 const a=document.createElement("a");
@@ -1219,31 +1252,23 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                 a.download=`doodle-story-card-${shareCardIndex+1}.png`;
                 a.click();
               }}
-              style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:8,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
-              ⬇️ Save Card {shareCardIndex+1} of {shareCards.length}
+              style={{width:"100%",padding:"10px",borderRadius:14,border:`2px solid ${COLORS.border}`,marginBottom:16,background:"transparent",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+              ⬇️ Save just card {shareCardIndex+1}
             </button>
 
-            {/* Save all cards */}
-            {shareCards.length>1&&(
-              <button
-                onClick={async()=>{
-                  for(let i=0;i<shareCards.length;i++){
-                    await new Promise(r=>setTimeout(r,300));
-                    const a=document.createElement("a");
-                    a.href=shareCards[i];
-                    a.download=`doodle-story-card-${i+1}.png`;
-                    a.click();
-                  }
-                }}
-                style={{width:"100%",padding:"12px",borderRadius:14,border:`2px solid ${COLORS.border}`,marginBottom:16,background:"transparent",color:COLORS.text,fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                ⬇️ Save All {shareCards.length} Cards
-              </button>
-            )}
+            {/* How to post tip */}
+            <div style={{background:"rgba(77,150,255,0.07)",borderRadius:12,padding:"10px 14px",marginBottom:14,textAlign:"left"}}>
+              <p style={{margin:0,fontSize:"0.76rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.6}}>
+                <strong>📱 How to post on Instagram:</strong><br/>
+                1. Download the ZIP → open the folder<br/>
+                2. Instagram → + → Post → tap the <strong>multi-image icon</strong><br/>
+                3. Select all cards in order → Share as carousel
+              </p>
+            </div>
 
             {/* Platform links */}
-            <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Post as a carousel on:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-              {[
+            <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>\n              {[
                 {label:"Instagram", emoji:"📸", color:"#E1306C", bg:"rgba(225,48,108,0.08)", url:"https://www.instagram.com/"},
                 {label:"TikTok",    emoji:"🎵", color:"#010101", bg:"rgba(0,0,0,0.06)",      url:"https://www.tiktok.com/upload"},
                 {label:"Facebook",  emoji:"📘", color:"#1877F2", bg:"rgba(24,119,242,0.08)", url:"https://www.facebook.com/"},
