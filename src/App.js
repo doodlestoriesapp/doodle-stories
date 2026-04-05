@@ -14,7 +14,7 @@ const VOICE_LINES = {
   2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
   ageSelected: "Let's go make a story by tapping the big orange Make My Story button!",
   loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
-  story: "Ta-da! Your very own story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
+  story: "Ta-daaa! Your very own story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
   library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
   loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
   liked: "Wow, someone loved that story! What an amazing little author!",
@@ -900,8 +900,31 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
+        // Pre-calculate heights to center everything
+        const imgPad = 60, imgW = W - imgPad*2, imgH = 440;
+        const titleLines = wrapText(ctx, story.title, W-120, 54, "bold");
+        const openPara = paragraphs[0] || "";
+        const teaserText = "\u201c" + openPara.slice(0, 180).trimEnd() + (openPara.length > 180 ? "…" : "\u201d");
+        const tLines = wrapText(ctx, teaserText, W-140, 32, "italic");
+        const teaserShown = Math.min(tLines.length, 4);
+
+        const totalH = imgH
+          + 52                          // gap image → title
+          + titleLines.length * 66      // title
+          + 28                          // gap title → teaser
+          + teaserShown * 44            // teaser
+          + 36                          // gap teaser → divider
+          + 12                          // divider height
+          + 44                          // page number
+          + 90;                         // branding
+
+        // Center the whole block with equal top/bottom padding
+        const topSafe = 100, bottomSafe = 100;
+        const available = H - topSafe - bottomSafe;
+        const startY = topSafe + Math.max(0, (available - totalH) / 2);
+        const imgY = startY;
+
         // Doodle image
-        const imgPad = 60, imgY = 140, imgW = W - imgPad*2, imgH = 480;
         ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
         drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.fillStyle = "#FFFFFF"; ctx.fill(); ctx.restore();
 
@@ -927,24 +950,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         // Title
         ctx.textAlign = "center";
-        const titleLines = wrapText(ctx, story.title, W-120, 54, "bold");
-        const titleY = imgY + imgH + 48;
+        const titleY = imgY + imgH + 52;
         titleLines.forEach((line, i) => { ctx.fillStyle = "#2D2D2D"; ctx.fillText(line, W/2, titleY + i*66); });
 
-        // Opening teaser (first paragraph, up to 200 chars)
+        // Opening teaser
         const teaserY = titleY + titleLines.length*66 + 28;
-        const openPara = paragraphs[0] || "";
-        const teaserText = "\u201c" + openPara.slice(0, 200).trimEnd() + (openPara.length > 200 ? "…" : "\u201d");
-        const tLines = wrapText(ctx, teaserText, W-140, 32, "italic");
         ctx.fillStyle = "#8A8A8A";
-        tLines.slice(0,4).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*44));
+        tLines.slice(0, teaserShown).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*44));
 
         // Page indicator + branding
-        const divY = teaserY + Math.min(tLines.length,4)*44 + 32;
+        const divY = teaserY + teaserShown*44 + 36;
         drawDivider(ctx, divY);
         ctx.font = "24px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`1 / ${totalCards}`, W/2, divY + 40);
-        drawBranding(ctx, divY + 80);
+        ctx.fillText(`1 / ${totalCards}`, W/2, divY + 44);
+        drawBranding(ctx, divY + 90);
 
         urls.push(await canvasToUrl(canvas));
       }
