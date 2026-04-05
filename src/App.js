@@ -770,10 +770,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ]}],
       })});
       const data=await res.json();
-      const text=data.content?.find(b=>b.type==="text")?.text||"";
-      const parsed=JSON.parse(text);
+      const raw=data.content?.find(b=>b.type==="text")?.text||"";
+      console.log("📖 Raw story response:", raw.slice(0,200));
+      // Strip markdown fences if Claude wrapped the JSON
+      const cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
+      const parsed=JSON.parse(cleaned);
       spokenKeys.current.delete("story"); setStory(parsed);
-    } catch {
+    } catch(err) {
+      console.error("❌ Story generation error:", err);
       setError("Oops! The story magic fizzled. Try again!");
       setStep(2);
     } finally {
@@ -904,6 +908,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                 ✨ Make My Story!
               </button>
             </div>
+            {error&&<p style={{textAlign:"center",color:COLORS.accent1,fontSize:"0.86rem",marginTop:12,padding:"10px",background:"rgba(255,107,107,0.06)",borderRadius:10}}>{error}</p>}
           </div>
         )}
 
