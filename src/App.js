@@ -975,6 +975,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       setSharing(false);
     }
   };
+
+  const reset=()=>{
     stop();
     setImage(null); setImageBase64(null); setImageMediaType("image/png"); setAgeGroup(null);
     setStory(null); setError(null); setMode(null);
