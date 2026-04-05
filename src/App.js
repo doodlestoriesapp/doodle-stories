@@ -768,7 +768,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     try {
       const res=await fetch("/api/generate-story",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-20250514", max_tokens:1000,
-        system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
+        system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Start the story with an engaging, specific opening line — NOT "Once upon a time". Jump straight into the action or introduce the character in a memorable way. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:imageMediaType,data:imageBase64}},
           {type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}
@@ -819,146 +819,184 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
   const [sharing, setSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareImageUrl, setShareImageUrl] = useState(null);
+  const [shareCards, setShareCards] = useState([]); // array of blob URLs
+  const [shareCardIndex, setShareCardIndex] = useState(0);
 
-  // ── Generate and share/download a 4:5 portrait card ──────────
+  // ── Generate multi-card 4:5 portrait carousel ────────────────
   const handleShare = async () => {
     if (!story || !ageGroup) return;
     setSharing(true);
     try {
-      const W = 1080, H = 1350; // 4:5 portrait
-      const canvas = document.createElement("canvas");
-      canvas.width = W; canvas.height = H;
-      const ctx = canvas.getContext("2d");
+      const W = 1080, H = 1350;
 
-      // ── Background gradient (warm peach/cream) ──
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0,   "#FFF4EC");
-      bg.addColorStop(0.5, "#FFF9F0");
-      bg.addColorStop(1,   "#FFF0E8");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-
-      // ── Soft decorative circles ──
-      const drawCircle = (x, y, r, color) => {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
-        ctx.fillStyle = color; ctx.fill();
+      // ── Shared helpers ────────────────────────────────────────
+      const drawBg = (ctx) => {
+        const bg = ctx.createLinearGradient(0, 0, W, H);
+        bg.addColorStop(0, "#FFF4EC"); bg.addColorStop(0.5, "#FFF9F0"); bg.addColorStop(1, "#FFF0E8");
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        const blobs = [[-60,-60,240,"rgba(255,107,107,0.08)"],[W+60,H+60,280,"rgba(77,150,255,0.07)"],[W+40,120,160,"rgba(255,217,61,0.09)"],[60,H-80,120,"rgba(107,203,119,0.08)"]];
+        blobs.forEach(([x,y,r,c]) => { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=c; ctx.fill(); });
       };
-      drawCircle(-60, -60,  240, "rgba(255,107,107,0.08)");
-      drawCircle(W+60, H+60, 280, "rgba(77,150,255,0.07)");
-      drawCircle(W+40, 120,  160, "rgba(255,217,61,0.09)");
-      drawCircle(60, H-80,  120, "rgba(107,203,119,0.08)");
 
-      // ── Doodle image (rounded rect, upper section) ──
-      const imgPad = 60, imgY = 80;
-      const imgW = W - imgPad*2, imgH = 560;
-      const drawRounded = (x, y, w, h, r) => {
+      const drawRounded = (ctx, x, y, w, h, r) => {
         ctx.beginPath();
-        ctx.moveTo(x+r, y);
-        ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-        ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-        ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-        ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
-        ctx.closePath();
+        ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+        ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+        ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+        ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
       };
 
-      // White card shadow for doodle
-      ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,0.10)";
-      ctx.shadowBlur = 32;
-      ctx.shadowOffsetY = 8;
-      drawRounded(imgPad, imgY, imgW, imgH, 28);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fill();
-      ctx.restore();
+      const drawBranding = (ctx, y) => {
+        ctx.textAlign = "center";
+        ctx.font = "bold 36px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
+        ctx.fillText("🎨 doodlestories.app", W/2, y);
+        ctx.font = "28px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.fillText("Turn your doodle into a magical story", W/2, y + 44);
+      };
 
-      // Draw doodle image clipped to rounded rect
-      if (image) {
-        await new Promise(resolve => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            ctx.save();
-            drawRounded(imgPad, imgY, imgW, imgH, 28);
-            ctx.clip();
-            // Cover-fit the image
-            const scale = Math.max(imgW / img.width, imgH / img.height);
-            const sw = img.width * scale, sh = img.height * scale;
-            const sx = imgPad + (imgW - sw)/2, sy = imgY + (imgH - sh)/2;
-            ctx.drawImage(img, sx, sy, sw, sh);
-            ctx.restore();
-            resolve();
-          };
-          img.onerror = resolve;
-          img.src = image;
-        });
+      const drawDivider = (ctx, y) => {
+        ctx.beginPath(); ctx.moveTo(W/2-60,y); ctx.lineTo(W/2+60,y);
+        ctx.strokeStyle = "rgba(255,107,107,0.35)"; ctx.lineWidth = 3; ctx.stroke();
+      };
+
+      const wrapText = (ctx, text, maxW, fontSize, style="") => {
+        ctx.font = `${style} ${fontSize}px Georgia, serif`;
+        const words = text.split(" "); let lines = [], line = "";
+        for (const word of words) {
+          const test = line ? line+" "+word : word;
+          if (ctx.measureText(test).width > maxW) { if (line) lines.push(line); line = word; }
+          else line = test;
+        }
+        if (line) lines.push(line);
+        return lines;
+      };
+
+      const canvasToUrl = (canvas) => new Promise(resolve => {
+        canvas.toBlob(blob => resolve(URL.createObjectURL(blob)), "image/png");
+      });
+
+      // ── Chunk story into paragraphs, then into page-sized pieces ──
+      const paragraphs = story.story.split("\n\n").filter(p => p.trim());
+      // How many chars fit per story card (approx 38px italic, ~18 chars/line, ~12 lines)
+      const CHARS_PER_PAGE = 420;
+      const pages = [];
+      let current = "";
+      for (const para of paragraphs) {
+        if (current && (current + " " + para).length > CHARS_PER_PAGE) {
+          pages.push(current.trim()); current = para;
+        } else {
+          current = current ? current + "\n\n" + para : para;
+        }
+      }
+      if (current.trim()) pages.push(current.trim());
+
+      const totalCards = 1 + pages.length; // card 1 = cover, rest = story pages
+      const urls = [];
+
+      // ── CARD 1: Cover — doodle + title + opening ─────────────
+      {
+        const canvas = document.createElement("canvas");
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext("2d");
+        drawBg(ctx);
+
+        // Doodle image
+        const imgPad = 60, imgY = 80, imgW = W - imgPad*2, imgH = 500;
+        ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
+        drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.fillStyle = "#FFFFFF"; ctx.fill(); ctx.restore();
+
+        if (image) {
+          await new Promise(resolve => {
+            const img = new Image(); img.crossOrigin = "anonymous";
+            img.onload = () => {
+              ctx.save(); drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.clip();
+              const scale = Math.max(imgW/img.width, imgH/img.height);
+              const sw = img.width*scale, sh = img.height*scale;
+              ctx.drawImage(img, imgPad+(imgW-sw)/2, imgY+(imgH-sh)/2, sw, sh);
+              ctx.restore(); resolve();
+            };
+            img.onerror = resolve; img.src = image;
+          });
+        }
+
+        // Age badge
+        ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.beginPath(); ctx.roundRect(imgPad+20, imgY+20, 200, 52, 26); ctx.fill();
+        ctx.font = "bold 28px Georgia, serif"; ctx.fillStyle = "#2D2D2D"; ctx.textAlign = "left";
+        ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad+36, imgY+52); ctx.restore();
+
+        // Title
+        ctx.textAlign = "center";
+        const titleLines = wrapText(ctx, story.title, W-120, 54, "bold");
+        const titleY = imgY + imgH + 48;
+        titleLines.forEach((line, i) => { ctx.fillStyle = "#2D2D2D"; ctx.fillText(line, W/2, titleY + i*66); });
+
+        // Opening teaser (first paragraph, up to 200 chars)
+        const teaserY = titleY + titleLines.length*66 + 28;
+        const openPara = paragraphs[0] || "";
+        const teaserText = "\u201c" + openPara.slice(0, 200).trimEnd() + (openPara.length > 200 ? "…" : "\u201d");
+        const tLines = wrapText(ctx, teaserText, W-140, 32, "italic");
+        ctx.fillStyle = "#8A8A8A";
+        tLines.slice(0,4).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*44));
+
+        // Page indicator + branding
+        const divY = teaserY + Math.min(tLines.length,4)*44 + 32;
+        drawDivider(ctx, divY);
+        ctx.font = "24px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.fillText(`1 / ${totalCards}`, W/2, divY + 40);
+        drawBranding(ctx, divY + 80);
+
+        urls.push(await canvasToUrl(canvas));
       }
 
-      // Age badge on doodle
-      const badgeX = imgPad + 20, badgeY = imgY + 20;
-      ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.beginPath(); ctx.roundRect(badgeX, badgeY, 160, 48, 24); ctx.fill();
-      ctx.font = "bold 26px Georgia, serif";
-      ctx.fillStyle = "#2D2D2D";
-      ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, badgeX+16, badgeY+32);
-      ctx.restore();
+      // ── CARDS 2+: Story pages ─────────────────────────────────
+      for (let pi = 0; pi < pages.length; pi++) {
+        const canvas = document.createElement("canvas");
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext("2d");
+        drawBg(ctx);
 
-      // ── Story title ──
-      const titleY = imgY + imgH + 54;
-      ctx.font = "bold 58px Georgia, serif";
-      ctx.fillStyle = "#2D2D2D";
-      ctx.textAlign = "center";
-      // Word-wrap title
-      const titleWords = story.title.split(" ");
-      let titleLines = [], titleLine = "";
-      for (const word of titleWords) {
-        const test = titleLine ? titleLine+" "+word : word;
-        if (ctx.measureText(test).width > W - 120) { titleLines.push(titleLine); titleLine = word; }
-        else titleLine = test;
+        const isLast = pi === pages.length - 1;
+        const cardNum = pi + 2;
+
+        // Story text — large, readable, centered
+        ctx.textAlign = "center";
+        const pageParas = pages[pi].split("\n\n");
+        let curY = 160;
+
+        for (const para of pageParas) {
+          // Drop cap on first paragraph of first story page
+          if (pi === 0 && para === pageParas[0]) {
+            const firstChar = para.charAt(0);
+            const rest = para.slice(1);
+            ctx.font = "bold 110px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
+            ctx.fillText(firstChar, W/2 - ctx.measureText(rest.split(" ")[0]).width/2 - 40, curY + 80);
+            const restLines = wrapText(ctx, rest, W-160, 42);
+            ctx.fillStyle = "#2D2D2D";
+            restLines.forEach((line,i) => ctx.fillText(line, W/2, curY + (i===0?0:0) + i*56 + 40));
+            curY += restLines.length * 56 + 60;
+          } else {
+            const lines = wrapText(ctx, para, W-160, 42);
+            ctx.fillStyle = "#2D2D2D";
+            lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*56));
+            curY += lines.length * 56 + 48;
+          }
+        }
+
+        // Page indicator
+        drawDivider(ctx, H - 180);
+        ctx.font = "24px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.fillText(`${cardNum} / ${totalCards}`, W/2, H - 140);
+        drawBranding(ctx, H - 110);
+
+        urls.push(await canvasToUrl(canvas));
       }
-      titleLines.push(titleLine);
-      titleLines.forEach((line, i) => ctx.fillText(line, W/2, titleY + i*70));
 
-      // ── Teaser line (first ~100 chars of story) ──
-      const teaserY = titleY + titleLines.length*70 + 32;
-      const rawTeaser = story.story.replace(/\n\n/g," ").slice(0, 110) + "…";
-      ctx.font = "italic 32px Georgia, serif";
-      ctx.fillStyle = "#8A8A8A";
-      // Word-wrap teaser
-      const teaserWords = rawTeaser.split(" ");
-      let tLines = [], tLine = "";
-      for (const word of teaserWords) {
-        const test = tLine ? tLine+" "+word : word;
-        if (ctx.measureText(test).width > W - 160) { tLines.push(tLine); tLine = word; }
-        else tLine = test;
-      }
-      tLines.push(tLine);
-      tLines.slice(0,3).forEach((line, i) => ctx.fillText(line, W/2, teaserY + i*44));
+      setShareCards(urls);
+      setShareCardIndex(0);
+      setSharing(false);
+      setShowShareModal(true);
 
-      // ── Divider ──
-      const divY = teaserY + Math.min(tLines.length,3)*44 + 36;
-      ctx.beginPath();
-      ctx.moveTo(W/2 - 60, divY); ctx.lineTo(W/2 + 60, divY);
-      ctx.strokeStyle = "rgba(255,107,107,0.35)"; ctx.lineWidth = 3;
-      ctx.stroke();
-
-      // ── Branding footer ──
-      const footerY = divY + 52;
-      ctx.font = "bold 36px Georgia, serif";
-      ctx.fillStyle = "#FF6B6B";
-      ctx.fillText("🎨 doodlestories.app", W/2, footerY);
-      ctx.font = "28px Georgia, serif";
-      ctx.fillStyle = "#8A8A8A";
-      ctx.fillText("Turn your doodle into a magical story", W/2, footerY + 44);
-
-      // ── Export → show custom share modal ──
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        setShareImageUrl(url);
-        setSharing(false);
-        setShowShareModal(true);
-      }, "image/png");
     } catch (err) {
       console.error("Share failed:", err);
       setSharing(false);
@@ -1138,29 +1176,73 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       {showSaveModal&&story&&<SaveModal story={story} onSave={handleSave}/>}
 
       {/* ── Social Share Modal ── */}
-      {showShareModal&&shareImageUrl&&(
+      {showShareModal&&shareCards.length>0&&(
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"28px 24px",maxWidth:400,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
-            {/* Preview thumbnail */}
-            <img src={shareImageUrl} alt="story card" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:16,marginBottom:20,boxShadow:"0 8px 24px rgba(0,0,0,0.12)"}}/>
-            <h2 style={{margin:"0 0 6px",color:COLORS.text,fontSize:"1.1rem",fontFamily:"Georgia,serif"}}>Share this story</h2>
-            <p style={{margin:"0 0 20px",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",lineHeight:1.5}}>
-              Save the card below, then post it to your chosen platform.
+          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"24px 20px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
+
+            {/* Card preview with arrows */}
+            <div style={{position:"relative",marginBottom:16}}>
+              <img src={shareCards[shareCardIndex]} alt="story card" style={{width:"100%",maxHeight:260,objectFit:"cover",borderRadius:16,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",display:"block"}}/>
+
+              {/* Left arrow */}
+              {shareCards.length>1&&shareCardIndex>0&&(
+                <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-16,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",border:"none",background:"white",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.text}}>‹</button>
+              )}
+
+              {/* Right arrow */}
+              {shareCards.length>1&&shareCardIndex<shareCards.length-1&&(
+                <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:-16,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",border:"none",background:"white",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.text}}>›</button>
+              )}
+
+              {/* Dot indicators */}
+              {shareCards.length>1&&(
+                <div style={{position:"absolute",bottom:-14,left:0,right:0,display:"flex",justifyContent:"center",gap:6}}>
+                  {shareCards.map((_,i)=>(
+                    <button key={i} onClick={()=>setShareCardIndex(i)} style={{width:i===shareCardIndex?20:8,height:8,borderRadius:4,border:"none",background:i===shareCardIndex?COLORS.accent1:"#ddd",cursor:"pointer",padding:0,transition:"all 0.2s"}}/>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Card counter */}
+            <p style={{margin:"16px 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
+              Card {shareCardIndex+1} of {shareCards.length} · Swipe to preview all cards
             </p>
-            {/* Download button */}
+
+            <h2 style={{margin:"0 0 16px",color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif"}}>Save each card then post as a carousel</h2>
+
+            {/* Save current card */}
             <button
               onClick={()=>{
                 const a=document.createElement("a");
-                a.href=shareImageUrl;
-                a.download=`doodle-story-${Date.now()}.png`;
+                a.href=shareCards[shareCardIndex];
+                a.download=`doodle-story-card-${shareCardIndex+1}.png`;
                 a.click();
               }}
-              style={{width:"100%",padding:"13px",borderRadius:16,border:"none",marginBottom:16,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.95rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
-              ⬇️ Save Card to Device
+              style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:8,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
+              ⬇️ Save Card {shareCardIndex+1} of {shareCards.length}
             </button>
-            {/* Platform buttons */}
-            <p style={{margin:"0 0 12px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Then open your app to post:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+
+            {/* Save all cards */}
+            {shareCards.length>1&&(
+              <button
+                onClick={async()=>{
+                  for(let i=0;i<shareCards.length;i++){
+                    await new Promise(r=>setTimeout(r,300));
+                    const a=document.createElement("a");
+                    a.href=shareCards[i];
+                    a.download=`doodle-story-card-${i+1}.png`;
+                    a.click();
+                  }
+                }}
+                style={{width:"100%",padding:"12px",borderRadius:14,border:`2px solid ${COLORS.border}`,marginBottom:16,background:"transparent",color:COLORS.text,fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                ⬇️ Save All {shareCards.length} Cards
+              </button>
+            )}
+
+            {/* Platform links */}
+            <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Post as a carousel on:</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
               {[
                 {label:"Instagram", emoji:"📸", color:"#E1306C", bg:"rgba(225,48,108,0.08)", url:"https://www.instagram.com/"},
                 {label:"TikTok",    emoji:"🎵", color:"#010101", bg:"rgba(0,0,0,0.06)",      url:"https://www.tiktok.com/upload"},
@@ -1168,15 +1250,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                 {label:"YouTube",   emoji:"▶️", color:"#FF0000", bg:"rgba(255,0,0,0.07)",    url:"https://studio.youtube.com/"},
               ].map(p=>(
                 <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"11px 14px",borderRadius:14,border:`2px solid ${p.color}30`,background:p.bg,textDecoration:"none",cursor:"pointer",transition:"all 0.15s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=p.bg.replace("0.0","0.1")}
-                  onMouseLeave={e=>e.currentTarget.style.background=p.bg}>
-                  <span style={{fontSize:20}}>{p.emoji}</span>
-                  <span style={{fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:"0.88rem",color:p.color}}>{p.label}</span>
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`2px solid ${p.color}30`,background:p.bg,textDecoration:"none"}}>
+                  <span style={{fontSize:18}}>{p.emoji}</span>
+                  <span style={{fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:"0.85rem",color:p.color}}>{p.label}</span>
                 </a>
               ))}
             </div>
-            <button onClick={()=>setShowShareModal(false)} style={{marginTop:16,background:"none",border:"none",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Done</button>
+
+            <button onClick={()=>setShowShareModal(false)} style={{background:"none",border:"none",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Done</button>
           </div>
         </div>
       )}
