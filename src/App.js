@@ -901,10 +901,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         drawBg(ctx);
 
         // Instagram safe zone — 200px top and bottom guaranteed visible
-        const SAFE = 200;
+        const SAFE = 220;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 950px usable
+        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 910px usable
 
         const imgPad = 60, imgW = W - imgPad*2;
 
@@ -1018,13 +1018,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           }
         });
 
-        // Measure total height from pre-computed arrays
+        // Measure total height — include full line height for every paragraph
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
             totalTextH += Math.max(p.lines.length * STORY_LH + 20, 110) + 36;
           } else {
-            totalTextH += p.lines.length * STORY_LH + (pp < paraLines.length-1 ? PARA_GAP : 0);
+            // All paragraphs get full line height, inter-paragraph gap between them
+            totalTextH += p.lines.length * STORY_LH;
+            if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
           }
         });
 
@@ -1046,7 +1048,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
             p.lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
-            curY += p.lines.length * STORY_LH + (pp < paraLines.length-1 ? PARA_GAP : 0);
+            curY += p.lines.length * STORY_LH;
+            if (pp < paraLines.length - 1) curY += PARA_GAP;
           }
         });
 
