@@ -900,8 +900,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // Instagram safe zone — 180px top and bottom guaranteed visible
-        const SAFE = 180;
+        // Instagram safe zone — 200px top and bottom guaranteed visible
+        const SAFE = 200;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
         const ZONE_H   = ZONE_BOT - ZONE_TOP; // 990px usable
@@ -1005,33 +1005,31 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const GAP_DIV_NUM  = 36;
         const footerDivY   = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
 
-        // Text fills between ZONE_TOP and footerDivY - 24px gap
-        const textTop = ZONE_TOP;
-        const textBot = footerDivY - 24;
-
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
         const STORY_FS = 42;
-        const STORY_LH = 58;
-        const PARA_GAP = 44;
+        const STORY_LH = 60;
+        const PARA_GAP = 40;
+        const BODY_FONT = `${STORY_FS}px Georgia, serif`;
 
-        // Pre-calculate total text height
-        ctx.font = `${STORY_FS}px Georgia, serif`;
+        // Pre-calculate total text height — always set font before measuring
         let totalTextH = 0;
         for (let pp = 0; pp < pageParas.length; pp++) {
           const para = pageParas[pp];
           if (pi === 0 && pp === 0) {
+            ctx.font = BODY_FONT;
             const restLines = wrapText(ctx, para.slice(1), W-260, STORY_FS);
-            totalTextH += Math.max(restLines.length * STORY_LH + 20, 110) + 40;
+            totalTextH += Math.max(restLines.length * STORY_LH + 20, 110) + 36;
           } else {
+            ctx.font = BODY_FONT;
             const lines = wrapText(ctx, para, W-160, STORY_FS);
             totalTextH += lines.length * STORY_LH + (pp < pageParas.length-1 ? PARA_GAP : 0);
           }
         }
 
-        // Center text block in available zone
-        const availH = textBot - textTop;
-        let curY = textTop + Math.max(0, (availH - totalTextH) / 2);
+        // Center text block exactly between ZONE_TOP and footer
+        const availH = footerDivY - 24 - ZONE_TOP;
+        let curY = ZONE_TOP + Math.round(Math.max(0, (availH - totalTextH) / 2));
 
         for (let pp = 0; pp < pageParas.length; pp++) {
           const para = pageParas[pp];
@@ -1042,13 +1040,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             ctx.font = "bold 96px Georgia, serif";
             ctx.fillStyle = "#FF6B6B";
             ctx.fillText(firstChar, 150, curY + 76);
-            ctx.font = `${STORY_FS}px Georgia, serif`;
+            ctx.font = BODY_FONT;
             const restLines = wrapText(ctx, rest, W-260, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
             restLines.forEach((line,i) => ctx.fillText(line, W/2 + 50, curY + i*STORY_LH + 16));
-            curY += Math.max(restLines.length * STORY_LH + 20, 110) + 40;
+            curY += Math.max(restLines.length * STORY_LH + 20, 110) + 36;
           } else {
-            ctx.font = `${STORY_FS}px Georgia, serif`;
+            ctx.font = BODY_FONT;
             const lines = wrapText(ctx, para, W-160, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
             lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
