@@ -904,40 +904,35 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const SAFE = 200;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 990px usable
+        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 950px usable
 
         const imgPad = 60, imgW = W - imgPad*2;
 
-        // Pre-measure text so we can size image to fit
-        ctx.font = "bold 54px Georgia, serif";
-        const titleLines = wrapText(ctx, story.title, W-120, 54, "bold");
-        const openPara = paragraphs[0] || "";
-        const teaserText = "\u201c" + openPara.slice(0, 160).trimEnd() + "…\u201d";
-        ctx.font = "italic 30px Georgia, serif";
-        const tLines = wrapText(ctx, teaserText, W-160, 30, "italic");
-        const teaserShown = Math.min(tLines.length, 3);
-
-        // Fixed spacing constants
-        const GAP_IMG_TITLE  = 44;
-        const TITLE_LH       = 64;
-        const GAP_TITLE_TEA  = 22;
-        const TEASER_LH      = 42;
-        const GAP_TEA_DIV    = 28;
-        const DIV_H          = 4;
-        const GAP_DIV_NUM    = 36;
-        const NUM_H          = 30;
-        const GAP_NUM_BRAND  = 10;
-        const BRAND_H        = 80; // two lines of branding
-
-        const textBlockH = titleLines.length * TITLE_LH
-          + GAP_TITLE_TEA + teaserShown * TEASER_LH
-          + GAP_TEA_DIV + DIV_H + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND + BRAND_H;
-
-        // Image gets remaining space minus gaps
-        const imgH = Math.min(480, ZONE_H - GAP_IMG_TITLE - textBlockH);
-
-        // Start image at top of safe zone
+        // Fixed proportions: image = 44% of zone, text gets the rest
+        const imgH = Math.round(ZONE_H * 0.44); // ~418px
         const imgY = ZONE_TOP;
+
+        // Spacing constants
+        const GAP_IMG_TITLE  = 36;
+        const TITLE_FS       = 52;
+        const TITLE_LH       = 62;
+        const GAP_TITLE_TEA  = 18;
+        const TEASER_FS      = 28;
+        const TEASER_LH      = 40;
+        const GAP_TEA_DIV    = 24;
+        const GAP_DIV_NUM    = 32;
+        const NUM_H          = 28;
+        const GAP_NUM_BRAND  = 8;
+        const BRAND_H        = 76;
+
+        // Pre-measure text with correct fonts
+        ctx.font = `bold ${TITLE_FS}px Georgia, serif`;
+        const titleLines = wrapText(ctx, story.title, W-140, TITLE_FS, "bold");
+        const openPara = paragraphs[0] || "";
+        const teaserText = "\u201c" + openPara.slice(0, 150).trimEnd() + "…\u201d";
+        ctx.font = `italic ${TEASER_FS}px Georgia, serif`;
+        const tLines = wrapText(ctx, teaserText, W-160, TEASER_FS, "italic");
+        const teaserShown = Math.min(tLines.length, 3);
 
         // Doodle image
         ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
@@ -965,17 +960,17 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         // Title
         ctx.textAlign = "center";
-        ctx.font = "bold 54px Georgia, serif"; ctx.fillStyle = "#2D2D2D";
+        ctx.font = `bold ${TITLE_FS}px Georgia, serif`; ctx.fillStyle = "#2D2D2D";
         const titleY = imgY + imgH + GAP_IMG_TITLE;
         titleLines.forEach((line, i) => ctx.fillText(line, W/2, titleY + i*TITLE_LH));
 
         // Teaser
         const teaserY = titleY + titleLines.length*TITLE_LH + GAP_TITLE_TEA;
-        ctx.font = "italic 30px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.font = `italic ${TEASER_FS}px Georgia, serif`; ctx.fillStyle = "#8A8A8A";
         tLines.slice(0, teaserShown).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*TEASER_LH));
 
         // Divider + page number + branding — anchored to bottom of safe zone
-        const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM - DIV_H;
+        const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
         drawDivider(ctx, divY);
         ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
         ctx.fillText(`1 / ${totalCards}`, W/2, divY + GAP_DIV_NUM);
@@ -1012,47 +1007,48 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const PARA_GAP = 40;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
 
-        // Pre-calculate total text height — always set font before measuring
-        let totalTextH = 0;
-        for (let pp = 0; pp < pageParas.length; pp++) {
-          const para = pageParas[pp];
+        // Pre-compute ALL line arrays once — reuse for both measurement and rendering
+        const paraLines = pageParas.map((para, pp) => {
           if (pi === 0 && pp === 0) {
             ctx.font = BODY_FONT;
-            const restLines = wrapText(ctx, para.slice(1), W-260, STORY_FS);
-            totalTextH += Math.max(restLines.length * STORY_LH + 20, 110) + 36;
+            return { type: "dropcap", firstChar: para.charAt(0), lines: wrapText(ctx, para.slice(1), W-260, STORY_FS) };
           } else {
             ctx.font = BODY_FONT;
-            const lines = wrapText(ctx, para, W-160, STORY_FS);
-            totalTextH += lines.length * STORY_LH + (pp < pageParas.length-1 ? PARA_GAP : 0);
+            return { type: "normal", lines: wrapText(ctx, para, W-160, STORY_FS) };
           }
-        }
+        });
+
+        // Measure total height from pre-computed arrays
+        let totalTextH = 0;
+        paraLines.forEach((p, pp) => {
+          if (p.type === "dropcap") {
+            totalTextH += Math.max(p.lines.length * STORY_LH + 20, 110) + 36;
+          } else {
+            totalTextH += p.lines.length * STORY_LH + (pp < paraLines.length-1 ? PARA_GAP : 0);
+          }
+        });
 
         // Center text block exactly between ZONE_TOP and footer
         const availH = footerDivY - 24 - ZONE_TOP;
         let curY = ZONE_TOP + Math.round(Math.max(0, (availH - totalTextH) / 2));
 
-        for (let pp = 0; pp < pageParas.length; pp++) {
-          const para = pageParas[pp];
-          if (pi === 0 && pp === 0) {
-            // Drop cap on first story page
-            const firstChar = para.charAt(0);
-            const rest = para.slice(1);
+        // Render using pre-computed line arrays
+        paraLines.forEach((p, pp) => {
+          if (p.type === "dropcap") {
             ctx.font = "bold 96px Georgia, serif";
             ctx.fillStyle = "#FF6B6B";
-            ctx.fillText(firstChar, 150, curY + 76);
+            ctx.fillText(p.firstChar, 150, curY + 76);
             ctx.font = BODY_FONT;
-            const restLines = wrapText(ctx, rest, W-260, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
-            restLines.forEach((line,i) => ctx.fillText(line, W/2 + 50, curY + i*STORY_LH + 16));
-            curY += Math.max(restLines.length * STORY_LH + 20, 110) + 36;
+            p.lines.forEach((line,i) => ctx.fillText(line, W/2 + 50, curY + i*STORY_LH + 16));
+            curY += Math.max(p.lines.length * STORY_LH + 20, 110) + 36;
           } else {
             ctx.font = BODY_FONT;
-            const lines = wrapText(ctx, para, W-160, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
-            lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
-            curY += lines.length * STORY_LH + (pp < pageParas.length-1 ? PARA_GAP : 0);
+            p.lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
+            curY += p.lines.length * STORY_LH + (pp < paraLines.length-1 ? PARA_GAP : 0);
           }
-        }
+        });
 
         // Footer anchored to bottom safe zone
         drawDivider(ctx, footerDivY);
@@ -1331,9 +1327,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             <div style={{background:"rgba(77,150,255,0.07)",borderRadius:12,padding:"10px 14px",marginBottom:14,textAlign:"left"}}>
               <p style={{margin:0,fontSize:"0.76rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.6}}>
                 <strong>📱 How to post on Instagram:</strong><br/>
-                1. Download the ZIP → open the folder<br/>
-                2. Instagram → + → Post → tap the <strong>multi-image icon</strong><br/>
-                3. Select all cards in order → Share as carousel
+                1. Download the ZIP → unzip → open the folder<br/>
+                2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
+                3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
+                4. Share as carousel ✨
               </p>
             </div>
 
