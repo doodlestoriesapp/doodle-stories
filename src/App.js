@@ -900,30 +900,44 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // Pre-calculate heights to center everything
-        const imgPad = 60, imgW = W - imgPad*2, imgH = 440;
+        // Instagram safe zone — 180px top and bottom guaranteed visible
+        const SAFE = 180;
+        const ZONE_TOP = SAFE;
+        const ZONE_BOT = H - SAFE;
+        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 990px usable
+
+        const imgPad = 60, imgW = W - imgPad*2;
+
+        // Pre-measure text so we can size image to fit
+        ctx.font = "bold 54px Georgia, serif";
         const titleLines = wrapText(ctx, story.title, W-120, 54, "bold");
         const openPara = paragraphs[0] || "";
-        const teaserText = "\u201c" + openPara.slice(0, 180).trimEnd() + (openPara.length > 180 ? "…" : "\u201d");
-        const tLines = wrapText(ctx, teaserText, W-140, 32, "italic");
-        const teaserShown = Math.min(tLines.length, 4);
+        const teaserText = "\u201c" + openPara.slice(0, 160).trimEnd() + "…\u201d";
+        ctx.font = "italic 30px Georgia, serif";
+        const tLines = wrapText(ctx, teaserText, W-160, 30, "italic");
+        const teaserShown = Math.min(tLines.length, 3);
 
-        const totalH = imgH
-          + 52                          // gap image → title
-          + titleLines.length * 66      // title
-          + 28                          // gap title → teaser
-          + teaserShown * 44            // teaser
-          + 36                          // gap teaser → divider
-          + 12                          // divider height
-          + 44                          // page number
-          + 90;                         // branding
+        // Fixed spacing constants
+        const GAP_IMG_TITLE  = 44;
+        const TITLE_LH       = 64;
+        const GAP_TITLE_TEA  = 22;
+        const TEASER_LH      = 42;
+        const GAP_TEA_DIV    = 28;
+        const DIV_H          = 4;
+        const GAP_DIV_NUM    = 36;
+        const NUM_H          = 30;
+        const GAP_NUM_BRAND  = 10;
+        const BRAND_H        = 80; // two lines of branding
 
-        // Center the whole block with equal top/bottom padding
-        // topSafe=160 accounts for Instagram's top crop on 4:5 images
-        const topSafe = 160, bottomSafe = 160;
-        const available = H - topSafe - bottomSafe;
-        const startY = topSafe + Math.max(0, (available - totalH) / 2);
-        const imgY = startY;
+        const textBlockH = titleLines.length * TITLE_LH
+          + GAP_TITLE_TEA + teaserShown * TEASER_LH
+          + GAP_TEA_DIV + DIV_H + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND + BRAND_H;
+
+        // Image gets remaining space minus gaps
+        const imgH = Math.min(480, ZONE_H - GAP_IMG_TITLE - textBlockH);
+
+        // Start image at top of safe zone
+        const imgY = ZONE_TOP;
 
         // Doodle image
         ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
@@ -945,26 +959,27 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         // Age badge
         ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.beginPath(); ctx.roundRect(imgPad+20, imgY+20, 200, 52, 26); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(imgPad+20, imgY+20, 210, 52, 26); ctx.fill();
         ctx.font = "bold 28px Georgia, serif"; ctx.fillStyle = "#2D2D2D"; ctx.textAlign = "left";
         ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad+36, imgY+52); ctx.restore();
 
         // Title
         ctx.textAlign = "center";
-        const titleY = imgY + imgH + 52;
-        titleLines.forEach((line, i) => { ctx.fillStyle = "#2D2D2D"; ctx.fillText(line, W/2, titleY + i*66); });
+        ctx.font = "bold 54px Georgia, serif"; ctx.fillStyle = "#2D2D2D";
+        const titleY = imgY + imgH + GAP_IMG_TITLE;
+        titleLines.forEach((line, i) => ctx.fillText(line, W/2, titleY + i*TITLE_LH));
 
-        // Opening teaser
-        const teaserY = titleY + titleLines.length*66 + 28;
-        ctx.fillStyle = "#8A8A8A";
-        tLines.slice(0, teaserShown).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*44));
+        // Teaser
+        const teaserY = titleY + titleLines.length*TITLE_LH + GAP_TITLE_TEA;
+        ctx.font = "italic 30px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        tLines.slice(0, teaserShown).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*TEASER_LH));
 
-        // Page indicator + branding
-        const divY = teaserY + teaserShown*44 + 36;
+        // Divider + page number + branding — anchored to bottom of safe zone
+        const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM - DIV_H;
         drawDivider(ctx, divY);
-        ctx.font = "24px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`1 / ${totalCards}`, W/2, divY + 44);
-        drawBranding(ctx, divY + 90);
+        ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.fillText(`1 / ${totalCards}`, W/2, divY + GAP_DIV_NUM);
+        drawBranding(ctx, divY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
         urls.push(await canvasToUrl(canvas));
       }
@@ -976,56 +991,76 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        const isLast = pi === pages.length - 1;
         const cardNum = pi + 2;
 
-        // Story text — calculate total height first, then center it
+        // Same safe zone as cover card
+        const SAFE     = 180;
+        const ZONE_TOP = SAFE;
+        const ZONE_BOT = H - SAFE;
+
+        // Footer anchored to bottom of safe zone
+        const BRAND_H      = 80;
+        const GAP_NUM_BRAND= 10;
+        const NUM_H        = 30;
+        const GAP_DIV_NUM  = 36;
+        const footerDivY   = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
+
+        // Text fills between ZONE_TOP and footerDivY - 24px gap
+        const textTop = ZONE_TOP;
+        const textBot = footerDivY - 24;
+
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
-        const topSafe = 160;       // Instagram safe zone at top
-        const footerTop = H - 220; // where footer begins (branding at H-110, divider at H-180)
+        const STORY_FS = 42;
+        const STORY_LH = 58;
+        const PARA_GAP = 44;
 
-        // Pre-calculate total text block height
+        // Pre-calculate total text height
+        ctx.font = `${STORY_FS}px Georgia, serif`;
         let totalTextH = 0;
         for (let pp = 0; pp < pageParas.length; pp++) {
           const para = pageParas[pp];
           if (pi === 0 && pp === 0) {
-            const restLines = wrapText(ctx, para.slice(1), W-240, 42);
-            totalTextH += Math.max(restLines.length * 56 + 20, 110) + 40;
+            const restLines = wrapText(ctx, para.slice(1), W-260, STORY_FS);
+            totalTextH += Math.max(restLines.length * STORY_LH + 20, 110) + 40;
           } else {
-            const lines = wrapText(ctx, para, W-160, 42);
-            totalTextH += lines.length * 56 + 48;
+            const lines = wrapText(ctx, para, W-160, STORY_FS);
+            totalTextH += lines.length * STORY_LH + (pp < pageParas.length-1 ? PARA_GAP : 0);
           }
         }
 
-        // Start Y so text block is centered in available space
-        const availableH = footerTop - topSafe;
-        let curY = topSafe + Math.max(0, (availableH - totalTextH) / 2);
+        // Center text block in available zone
+        const availH = textBot - textTop;
+        let curY = textTop + Math.max(0, (availH - totalTextH) / 2);
 
-        for (const para of pageParas) {
-          // Drop cap on first paragraph of first story page
-          if (pi === 0 && para === pageParas[0]) {
+        for (let pp = 0; pp < pageParas.length; pp++) {
+          const para = pageParas[pp];
+          if (pi === 0 && pp === 0) {
+            // Drop cap on first story page
             const firstChar = para.charAt(0);
             const rest = para.slice(1);
-            ctx.font = "bold 100px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
-            ctx.fillText(firstChar, 160, curY + 72);
-            const restLines = wrapText(ctx, rest, W-240, 42);
+            ctx.font = "bold 96px Georgia, serif";
+            ctx.fillStyle = "#FF6B6B";
+            ctx.fillText(firstChar, 150, curY + 76);
+            ctx.font = `${STORY_FS}px Georgia, serif`;
+            const restLines = wrapText(ctx, rest, W-260, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
-            restLines.forEach((line,i) => ctx.fillText(line, W/2 + 40, curY + i*56 + 20));
-            curY += Math.max(restLines.length * 56 + 20, 110) + 40;
+            restLines.forEach((line,i) => ctx.fillText(line, W/2 + 50, curY + i*STORY_LH + 16));
+            curY += Math.max(restLines.length * STORY_LH + 20, 110) + 40;
           } else {
-            const lines = wrapText(ctx, para, W-160, 42);
+            ctx.font = `${STORY_FS}px Georgia, serif`;
+            const lines = wrapText(ctx, para, W-160, STORY_FS);
             ctx.fillStyle = "#2D2D2D";
-            lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*56));
-            curY += lines.length * 56 + 48;
+            lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
+            curY += lines.length * STORY_LH + (pp < pageParas.length-1 ? PARA_GAP : 0);
           }
         }
 
-        // Page indicator
-        drawDivider(ctx, H - 180);
-        ctx.font = "24px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`${cardNum} / ${totalCards}`, W/2, H - 140);
-        drawBranding(ctx, H - 110);
+        // Footer anchored to bottom safe zone
+        drawDivider(ctx, footerDivY);
+        ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
+        ctx.fillText(`${cardNum} / ${totalCards}`, W/2, footerDivY + GAP_DIV_NUM);
+        drawBranding(ctx, footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
         urls.push(await canvasToUrl(canvas));
       }
