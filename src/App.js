@@ -35,7 +35,6 @@ const COLORS = {
 };
 
 // ── Storage ──────────────────────────────────────────────────────
-// Single source of truth — always read from storage, never assume in-memory is fresh
 async function loadLibrary() {
   try {
     const r = await window.storage.get("doodle-library", true);
@@ -542,27 +541,23 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
     onVote(id, type);
     setShowConfetti(true);
     speak(type==="love"?VOICE_LINES.loved:VOICE_LINES.liked, type==="love"?"loved":"liked");
-    // Update open modal's counts immediately
     if (readingStory?.id===id) {
       setReadingStory(s => s ? { ...s, [type==="love"?"loves":"likes"]: (s[type==="love"?"loves":"likes"]||0)+1 } : s);
     }
   };
 
-  // Sort based on active tab
   const sorted = tab==="loved"
     ? [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0)
     : tab==="liked"
       ? [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0)
       : [...library];
 
-  // Filter by age group and search
   const filtered = sorted.filter(s => {
     const ageMatch = filterAge==="all" || s.ageLabel===filterAge;
     const q = searchQuery.toLowerCase();
     return ageMatch && (!q || s.title.toLowerCase().includes(q) || s.preview.toLowerCase().includes(q) || (s.tags||[]).some(t=>t.toLowerCase().includes(q)));
   });
 
-  // Counts for tab badges
   const lovedCount = library.filter(s=>(s.loves||0)>0).length;
   const likedCount = library.filter(s=>(s.likes||0)>0).length;
 
@@ -598,8 +593,6 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
       {nightMode&&<StarryBg/>}
       <Confetti active={showConfetti} onDone={()=>setShowConfetti(false)}/>
       <div style={{position:"relative",zIndex:1,maxWidth:820,margin:"0 auto",padding:"30px 20px 60px"}}>
-
-        {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
           <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
           <div style={{textAlign:"center"}}>
@@ -609,14 +602,12 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           <button onClick={()=>setNightMode(n=>!n)} style={{background:nightMode?"rgba(255,255,255,0.1)":COLORS.card,border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 12px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.95rem"}}>{nightMode?"☀️":"🌙"}</button>
         </div>
 
-        {/* Tabs with counts */}
         <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
           <TabBtn id="all"   label="✨ All Stories" count={library.length}/>
           <TabBtn id="loved" label="❤️ Most Loved"  count={lovedCount}/>
           <TabBtn id="liked" label="👍 Most Liked"  count={likedCount}/>
         </div>
 
-        {/* Age group filter pills */}
         <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>
           {["all",...AGE_GROUPS.map(a=>a.label)].map(label=>(
             <button key={label} onClick={()=>setFilterAge(label)} style={{
@@ -631,7 +622,6 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           ))}
         </div>
 
-        {/* Search + Random row */}
         <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
           <input type="text" placeholder="🔍 Search stories, themes..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
             style={{flex:1,minWidth:150,padding:"8px 13px",borderRadius:12,border:`2px solid ${nightMode?"rgba(255,255,255,0.15)":COLORS.border}`,background:nightMode?"rgba(255,255,255,0.07)":"white",color:nightMode?"white":COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif",outline:"none"}}/>
@@ -641,7 +631,6 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           </button>
         </div>
 
-        {/* Tab context banner */}
         {tab!=="all" && filtered.length>0 && (
           <div style={{marginBottom:16,padding:"10px 16px",borderRadius:14,background:tab==="loved"?"rgba(255,78,205,0.08)":"rgba(255,217,61,0.08)",border:`1px solid ${tab==="loved"?COLORS.accent5:COLORS.accent2}30`}}>
             <p style={{margin:0,fontSize:"0.84rem",color:nightMode?"rgba(255,255,255,0.7)":COLORS.text}}>
@@ -652,7 +641,6 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           </div>
         )}
 
-        {/* Empty states */}
         {filtered.length===0 && (
           <div style={{textAlign:"center",padding:"52px 20px"}}>
             <div style={{fontSize:44,marginBottom:12}}>
@@ -680,7 +668,6 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           </div>
         )}
 
-        {/* Story grid */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
           {filtered.map((s,i)=>(
             <StoryCard
@@ -741,7 +728,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
     setImage(URL.createObjectURL(file));
-    // Capture the real media type (jpeg, png, webp, gif)
     const allowedTypes = ["image/jpeg","image/png","image/gif","image/webp"];
     const mediaType = allowedTypes.includes(file.type) ? file.type : "image/png";
     setImageMediaType(mediaType);
@@ -791,7 +777,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     }
   };
 
-  // ── KEY FIX: use currentLibrary from root state — no stale re-fetch ──
   const handleSave=async(share)=>{
     setShowSaveModal(false);
     if(!share||!story) return;
@@ -809,7 +794,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       loves: 0,
       date: new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
     };
-    // Prepend new story to the full live library — guaranteed to contain all previous entries
     const updated = [newEntry, ...currentLibrary];
     console.log("💾 Saving story. Library will have", updated.length, "entries.");
     await saveLibrary(updated);
@@ -819,7 +803,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
   const [sharing, setSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareCards, setShareCards] = useState([]); // array of blob URLs
+  const [shareCards, setShareCards] = useState([]);
   const [shareCardIndex, setShareCardIndex] = useState(0);
 
   // ── Generate multi-card 4:5 portrait carousel ────────────────
@@ -875,9 +859,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         canvas.toBlob(blob => resolve(URL.createObjectURL(blob)), "image/png");
       });
 
-      // ── Chunk story into paragraphs, then into page-sized pieces ──
+      // ── Chunk story into paragraphs ───────────────────────────
       const paragraphs = story.story.split("\n\n").filter(p => p.trim());
-      // How many chars fit per story card (approx 38px italic, ~18 chars/line, ~12 lines)
       const CHARS_PER_PAGE = 420;
       const pages = [];
       let current = "";
@@ -890,7 +873,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       }
       if (current.trim()) pages.push(current.trim());
 
-      const totalCards = 1 + pages.length; // card 1 = cover, rest = story pages
+      const totalCards = 1 + pages.length;
       const urls = [];
 
       // ── CARD 1: Cover — doodle + title + opening ─────────────
@@ -900,52 +883,56 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // Instagram safe zone — 200px top and bottom guaranteed visible
-        const SAFE = 220;
+        // Tighter safe zone — image starts near top
+        const SAFE = 100;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP; // 910px usable
+        const ZONE_H   = ZONE_BOT - ZONE_TOP;
 
-        const imgPad = 60, imgW = W - imgPad*2;
+        const imgPad = 40, imgW = W - imgPad * 2;
 
-        // Fixed proportions: image = 44% of zone, text gets the rest
-        const imgH = Math.round(ZONE_H * 0.44); // ~418px
+        // Image takes 46% of zone, starts right at top of safe zone
+        const imgH = Math.round(ZONE_H * 0.46);
         const imgY = ZONE_TOP;
 
         // Spacing constants
-        const GAP_IMG_TITLE  = 36;
-        const TITLE_FS       = 52;
-        const TITLE_LH       = 62;
-        const GAP_TITLE_TEA  = 18;
-        const TEASER_FS      = 28;
-        const TEASER_LH      = 40;
-        const GAP_TEA_DIV    = 24;
-        const GAP_DIV_NUM    = 32;
+        const GAP_IMG_TITLE  = 32;
+        const TITLE_FS       = 50;
+        const TITLE_LH       = 60;
+        const GAP_TITLE_TEA  = 16;
+        const TEASER_FS      = 27;
+        const TEASER_LH      = 38;
+        const GAP_DIV_NUM    = 30;
         const NUM_H          = 28;
         const GAP_NUM_BRAND  = 8;
         const BRAND_H        = 76;
 
-        // Pre-measure text with correct fonts
+        // Pre-measure text
         ctx.font = `bold ${TITLE_FS}px Georgia, serif`;
-        const titleLines = wrapText(ctx, story.title, W-140, TITLE_FS, "bold");
+        const titleLines = wrapText(ctx, story.title, W - 140, TITLE_FS, "bold");
         const openPara = paragraphs[0] || "";
         const teaserText = "\u201c" + openPara.slice(0, 150).trimEnd() + "…\u201d";
         ctx.font = `italic ${TEASER_FS}px Georgia, serif`;
-        const tLines = wrapText(ctx, teaserText, W-160, TEASER_FS, "italic");
+        const tLines = wrapText(ctx, teaserText, W - 160, TEASER_FS, "italic");
         const teaserShown = Math.min(tLines.length, 3);
 
-        // Doodle image
-        ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 32; ctx.shadowOffsetY = 8;
-        drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.fillStyle = "#FFFFFF"; ctx.fill(); ctx.restore();
+        // Doodle image — fills width edge to edge with rounded corners
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
+        drawRounded(ctx, imgPad, imgY, imgW, imgH, 24);
+        ctx.fillStyle = "#FFFFFF"; ctx.fill();
+        ctx.restore();
 
         if (image) {
           await new Promise(resolve => {
             const img = new Image(); img.crossOrigin = "anonymous";
             img.onload = () => {
-              ctx.save(); drawRounded(ctx, imgPad, imgY, imgW, imgH, 28); ctx.clip();
-              const scale = Math.max(imgW/img.width, imgH/img.height);
-              const sw = img.width*scale, sh = img.height*scale;
-              ctx.drawImage(img, imgPad+(imgW-sw)/2, imgY+(imgH-sh)/2, sw, sh);
+              ctx.save();
+              drawRounded(ctx, imgPad, imgY, imgW, imgH, 24);
+              ctx.clip();
+              const scale = Math.max(imgW / img.width, imgH / img.height);
+              const sw = img.width * scale, sh = img.height * scale;
+              ctx.drawImage(img, imgPad + (imgW - sw) / 2, imgY + (imgH - sh) / 2, sw, sh);
               ctx.restore(); resolve();
             };
             img.onerror = resolve; img.src = image;
@@ -953,27 +940,29 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         }
 
         // Age badge
-        ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.beginPath(); ctx.roundRect(imgPad+20, imgY+20, 210, 52, 26); ctx.fill();
-        ctx.font = "bold 28px Georgia, serif"; ctx.fillStyle = "#2D2D2D"; ctx.textAlign = "left";
-        ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad+36, imgY+52); ctx.restore();
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.beginPath(); ctx.roundRect(imgPad + 20, imgY + 20, 210, 52, 26); ctx.fill();
+        ctx.font = "bold 26px Georgia, serif"; ctx.fillStyle = "#2D2D2D"; ctx.textAlign = "left";
+        ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad + 36, imgY + 50);
+        ctx.restore();
 
         // Title
         ctx.textAlign = "center";
         ctx.font = `bold ${TITLE_FS}px Georgia, serif`; ctx.fillStyle = "#2D2D2D";
         const titleY = imgY + imgH + GAP_IMG_TITLE;
-        titleLines.forEach((line, i) => ctx.fillText(line, W/2, titleY + i*TITLE_LH));
+        titleLines.forEach((line, i) => ctx.fillText(line, W / 2, titleY + i * TITLE_LH));
 
         // Teaser
-        const teaserY = titleY + titleLines.length*TITLE_LH + GAP_TITLE_TEA;
+        const teaserY = titleY + titleLines.length * TITLE_LH + GAP_TITLE_TEA;
         ctx.font = `italic ${TEASER_FS}px Georgia, serif`; ctx.fillStyle = "#8A8A8A";
-        tLines.slice(0, teaserShown).forEach((line,i) => ctx.fillText(line, W/2, teaserY + i*TEASER_LH));
+        tLines.slice(0, teaserShown).forEach((line, i) => ctx.fillText(line, W / 2, teaserY + i * TEASER_LH));
 
-        // Divider + page number + branding — anchored to bottom of safe zone
+        // Divider + page number + branding anchored to bottom
         const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
         drawDivider(ctx, divY);
         ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`1 / ${totalCards}`, W/2, divY + GAP_DIV_NUM);
+        ctx.fillText(`1 / ${totalCards}`, W / 2, divY + GAP_DIV_NUM);
         drawBranding(ctx, divY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
         urls.push(await canvasToUrl(canvas));
@@ -988,75 +977,95 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         const cardNum = pi + 2;
 
-        // Same safe zone as cover card
-        const SAFE     = 180;
-        const ZONE_TOP = SAFE;
-        const ZONE_BOT = H - SAFE;
+        const SAFE      = 180;
+        const ZONE_TOP  = SAFE;
+        const ZONE_BOT  = H - SAFE;
 
-        // Footer anchored to bottom of safe zone
-        const BRAND_H      = 80;
-        const GAP_NUM_BRAND= 10;
-        const NUM_H        = 30;
-        const GAP_DIV_NUM  = 36;
-        const footerDivY   = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
+        const BRAND_H       = 80;
+        const GAP_NUM_BRAND = 10;
+        const NUM_H         = 30;
+        const GAP_DIV_NUM   = 36;
+        const footerDivY    = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
 
         ctx.textAlign = "center";
         const pageParas = pages[pi].split("\n\n");
-        const STORY_FS = 42;
-        const STORY_LH = 60;
-        const PARA_GAP = 40;
+        const STORY_FS  = 42;
+        const STORY_LH  = 60;
+        const PARA_GAP  = 40;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
 
-        // Pre-compute ALL line arrays once — reuse for both measurement and rendering
+        // Drop cap constants — unified coordinate system
+        const DROP_FS   = 96;
+        const DROP_W    = 80;   // reserved width for drop cap column
+        const DROP_PAD  = 20;   // gap between drop cap and text
+        const LEFT_MARGIN = W / 2 - (W - 160) / 2; // left edge of text area
+        const TEXT_AFTER_DROP_W = W - 160 - DROP_W - DROP_PAD; // wrap width for lines beside drop cap
+        const NORMAL_MAX_W = W - 160;
+
         const paraLines = pageParas.map((para, pp) => {
           if (pi === 0 && pp === 0) {
             ctx.font = BODY_FONT;
-            return { type: "dropcap", firstChar: para.charAt(0), lines: wrapText(ctx, para.slice(1), W-260, STORY_FS) };
+            return {
+              type: "dropcap",
+              firstChar: para.charAt(0),
+              rest: para.slice(1),
+              lines: wrapText(ctx, para.slice(1), TEXT_AFTER_DROP_W, STORY_FS),
+            };
           } else {
             ctx.font = BODY_FONT;
-            return { type: "normal", lines: wrapText(ctx, para, W-160, STORY_FS) };
+            return { type: "normal", lines: wrapText(ctx, para, NORMAL_MAX_W, STORY_FS) };
           }
         });
 
-        // Measure total height — include full line height for every paragraph
+        // Measure total height
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            totalTextH += Math.max(p.lines.length * STORY_LH + 20, 110) + 36;
+            totalTextH += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 36;
           } else {
-            // All paragraphs get full line height, inter-paragraph gap between them
             totalTextH += p.lines.length * STORY_LH;
             if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
           }
         });
 
-        // Center text block exactly between ZONE_TOP and footer
         const availH = footerDivY - 24 - ZONE_TOP;
         let curY = ZONE_TOP + Math.round(Math.max(0, (availH - totalTextH) / 2));
 
-        // Render using pre-computed line arrays
+        // Render
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            ctx.font = "bold 96px Georgia, serif";
+            // Drop cap anchored to left margin
+            const dropBaseY = curY + DROP_FS - 10;
+            ctx.font = `bold ${DROP_FS}px Georgia, serif`;
             ctx.fillStyle = "#FF6B6B";
-            ctx.fillText(p.firstChar, 150, curY + 76);
+            ctx.textAlign = "left";
+            ctx.fillText(p.firstChar, LEFT_MARGIN, dropBaseY);
+
+            // Text flows immediately right of drop cap — left-aligned from same margin
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
-            p.lines.forEach((line,i) => ctx.fillText(line, W/2 + 50, curY + i*STORY_LH + 16));
-            curY += Math.max(p.lines.length * STORY_LH + 20, 110) + 36;
+            const lineX = LEFT_MARGIN + DROP_W + DROP_PAD;
+            p.lines.forEach((line, i) => {
+              ctx.fillText(line, lineX, curY + i * STORY_LH + 16);
+            });
+
+            ctx.textAlign = "center";
+            curY += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 36;
           } else {
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
-            p.lines.forEach((line,i) => ctx.fillText(line, W/2, curY + i*STORY_LH));
+            ctx.textAlign = "center";
+            p.lines.forEach((line, i) => ctx.fillText(line, W / 2, curY + i * STORY_LH));
             curY += p.lines.length * STORY_LH;
             if (pp < paraLines.length - 1) curY += PARA_GAP;
           }
         });
 
-        // Footer anchored to bottom safe zone
+        // Footer
         drawDivider(ctx, footerDivY);
         ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`${cardNum} / ${totalCards}`, W/2, footerDivY + GAP_DIV_NUM);
+        ctx.textAlign = "center";
+        ctx.fillText(`${cardNum} / ${totalCards}`, W / 2, footerDivY + GAP_DIV_NUM);
         drawBranding(ctx, footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
         urls.push(await canvasToUrl(canvas));
@@ -1216,17 +1225,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                     </p>
                   ))}
                 </div>
-                {/* ── Read Aloud ── */}
                 <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.story}`)}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
                   {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
                 </button>
-                {/* ── Share Story Card ── */}
                 <button onClick={handleShare} disabled={sharing}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:sharing?"#ccc":`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:sharing?"not-allowed":"pointer",boxShadow:sharing?"none":"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
                   {sharing?"✨ Creating card...":"📲 Share This Story"}
                 </button>
-                {/* ── Save to Library ── */}
                 <button onClick={()=>setShowSaveModal(true)}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(45,27,110,0.3)",fontFamily:"Georgia,serif"}}>
                   🌙 Save to Bedtime Library
@@ -1250,21 +1256,17 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"24px 20px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
 
-            {/* Card preview with arrows */}
             <div style={{position:"relative",marginBottom:16}}>
               <img src={shareCards[shareCardIndex]} alt="story card" style={{width:"100%",maxHeight:260,objectFit:"cover",borderRadius:16,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",display:"block"}}/>
 
-              {/* Left arrow */}
               {shareCards.length>1&&shareCardIndex>0&&(
                 <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>‹</button>
               )}
 
-              {/* Right arrow */}
               {shareCards.length>1&&shareCardIndex<shareCards.length-1&&(
                 <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>›</button>
               )}
 
-              {/* Dot indicators */}
               {shareCards.length>1&&(
                 <div style={{position:"absolute",bottom:-14,left:0,right:0,display:"flex",justifyContent:"center",gap:6}}>
                   {shareCards.map((_,i)=>(
@@ -1274,7 +1276,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               )}
             </div>
 
-            {/* Card counter */}
             <p style={{margin:"16px 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
               Card {shareCardIndex+1} of {shareCards.length} · Use arrows to preview all cards
             </p>
@@ -1284,10 +1285,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               All {shareCards.length} cards will download as a single ZIP folder — open it, select all images, and upload to Instagram as a carousel post.
             </p>
 
-            {/* Download ZIP — primary action */}
             <button
               onClick={async()=>{
-                // Load JSZip dynamically
                 if(!window.JSZip){
                   await new Promise((resolve,reject)=>{
                     const s=document.createElement("script");
@@ -1314,7 +1313,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               📦 Download All {shareCards.length} Cards as ZIP
             </button>
 
-            {/* Save single card — secondary */}
             <button
               onClick={()=>{
                 const a=document.createElement("a");
@@ -1326,7 +1324,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ⬇️ Save just card {shareCardIndex+1}
             </button>
 
-            {/* How to post tip */}
             <div style={{background:"rgba(77,150,255,0.07)",borderRadius:12,padding:"10px 14px",marginBottom:14,textAlign:"left"}}>
               <p style={{margin:0,fontSize:"0.76rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.6}}>
                 <strong>📱 How to post on Instagram:</strong><br/>
@@ -1337,7 +1334,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               </p>
             </div>
 
-            {/* Platform links */}
             <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
               {[
@@ -1529,7 +1525,6 @@ export default function App() {
   const [votes, setVotes] = useState({});
   const { speak } = useSpeech();
 
-  // Initial load from storage
   useEffect(()=>{
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v])=>{
       setLibrary(lib);
@@ -1542,7 +1537,6 @@ export default function App() {
     const newVotes = { ...votes, [id]: type };
     setVotes(newVotes);
     await saveVotes(newVotes);
-    // Increment the count on the story and persist it so it survives page refresh
     const updated = library.map(s =>
       s.id===id
         ? { ...s, [type==="love"?"loves":"likes"]: (s[type==="love"?"loves":"likes"]||0)+1 }
