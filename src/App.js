@@ -1256,8 +1256,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"24px 20px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
 
-            <div style={{position:"relative",marginBottom:16}}>
-              <img src={shareCards[shareCardIndex]} alt="story card" style={{width:"100%",maxHeight:260,objectFit:"cover",borderRadius:16,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",display:"block"}}/>
+            {/* ── FIX: objectFit changed from "cover" to "contain" so the full
+                    4:5 canvas card is visible without cropping the top ── */}
+            <div style={{position:"relative",marginBottom:16,background:"#FFF9F0",borderRadius:16,overflow:"hidden"}}>
+              <img
+                src={shareCards[shareCardIndex]}
+                alt="story card"
+                style={{
+                  width:"100%",
+                  maxHeight:320,
+                  objectFit:"contain",
+                  display:"block",
+                  borderRadius:16,
+                }}
+              />
 
               {shareCards.length>1&&shareCardIndex>0&&(
                 <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>‹</button>
@@ -1268,7 +1280,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               )}
 
               {shareCards.length>1&&(
-                <div style={{position:"absolute",bottom:-14,left:0,right:0,display:"flex",justifyContent:"center",gap:6}}>
+                <div style={{position:"absolute",bottom:8,left:0,right:0,display:"flex",justifyContent:"center",gap:6}}>
                   {shareCards.map((_,i)=>(
                     <button key={i} onClick={()=>setShareCardIndex(i)} style={{width:i===shareCardIndex?20:8,height:8,borderRadius:4,border:"none",background:i===shareCardIndex?COLORS.accent1:"#ddd",cursor:"pointer",padding:0,transition:"all 0.2s"}}/>
                   ))}
@@ -1276,7 +1288,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               )}
             </div>
 
-            <p style={{margin:"16px 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
+            <p style={{margin:"0 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
               Card {shareCardIndex+1} of {shareCards.length} · Use arrows to preview all cards
             </p>
 
