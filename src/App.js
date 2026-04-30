@@ -928,20 +928,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // ── FIX: SAFE increased to 220px — Instagram crops ~200px
-        // top and bottom on 4:5 portrait images. Badge at imgY+20
-        // was at y=120 with SAFE=100, getting clipped. Now at y=240.
-        const SAFE     = 220;
+        // SAFE zone: Instagram crops ~240px top+bottom on 4:5 (1080×1350).
+        // Image starts INSIDE the safe zone with extra padding so the
+        // age badge (drawn at imgY+20) is never clipped.
+        const SAFE     = 260;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP;    // 910px usable
+        const ZONE_H   = ZONE_BOT - ZONE_TOP;    // 830px usable
 
         const imgPad = 40;
         const imgW   = W - imgPad * 2;           // 1000px wide
 
-        // Image takes 44% of the usable zone height
-        const imgH = Math.round(ZONE_H * 0.44);  // ~400px
-        const imgY = ZONE_TOP;                    // starts at 220
+        // Image takes 42% of usable zone
+        const imgH = Math.round(ZONE_H * 0.42);  // ~349px
+        const imgY = ZONE_TOP + 10;               // 10px breathing room inside safe zone
 
         // Typography spacing
         const GAP_IMG_TITLE = 28;
@@ -1024,14 +1024,16 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         const cardNum = pi + 2;   // display label: "2 / N", "3 / N" …
 
-        const SAFE      = 220;
+        // SAFE zone for story pages — same as cover for Instagram safety
+        const SAFE      = 180;
         const ZONE_TOP  = SAFE;
         const ZONE_BOT  = H - SAFE;
 
-        const BRAND_H       = 80;
-        const GAP_NUM_BRAND = 10;
-        const NUM_H         = 30;
-        const GAP_DIV_NUM   = 36;
+        // Compact footer so branding sits tight to the bottom safe boundary
+        const BRAND_H       = 70;
+        const GAP_NUM_BRAND = 8;
+        const NUM_H         = 28;
+        const GAP_DIV_NUM   = 28;
         const footerDivY    = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
 
         ctx.textAlign = "center";
@@ -1086,9 +1088,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           }
         });
 
-        // Centre text block in available zone above footer
-        const availH = footerDivY - 24 - ZONE_TOP;
-        let curY = ZONE_TOP + Math.round(Math.max(0, (availH - totalTextH) / 2));
+        // True vertical centre: place text block at the optical centre of the
+        // full card (H/2), clamped so it never overlaps the safe zones or footer.
+        const minY  = ZONE_TOP + 20;
+        const maxY  = footerDivY - totalTextH - 20;
+        const idealY = Math.round(H / 2 - totalTextH / 2);
+        let curY = Math.min(maxY, Math.max(minY, idealY));
 
         // Render each paragraph using the pre-computed line arrays
         paraLines.forEach((p, pp) => {
