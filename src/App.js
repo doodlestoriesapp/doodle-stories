@@ -1073,10 +1073,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         });
 
         // Measure total text block height
+        // Measure total height using the SAME formula as the render pass
+        // so vertical centering is accurate.
+        const BODY_OFFSET_MEASURE = 8;
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            totalTextH += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 36;
+            totalTextH += Math.max(p.lines.length * STORY_LH + BODY_OFFSET_MEASURE, DROP_FS + 24) + 32;
           } else {
             totalTextH += p.lines.length * STORY_LH;
             if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
@@ -1316,114 +1319,118 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
       {/* ── Social Share Modal ── */}
       {showShareModal&&shareCards.length>0&&(
-        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"24px 20px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
+        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={()=>setShowShareModal(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:24,width:"100%",maxWidth:440,maxHeight:"92vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.35)",display:"flex",flexDirection:"column"}}>
 
-            <div style={{position:"relative",marginBottom:16,background:"#FFF9F0",borderRadius:16,overflow:"hidden"}}>
-              <img
-                src={shareCards[shareCardIndex]}
-                alt={`Story card ${shareCardIndex + 1} of ${shareCards.length}`}
-                style={{
-                  width:"100%",
-                  maxHeight:320,
-                  objectFit:"contain",
-                  display:"block",
-                  borderRadius:16,
-                }}
-              />
-
-              {shareCards.length>1&&shareCardIndex>0&&(
-                <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>‹</button>
-              )}
-
-              {shareCards.length>1&&shareCardIndex<shareCards.length-1&&(
-                <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:-22,top:"50%",transform:"translateY(-50%)",width:48,height:48,borderRadius:"50%",border:"2px solid #111",background:"#111",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",fontSize:26,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center",color:"white",lineHeight:1}}>›</button>
-              )}
-
-              {shareCards.length>1&&(
-                <div style={{position:"absolute",bottom:8,left:0,right:0,display:"flex",justifyContent:"center",gap:6}}>
-                  {shareCards.map((_,i)=>(
-                    <button key={i} onClick={()=>setShareCardIndex(i)} style={{width:i===shareCardIndex?20:8,height:8,borderRadius:4,border:"none",background:i===shareCardIndex?COLORS.accent1:"#ddd",cursor:"pointer",padding:0,transition:"all 0.2s"}}/>
-                  ))}
-                </div>
-              )}
+            {/* ── Header: nav + close ── */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px 0",flexShrink:0}}>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setShowShareModal(false);onNavigate("home");}} style={{padding:"7px 13px",borderRadius:10,border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",color:COLORS.text,fontSize:"0.78rem",fontFamily:"Georgia,serif",fontWeight:"bold"}}>🏠 Home</button>
+                <button onClick={()=>{setShowShareModal(false);reset();}} style={{padding:"7px 13px",borderRadius:10,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,cursor:"pointer",color:"white",fontSize:"0.78rem",fontFamily:"Georgia,serif",fontWeight:"bold"}}>🎨 New Doodle</button>
+              </div>
+              <button onClick={()=>setShowShareModal(false)} style={{width:32,height:32,borderRadius:"50%",border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.muted}}>✕</button>
             </div>
 
-            <p style={{margin:"0 0 4px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
-              Card {shareCardIndex+1} of {shareCards.length} · Use arrows to preview all cards
-            </p>
-
-            <h2 style={{margin:"0 0 8px",color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif"}}>Download all cards as a folder, then post as a carousel</h2>
-            <p style={{margin:"0 0 14px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif",lineHeight:1.5}}>
-              All {shareCards.length} cards will download as a single ZIP folder — open it, select all images, and upload to Instagram as a carousel post.
-            </p>
-
-            <button
-              onClick={async()=>{
-                if(!window.JSZip){
-                  await new Promise((resolve,reject)=>{
-                    const s=document.createElement("script");
-                    s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-                    s.onload=resolve; s.onerror=reject;
-                    document.head.appendChild(s);
-                  });
-                }
-                const zip=new window.JSZip();
-                const storySlug=story.title.replace(/[^a-z0-9]/gi,"-").toLowerCase().slice(0,30);
-                const folder=zip.folder(`doodle-story-${storySlug}`);
-                for(let i=0;i<shareCards.length;i++){
-                  const res=await fetch(shareCards[i]);
-                  const blob=await res.blob();
-                  folder.file(`card-${String(i+1).padStart(2,"0")}-of-${shareCards.length}.png`,blob);
-                }
-                const zipBlob=await zip.generateAsync({type:"blob"});
-                const a=document.createElement("a");
-                a.href=URL.createObjectURL(zipBlob);
-                a.download=`doodle-story-${storySlug}.zip`;
-                a.click();
-              }}
-              style={{width:"100%",padding:"13px",borderRadius:14,border:"none",marginBottom:8,background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 6px 20px rgba(255,107,107,0.3)"}}>
-              📦 Download All {shareCards.length} Cards as ZIP
-            </button>
-
-            <button
-              onClick={()=>{
-                const a=document.createElement("a");
-                a.href=shareCards[shareCardIndex];
-                a.download=`doodle-story-card-${shareCardIndex+1}.png`;
-                a.click();
-              }}
-              style={{width:"100%",padding:"10px",borderRadius:14,border:`2px solid ${COLORS.border}`,marginBottom:16,background:"transparent",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-              ⬇️ Save just card {shareCardIndex+1}
-            </button>
-
-            <div style={{background:"rgba(77,150,255,0.07)",borderRadius:12,padding:"10px 14px",marginBottom:14,textAlign:"left"}}>
-              <p style={{margin:0,fontSize:"0.76rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.6}}>
-                <strong>📱 How to post on Instagram:</strong><br/>
-                1. Download the ZIP → unzip → open the folder<br/>
-                2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
-                3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
-                4. Share as carousel ✨
+            {/* ── Card preview ── */}
+            <div style={{padding:"12px 16px 0",flexShrink:0}}>
+              <div style={{position:"relative",background:"#FFF9F0",borderRadius:14,overflow:"hidden"}}>
+                <img
+                  src={shareCards[shareCardIndex]}
+                  alt={`Story card ${shareCardIndex + 1} of ${shareCards.length}`}
+                  style={{width:"100%",maxHeight:260,objectFit:"contain",display:"block",borderRadius:14}}
+                />
+                {shareCards.length>1&&shareCardIndex>0&&(
+                  <button onClick={()=>setShareCardIndex(i=>i-1)} style={{position:"absolute",left:6,top:"50%",transform:"translateY(-50%)",width:36,height:36,borderRadius:"50%",border:"none",background:"rgba(0,0,0,0.55)",cursor:"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",color:"white"}}>‹</button>
+                )}
+                {shareCards.length>1&&shareCardIndex<shareCards.length-1&&(
+                  <button onClick={()=>setShareCardIndex(i=>i+1)} style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",width:36,height:36,borderRadius:"50%",border:"none",background:"rgba(0,0,0,0.55)",cursor:"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",color:"white"}}>›</button>
+                )}
+                {shareCards.length>1&&(
+                  <div style={{position:"absolute",bottom:7,left:0,right:0,display:"flex",justifyContent:"center",gap:5}}>
+                    {shareCards.map((_,i)=>(
+                      <button key={i} onClick={()=>setShareCardIndex(i)} style={{width:i===shareCardIndex?18:7,height:7,borderRadius:4,border:"none",background:i===shareCardIndex?COLORS.accent1:"rgba(255,255,255,0.7)",cursor:"pointer",padding:0,transition:"all 0.2s"}}/>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p style={{textAlign:"center",margin:"6px 0 0",color:COLORS.muted,fontSize:"0.72rem",fontFamily:"Georgia,serif"}}>
+                Card {shareCardIndex+1} of {shareCards.length} · tap dots or arrows to preview
               </p>
             </div>
 
-            <p style={{margin:"0 0 10px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-              {[
-                {label:"Instagram", emoji:"📸", color:"#E1306C", bg:"rgba(225,48,108,0.08)", url:"https://www.instagram.com/"},
-                {label:"TikTok",    emoji:"🎵", color:"#010101", bg:"rgba(0,0,0,0.06)",      url:"https://www.tiktok.com/upload"},
-                {label:"Facebook",  emoji:"📘", color:"#1877F2", bg:"rgba(24,119,242,0.08)", url:"https://www.facebook.com/"},
-                {label:"YouTube",   emoji:"▶️", color:"#FF0000", bg:"rgba(255,0,0,0.07)",    url:"https://studio.youtube.com/"},
-              ].map(p=>(
-                <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`2px solid ${p.color}30`,background:p.bg,textDecoration:"none"}}>
-                  <span style={{fontSize:18}}>{p.emoji}</span>
-                  <span style={{fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:"0.85rem",color:p.color}}>{p.label}</span>
-                </a>
-              ))}
-            </div>
+            {/* ── Scrollable content ── */}
+            <div style={{padding:"12px 16px 18px",display:"flex",flexDirection:"column",gap:8}}>
 
-            <button onClick={()=>setShowShareModal(false)} style={{background:"none",border:"none",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Done</button>
+              {/* Download ZIP */}
+              <button
+                onClick={async()=>{
+                  if(!window.JSZip){
+                    await new Promise((resolve,reject)=>{
+                      const s=document.createElement("script");
+                      s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+                      s.onload=resolve; s.onerror=reject;
+                      document.head.appendChild(s);
+                    });
+                  }
+                  const zip=new window.JSZip();
+                  const storySlug=story.title.replace(/[^a-z0-9]/gi,"-").toLowerCase().slice(0,30);
+                  const folder=zip.folder(`doodle-story-${storySlug}`);
+                  for(let i=0;i<shareCards.length;i++){
+                    const res=await fetch(shareCards[i]);
+                    const blob=await res.blob();
+                    folder.file(`card-${String(i+1).padStart(2,"0")}-of-${shareCards.length}.png`,blob);
+                  }
+                  const zipBlob=await zip.generateAsync({type:"blob"});
+                  const a=document.createElement("a");
+                  a.href=URL.createObjectURL(zipBlob);
+                  a.download=`doodle-story-${storySlug}.zip`;
+                  a.click();
+                }}
+                style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 5px 16px rgba(255,107,107,0.3)"}}>
+                📦 Download All {shareCards.length} Cards as ZIP
+              </button>
+
+              {/* Save single */}
+              <button
+                onClick={()=>{
+                  const a=document.createElement("a");
+                  a.href=shareCards[shareCardIndex];
+                  a.download=`doodle-story-card-${shareCardIndex+1}.png`;
+                  a.click();
+                }}
+                style={{width:"100%",padding:"10px",borderRadius:13,border:`2px solid ${COLORS.border}`,background:"transparent",color:COLORS.muted,fontSize:"0.82rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                ⬇️ Save just card {shareCardIndex+1}
+              </button>
+
+              {/* Instagram instructions */}
+              <div style={{background:"rgba(77,150,255,0.07)",borderRadius:11,padding:"10px 13px",textAlign:"left"}}>
+                <p style={{margin:0,fontSize:"0.74rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.65}}>
+                  <strong>📱 How to post on Instagram:</strong><br/>
+                  1. Download ZIP → unzip → open the folder<br/>
+                  2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
+                  3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
+                  4. Share as carousel ✨
+                </p>
+              </div>
+
+              {/* Social links */}
+              <p style={{textAlign:"center",margin:"2px 0 0",color:COLORS.muted,fontSize:"0.74rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                {[
+                  {label:"Instagram",emoji:"📸",color:"#E1306C",bg:"rgba(225,48,108,0.08)",url:"https://www.instagram.com/"},
+                  {label:"TikTok",emoji:"🎵",color:"#010101",bg:"rgba(0,0,0,0.06)",url:"https://www.tiktok.com/upload"},
+                  {label:"Facebook",emoji:"📘",color:"#1877F2",bg:"rgba(24,119,242,0.08)",url:"https://www.facebook.com/"},
+                  {label:"YouTube",emoji:"▶️",color:"#FF0000",bg:"rgba(255,0,0,0.07)",url:"https://studio.youtube.com/"},
+                ].map(p=>(
+                  <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
+                    style={{display:"flex",alignItems:"center",gap:7,padding:"9px 12px",borderRadius:11,border:`2px solid ${p.color}30`,background:p.bg,textDecoration:"none"}}>
+                    <span style={{fontSize:16}}>{p.emoji}</span>
+                    <span style={{fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:"0.82rem",color:p.color}}>{p.label}</span>
+                  </a>
+                ))}
+              </div>
+
+            </div>
           </div>
         </div>
       )}
