@@ -1043,11 +1043,18 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         // Drop cap geometry — left-aligned coordinate system
         const DROP_FS        = 96;
-        const DROP_W         = 80;
-        const DROP_PAD       = 20;
+        const DROP_PAD       = 28;                     // gap between drop cap and body text
         const LEFT_MARGIN    = (W - (W - 160)) / 2;   // = 80px from left edge
-        const TEXT_AFTER_DROP_W = W - 160 - DROP_W - DROP_PAD;
         const NORMAL_MAX_W   = W - 160;
+
+        // Measure the actual rendered width of the drop cap letter so text
+        // never overlaps regardless of which character is the first letter.
+        let DROP_W = 72; // safe default
+        if (pageParas[0] && pi === 0) {
+          ctx.font = `bold ${DROP_FS}px Georgia, serif`;
+          DROP_W = Math.ceil(ctx.measureText(pageParas[0].charAt(0)).width) + 4;
+        }
+        const TEXT_AFTER_DROP_W = NORMAL_MAX_W - DROP_W - DROP_PAD;
 
         // Pre-compute all line arrays once — used for BOTH measurement and render
         const paraLines = pageParas.map((para, pp) => {
@@ -1083,21 +1090,26 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Render each paragraph using the pre-computed line arrays
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            const dropBaseY = curY + DROP_FS - 10;
+            // Drop cap: baseline aligned to cap-height of first body line
+            // Body text top-aligned ~8px below curY so cap sits at same visual top
+            const BODY_OFFSET   = 8;   // push body text down slightly from curY
+            const dropBaseY     = curY + DROP_FS * 0.82;  // ~79% cap-height ratio for Georgia
             ctx.font = `bold ${DROP_FS}px Georgia, serif`;
             ctx.fillStyle = "#FF6B6B";
             ctx.textAlign = "left";
             ctx.fillText(p.firstChar, LEFT_MARGIN, dropBaseY);
 
+            // Body text starts immediately right of measured drop cap + padding
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
             const lineX = LEFT_MARGIN + DROP_W + DROP_PAD;
             p.lines.forEach((line, i) => {
-              ctx.fillText(line, lineX, curY + i * STORY_LH + 16);
+              ctx.fillText(line, lineX, curY + BODY_OFFSET + i * STORY_LH);
             });
 
             ctx.textAlign = "center";
-            curY += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 36;
+            // After drop cap block: continue below whichever is taller
+            curY += Math.max(p.lines.length * STORY_LH + BODY_OFFSET, DROP_FS + 24) + 32;
           } else {
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
