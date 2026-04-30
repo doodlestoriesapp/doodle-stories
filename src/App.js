@@ -727,22 +727,58 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
-    setImage(URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
     const allowedTypes = ["image/jpeg","image/png","image/gif","image/webp"];
     const mediaType = allowedTypes.includes(file.type) ? file.type : "image/png";
     setImageMediaType(mediaType);
     const reader=new FileReader();
-    reader.onload=e=>{
-      setImageBase64(e.target.result.split(",")[1]);
+    reader.onload=async(e)=>{
+      const base64 = e.target.result.split(",")[1];
+      // ── Moderation check before showing image or advancing ──
+      try {
+        const modRes = await fetch("/api/moderate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, mediaType }),
+        });
+        const modData = await modRes.json();
+        if (!modData.safe) {
+          setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
+          return; // do not advance — image stays unset
+        }
+      } catch (err) {
+        // Fail open — a network/API error shouldn't block a child's drawing
+        console.warn("Moderation check failed, failing open:", err?.message);
+      }
+      setImage(objectUrl);
+      setImageBase64(base64);
       spokenKeys.current.delete("2");
       setStep(2);
     };
     reader.readAsDataURL(file);
   },[]);
 
-  const handleCanvasUse=(dataURL,base64)=>{
-    setImage(dataURL); setImageBase64(base64);
-    spokenKeys.current.delete("2"); setMode(null); setStep(2);
+  const handleCanvasUse=async(dataURL,base64)=>{
+    // ── Moderation check on drawn doodles too ──
+    try {
+      const modRes = await fetch("/api/moderate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mediaType: "image/png" }),
+      });
+      const modData = await modRes.json();
+      if (!modData.safe) {
+        setError("⚠️ This drawing isn't suitable for our kids' app. Please try a different one!");
+        return;
+      }
+    } catch (err) {
+      console.warn("Moderation check failed, failing open:", err?.message);
+    }
+    setImage(dataURL);
+    setImageBase64(base64);
+    spokenKeys.current.delete("2");
+    setMode(null);
+    setStep(2);
   };
 
   const handleDrop=(e)=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0]);};
@@ -844,7 +880,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       };
 
       const wrapText = (ctx, text, maxW, fontSize, style="") => {
-        ctx.font = `${style} ${fontSize}px Georgia, serif`;
+        ctx.font = `${style} ${fontSize}px Georgia, serif`.trim();
         const words = text.split(" "); let lines = [], line = "";
         for (const word of words) {
           const test = line ? line+" "+word : word;
@@ -855,8 +891,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         return lines;
       };
 
-      const canvasToUrl = (canvas) => new Promise(resolve => {
-        canvas.toBlob(blob => resolve(URL.createObjectURL(blob)), "image/png");
+      // ── FIX: canvasToUrl returns a promise that resolves to a blob URL.
+      // We use toBlob for efficiency but wrap it so each card awaits correctly.
+      const canvasToUrl = (canvas) => new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error("toBlob failed")); return; }
+          resolve(URL.createObjectURL(blob));
+        }, "image/png");
       });
 
       // ── Chunk story into paragraphs ───────────────────────────
@@ -874,49 +915,54 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       if (current.trim()) pages.push(current.trim());
 
       const totalCards = 1 + pages.length;
-      const urls = [];
 
-      // ── CARD 1: Cover — doodle + title + opening ─────────────
+      // ── FIX: Pre-size the array so each card goes to its exact index slot.
+      // This prevents async timing from reordering cards if blobs resolve
+      // out of order. Card 0 = cover, cards 1..N = story pages.
+      const urls = new Array(totalCards).fill(null);
+
+      // ── CARD 0 (index 0): Cover — doodle + title + opening ───
       {
         const canvas = document.createElement("canvas");
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // Tighter safe zone — image starts near top
-        const SAFE = 100;
+        // ── FIX: SAFE increased to 220px — Instagram crops ~200px
+        // top and bottom on 4:5 portrait images. Badge at imgY+20
+        // was at y=120 with SAFE=100, getting clipped. Now at y=240.
+        const SAFE     = 220;
         const ZONE_TOP = SAFE;
         const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP;
+        const ZONE_H   = ZONE_BOT - ZONE_TOP;    // 910px usable
 
-        const imgPad = 40, imgW = W - imgPad * 2;
+        const imgPad = 40;
+        const imgW   = W - imgPad * 2;           // 1000px wide
 
-        // Image takes 46% of zone, starts right at top of safe zone
-        const imgH = Math.round(ZONE_H * 0.46);
-        const imgY = ZONE_TOP;
+        // Image takes 44% of the usable zone height
+        const imgH = Math.round(ZONE_H * 0.44);  // ~400px
+        const imgY = ZONE_TOP;                    // starts at 220
 
-        // Spacing constants
-        const GAP_IMG_TITLE  = 32;
-        const TITLE_FS       = 50;
-        const TITLE_LH       = 60;
-        const GAP_TITLE_TEA  = 16;
-        const TEASER_FS      = 27;
-        const TEASER_LH      = 38;
-        const GAP_DIV_NUM    = 30;
-        const NUM_H          = 28;
-        const GAP_NUM_BRAND  = 8;
-        const BRAND_H        = 76;
+        // Typography spacing
+        const GAP_IMG_TITLE = 28;
+        const TITLE_FS      = 48;
+        const TITLE_LH      = 58;
+        const GAP_TITLE_TEA = 14;
+        const TEASER_FS     = 26;
+        const TEASER_LH     = 37;
+        const GAP_DIV_NUM   = 30;
+        const NUM_H         = 28;
+        const GAP_NUM_BRAND = 8;
+        const BRAND_H       = 76;
 
-        // Pre-measure text
-        ctx.font = `bold ${TITLE_FS}px Georgia, serif`;
+        // Pre-measure title and teaser lines
         const titleLines = wrapText(ctx, story.title, W - 140, TITLE_FS, "bold");
-        const openPara = paragraphs[0] || "";
+        const openPara   = paragraphs[0] || "";
         const teaserText = "\u201c" + openPara.slice(0, 150).trimEnd() + "…\u201d";
-        ctx.font = `italic ${TEASER_FS}px Georgia, serif`;
-        const tLines = wrapText(ctx, teaserText, W - 160, TEASER_FS, "italic");
+        const tLines     = wrapText(ctx, teaserText, W - 160, TEASER_FS, "italic");
         const teaserShown = Math.min(tLines.length, 3);
 
-        // Doodle image — fills width edge to edge with rounded corners
+        // Doodle image — white card shadow then clipped image
         ctx.save();
         ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
         drawRounded(ctx, imgPad, imgY, imgW, imgH, 24);
@@ -939,7 +985,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           });
         }
 
-        // Age badge
+        // Age badge — drawn inside image top-left, safely within SAFE zone
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.92)";
         ctx.beginPath(); ctx.roundRect(imgPad + 20, imgY + 20, 210, 52, 26); ctx.fill();
@@ -953,31 +999,32 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const titleY = imgY + imgH + GAP_IMG_TITLE;
         titleLines.forEach((line, i) => ctx.fillText(line, W / 2, titleY + i * TITLE_LH));
 
-        // Teaser
+        // Teaser (up to 3 lines)
         const teaserY = titleY + titleLines.length * TITLE_LH + GAP_TITLE_TEA;
         ctx.font = `italic ${TEASER_FS}px Georgia, serif`; ctx.fillStyle = "#8A8A8A";
         tLines.slice(0, teaserShown).forEach((line, i) => ctx.fillText(line, W / 2, teaserY + i * TEASER_LH));
 
-        // Divider + page number + branding anchored to bottom
+        // Footer — divider + page counter + branding anchored to ZONE_BOT
         const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
         drawDivider(ctx, divY);
         ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
         ctx.fillText(`1 / ${totalCards}`, W / 2, divY + GAP_DIV_NUM);
         drawBranding(ctx, divY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
-        urls.push(await canvasToUrl(canvas));
+        // ── FIX: assign to slot 0, never push()
+        urls[0] = await canvasToUrl(canvas);
       }
 
-      // ── CARDS 2+: Story pages ─────────────────────────────────
+      // ── CARDS 1..N (indices 1+): Story pages ─────────────────
       for (let pi = 0; pi < pages.length; pi++) {
         const canvas = document.createElement("canvas");
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        const cardNum = pi + 2;
+        const cardNum = pi + 2;   // display label: "2 / N", "3 / N" …
 
-        const SAFE      = 180;
+        const SAFE      = 220;
         const ZONE_TOP  = SAFE;
         const ZONE_BOT  = H - SAFE;
 
@@ -994,14 +1041,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const PARA_GAP  = 40;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
 
-        // Drop cap constants — unified coordinate system
-        const DROP_FS   = 96;
-        const DROP_W    = 80;   // reserved width for drop cap column
-        const DROP_PAD  = 20;   // gap between drop cap and text
-        const LEFT_MARGIN = W / 2 - (W - 160) / 2; // left edge of text area
-        const TEXT_AFTER_DROP_W = W - 160 - DROP_W - DROP_PAD; // wrap width for lines beside drop cap
-        const NORMAL_MAX_W = W - 160;
+        // Drop cap geometry — left-aligned coordinate system
+        const DROP_FS        = 96;
+        const DROP_W         = 80;
+        const DROP_PAD       = 20;
+        const LEFT_MARGIN    = (W - (W - 160)) / 2;   // = 80px from left edge
+        const TEXT_AFTER_DROP_W = W - 160 - DROP_W - DROP_PAD;
+        const NORMAL_MAX_W   = W - 160;
 
+        // Pre-compute all line arrays once — used for BOTH measurement and render
         const paraLines = pageParas.map((para, pp) => {
           if (pi === 0 && pp === 0) {
             ctx.font = BODY_FONT;
@@ -1017,7 +1065,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           }
         });
 
-        // Measure total height
+        // Measure total text block height
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
@@ -1028,20 +1076,19 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           }
         });
 
+        // Centre text block in available zone above footer
         const availH = footerDivY - 24 - ZONE_TOP;
         let curY = ZONE_TOP + Math.round(Math.max(0, (availH - totalTextH) / 2));
 
-        // Render
+        // Render each paragraph using the pre-computed line arrays
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            // Drop cap anchored to left margin
             const dropBaseY = curY + DROP_FS - 10;
             ctx.font = `bold ${DROP_FS}px Georgia, serif`;
             ctx.fillStyle = "#FF6B6B";
             ctx.textAlign = "left";
             ctx.fillText(p.firstChar, LEFT_MARGIN, dropBaseY);
 
-            // Text flows immediately right of drop cap — left-aligned from same margin
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
             const lineX = LEFT_MARGIN + DROP_W + DROP_PAD;
@@ -1068,10 +1115,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ctx.fillText(`${cardNum} / ${totalCards}`, W / 2, footerDivY + GAP_DIV_NUM);
         drawBranding(ctx, footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
 
-        urls.push(await canvasToUrl(canvas));
+        // ── FIX: assign to exact index slot, never push()
+        urls[pi + 1] = await canvasToUrl(canvas);
       }
 
-      setShareCards(urls);
+      // Verify all slots filled (guard against any unexpected gaps)
+      const finalUrls = urls.filter(Boolean);
+
+      setShareCards(finalUrls);
       setShareCardIndex(0);
       setSharing(false);
       setShowShareModal(true);
@@ -1256,12 +1307,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowShareModal(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"24px 20px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",textAlign:"center"}}>
 
-            {/* ── FIX: objectFit changed from "cover" to "contain" so the full
-                    4:5 canvas card is visible without cropping the top ── */}
             <div style={{position:"relative",marginBottom:16,background:"#FFF9F0",borderRadius:16,overflow:"hidden"}}>
               <img
                 src={shareCards[shareCardIndex]}
-                alt="story card"
+                alt={`Story card ${shareCardIndex + 1} of ${shareCards.length}`}
                 style={{
                   width:"100%",
                   maxHeight:320,
