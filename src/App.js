@@ -969,7 +969,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const imgPad = 40;
         const imgW   = W - imgPad * 2;   // 1000px
         const imgY   = SAFE + 80;         // 200px from top — breathing room above badge
-        const imgH   = 460;              // balanced height — more room for text below
+        const imgH   = 620;              // frame height — contain scaling shows full image
         const imgBottom = imgY + imgH;   // 660
 
         // White card behind image
@@ -993,18 +993,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ctx.save();
               drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
               ctx.clip();
-              const scale = Math.max(imgW / img.width, imgH / img.height);
+              // "Contain" scaling: fit entire image within the frame, no cropping.
+              // White card background shows on any unused sides (e.g. square image
+              // in landscape frame gets white strips left/right — that's fine).
+              const scale = Math.min(imgW / img.width, imgH / img.height);
               const sw = img.width * scale, sh = img.height * scale;
-              // Shift left by 80px to crop left-edge watermarks common in stock photos.
-              // For a child's own drawing this crops nothing meaningful.
-              const xCenter = imgPad + (imgW - sw) / 2;
-              const xOffset = xCenter - 80;
-              ctx.drawImage(
-                img,
-                xOffset,
-                imgY + (imgH - sh) / 2,
-                sw, sh
-              );
+              const xOffset = imgPad + (imgW - sw) / 2;
+              const yOffset = imgY  + (imgH - sh) / 2;
+              ctx.drawImage(img, xOffset, yOffset, sw, sh);
               ctx.restore();
               resolve();
             };
@@ -1071,94 +1067,69 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         const STORY_FS  = 44;
         const STORY_LH  = 66;
-        const PARA_GAP  = 44;
+        const PARA_GAP  = 48;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
-        const MAX_W     = W - 160;   // 920px, 80px margin each side
-        const LEFT_MARGIN = 80;
+        const MAX_W     = W - 160;  // 920px text width, 80px margin each side
+        const CX        = W / 2;    // horizontal centre
 
-        // Drop cap geometry — only on first story page, first para
-        const DROP_FS  = 104;
-        const DROP_PAD = 32;   // gap between drop cap right edge and text
-
-        // Measure actual drop cap glyph width using bounding box
-        let DROP_W = 90;
         const pageParas = pages[pi].split("\n\n");
-        if (pi === 0 && pageParas[0]) {
-          ctx.font = `bold ${DROP_FS}px Georgia, serif`;
-          const m = ctx.measureText(pageParas[0].charAt(0));
-          const glyphW = (m.actualBoundingBoxRight !== undefined)
-            ? Math.ceil(m.actualBoundingBoxLeft + m.actualBoundingBoxRight)
-            : Math.ceil(m.width);
-          DROP_W = glyphW + 20;  // 20px safety buffer
-        }
-        const DROP_TEXT_W = MAX_W - DROP_W - DROP_PAD;
 
-        // Dynamic text start: measured glyph width + 24px breathing gap
-        // Adapts per letter so L gets a tight gap and W/M get wider clearance
-        const TEXT_START_X = LEFT_MARGIN + DROP_W + 24;
-        const DROP_BODY_W  = MAX_W - (DROP_W + 24);  // wrap width beside drop cap
-
-        // Pre-compute line arrays (single pass for both measure + render)
+        // Pre-compute all lines — fully centred layout, no drop cap column
+        // First para on first page gets an inline large coloured first letter
         const paraLines = pageParas.map((para, pp) => {
-          if (pi === 0 && pp === 0) {
-            ctx.font = BODY_FONT;
-            return {
-              type: "dropcap",
-              char: para.charAt(0),
-              lines: wrapText(ctx, para.slice(1), DROP_BODY_W, STORY_FS),
-            };
-          }
           ctx.font = BODY_FONT;
-          return { type: "normal", lines: wrapText(ctx, para, MAX_W, STORY_FS) };
+          const lines = wrapText(ctx, para, MAX_W, STORY_FS);
+          const isFirst = (pi === 0 && pp === 0);
+          return { lines, isFirst };
         });
 
-        // Measure total text block height (same formula as render)
+        // Measure total text block height
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
-          if (p.type === "dropcap") {
-            // Height = max of: lines beside drop cap, drop cap itself
-            totalTextH += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 28;
-          } else {
-            totalTextH += p.lines.length * STORY_LH;
-            if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
-          }
+          totalTextH += p.lines.length * STORY_LH;
+          if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
         });
 
-        // True optical centre, clamped to safe zone and above footer
+        // True optical centre, clamped within safe zones
         const minY  = SAFE + 20;
         const maxY  = footerDivY - totalTextH - 20;
         const ideal = Math.round(H / 2 - totalTextH / 2);
         let curY    = Math.min(maxY, Math.max(minY, ideal));
 
-        // Render
+        // Render all paragraphs centred
+        ctx.textAlign = "center";
         paraLines.forEach((p, pp) => {
-          if (p.type === "dropcap") {
-            // Drop cap letter — baseline at cap-height of body text
-            const capBaseY = curY + DROP_FS * 0.78;
-            ctx.font = `bold ${DROP_FS}px Georgia, serif`;
-            ctx.fillStyle = "#FF6B6B";
-            ctx.textAlign = "left";
-            ctx.fillText(p.char, LEFT_MARGIN, capBaseY);
-
-            // Body text — fixed TEXT_START_X guarantees no overlap for any glyph
-            ctx.font = BODY_FONT;
-            ctx.fillStyle = "#2D2D2D";
-            p.lines.forEach((line, i) => {
-              ctx.fillText(line, TEXT_START_X, curY + i * STORY_LH + STORY_FS * 0.80);
-            });
-
-            ctx.textAlign = "center";
-            curY += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 28;
-          } else {
-            ctx.font = BODY_FONT;
-            ctx.fillStyle = "#2D2D2D";
-            ctx.textAlign = "center";
-            p.lines.forEach((line, i) => {
-              ctx.fillText(line, W / 2, curY + i * STORY_LH + STORY_FS * 0.80);
-            });
-            curY += p.lines.length * STORY_LH;
-            if (pp < paraLines.length - 1) curY += PARA_GAP;
-          }
+          p.lines.forEach((line, i) => {
+            const y = curY + i * STORY_LH + STORY_FS * 0.80;
+            if (p.isFirst && i === 0) {
+              // Inline large coloured first letter on the first line
+              const firstChar = line.charAt(0);
+              const rest      = line.slice(1);
+              const DROP_FS   = 64;
+              ctx.font = `bold ${DROP_FS}px Georgia, serif`;
+              const charW = ctx.measureText(firstChar).width;
+              ctx.font = BODY_FONT;
+              const restW = ctx.measureText(rest).width;
+              const totalLineW = charW + restW;
+              const lineStartX = CX - totalLineW / 2;
+              // Draw big first letter
+              ctx.font = `bold ${DROP_FS}px Georgia, serif`;
+              ctx.fillStyle = "#FF6B6B";
+              ctx.textAlign = "left";
+              ctx.fillText(firstChar, lineStartX, y + (DROP_FS - STORY_FS) * 0.1);
+              // Draw rest of first line
+              ctx.font = BODY_FONT;
+              ctx.fillStyle = "#2D2D2D";
+              ctx.fillText(rest, lineStartX + charW, y);
+              ctx.textAlign = "center";
+            } else {
+              ctx.font = BODY_FONT;
+              ctx.fillStyle = "#2D2D2D";
+              ctx.fillText(line, CX, y);
+            }
+          });
+          curY += p.lines.length * STORY_LH;
+          if (pp < paraLines.length - 1) curY += PARA_GAP;
         });
 
         drawFooter(ctx, pi + 2, totalCards);
