@@ -969,7 +969,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const imgPad = 40;
         const imgW   = W - imgPad * 2;   // 1000px
         const imgY   = SAFE;              // 120px from top
-        const imgH   = 540;              // tall enough to look rich
+        const imgH   = 460;              // balanced height — more room for text below
         const imgBottom = imgY + imgH;   // 660
 
         // White card behind image
@@ -983,6 +983,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ctx.restore();
 
         // Draw doodle image clipped to rounded rect
+        // Offset x slightly right (+10% of excess) to avoid left-edge watermarks
+        // that some stock photos include along their left margin.
         if (image) {
           await new Promise(resolve => {
             const img = new Image();
@@ -993,10 +995,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ctx.clip();
               const scale = Math.max(imgW / img.width, imgH / img.height);
               const sw = img.width * scale, sh = img.height * scale;
+              // Shift x right by 12% of horizontal overflow to crop left watermarks
+              const xOverflow = sw - imgW;
+              const xOffset = xOverflow > 0 ? imgPad - xOverflow * 0.12 : imgPad + (imgW - sw) / 2;
               ctx.drawImage(
                 img,
-                imgPad + (imgW - sw) / 2,
-                imgY  + (imgH - sh) / 2,
+                xOffset,
+                imgY + (imgH - sh) / 2,
                 sw, sh
               );
               ctx.restore();
