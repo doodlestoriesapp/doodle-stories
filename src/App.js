@@ -993,20 +993,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ctx.save();
               drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
               ctx.clip();
-              // "Contain" scaling: fit entire image within the frame without cropping.
-              // Skip the leftmost 8% of source width to crop out watermark strips
-              // common in stock photos (AI/EPS/SVG labels on left edge).
-              // For a child's own drawing this trims a sliver of white background.
-              const srcSkipX  = Math.round(img.width * 0.03);
-              const srcW      = img.width - srcSkipX;
-              const srcH      = img.height;
-              const scale     = Math.min(imgW / srcW, imgH / srcH);
-              const sw        = srcW * scale;
-              const sh        = srcH * scale;
-              const xOffset   = imgPad + (imgW - sw) / 2;
-              const yOffset   = imgY  + (imgH - sh) / 2;
-              // drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-              ctx.drawImage(img, srcSkipX, 0, srcW, srcH, xOffset, yOffset, sw, sh);
+              // Contain scaling: fit full image within frame, perfectly centred.
+              // No source cropping — preserves children's drawings edge-to-edge.
+              const scale   = Math.min(imgW / img.width, imgH / img.height);
+              const sw      = img.width  * scale;
+              const sh      = img.height * scale;
+              const xOffset = imgPad + (imgW - sw) / 2;
+              const yOffset = imgY  + (imgH - sh) / 2;
+              ctx.drawImage(img, xOffset, yOffset, sw, sh);
               ctx.restore();
               resolve();
             };
@@ -1096,10 +1090,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
         });
 
-        // True optical centre, clamped within safe zones
-        const minY  = SAFE + 20;
+        // Optical centre biased slightly below true midpoint — visually balances
+        // the heavier top (larger font first letter) against the white space below.
+        const minY  = SAFE + 40;
         const maxY  = footerDivY - totalTextH - 20;
-        const ideal = Math.round(H / 2 - totalTextH / 2);
+        const ideal = Math.round(H / 2 - totalTextH / 2 + 40);
         let curY    = Math.min(maxY, Math.max(minY, ideal));
 
         // Render all paragraphs centred
