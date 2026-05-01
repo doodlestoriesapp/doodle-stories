@@ -969,7 +969,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const imgPad = 40;
         const imgW   = W - imgPad * 2;   // 1000px
         const imgY   = SAFE + 80;         // 200px from top — breathing room above badge
-        const imgH   = 620;              // frame height — contain scaling shows full image
+        const imgH   = 540;              // frame height — balanced with text zone below
         const imgBottom = imgY + imgH;   // 660
 
         // White card behind image
@@ -993,14 +993,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ctx.save();
               drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
               ctx.clip();
-              // "Contain" scaling: fit entire image within the frame, no cropping.
-              // White card background shows on any unused sides (e.g. square image
-              // in landscape frame gets white strips left/right — that's fine).
-              const scale = Math.min(imgW / img.width, imgH / img.height);
-              const sw = img.width * scale, sh = img.height * scale;
-              const xOffset = imgPad + (imgW - sw) / 2;
-              const yOffset = imgY  + (imgH - sh) / 2;
-              ctx.drawImage(img, xOffset, yOffset, sw, sh);
+              // "Contain" scaling: fit entire image within the frame without cropping.
+              // Skip the leftmost 8% of source width to crop out watermark strips
+              // common in stock photos (AI/EPS/SVG labels on left edge).
+              // For a child's own drawing this trims a sliver of white background.
+              const srcSkipX  = Math.round(img.width * 0.08);
+              const srcW      = img.width - srcSkipX;
+              const srcH      = img.height;
+              const scale     = Math.min(imgW / srcW, imgH / srcH);
+              const sw        = srcW * scale;
+              const sh        = srcH * scale;
+              const xOffset   = imgPad + (imgW - sw) / 2;
+              const yOffset   = imgY  + (imgH - sh) / 2;
+              // drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+              ctx.drawImage(img, srcSkipX, 0, srcW, srcH, xOffset, yOffset, sw, sh);
               ctx.restore();
               resolve();
             };
@@ -1038,7 +1044,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Dynamically centre text block in space between image and footer
         const textH = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
         const zone  = footerDivY - imgBottom;
-        const gapAbove = Math.max(28, Math.round((zone - textH) / 2));
+        const gapAbove = Math.max(48, Math.round((zone - textH) / 2));
         let ty = imgBottom + gapAbove;
 
         // Title
