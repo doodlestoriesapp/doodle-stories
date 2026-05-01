@@ -995,9 +995,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               ctx.clip();
               const scale = Math.max(imgW / img.width, imgH / img.height);
               const sw = img.width * scale, sh = img.height * scale;
-              // Shift x right by 12% of horizontal overflow to crop left watermarks
-              const xOverflow = sw - imgW;
-              const xOffset = xOverflow > 0 ? imgPad - xOverflow * 0.12 : imgPad + (imgW - sw) / 2;
+              // Shift left by 80px to crop left-edge watermarks common in stock photos.
+              // For a child's own drawing this crops nothing meaningful.
+              const xCenter = imgPad + (imgW - sw) / 2;
+              const xOffset = xCenter - 80;
               ctx.drawImage(
                 img,
                 xOffset,
@@ -1092,6 +1093,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         }
         const DROP_TEXT_W = MAX_W - DROP_W - DROP_PAD;
 
+        // Fixed column start for drop cap body text — guarantees no overlap
+        // for any letter at 104px bold Georgia (W/M are widest at ~100px)
+        const TEXT_START_X = LEFT_MARGIN + 150;
+        const DROP_BODY_W  = MAX_W - 150;  // wrap width for lines beside drop cap
+
         // Pre-compute line arrays (single pass for both measure + render)
         const paraLines = pageParas.map((para, pp) => {
           if (pi === 0 && pp === 0) {
@@ -1099,7 +1105,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             return {
               type: "dropcap",
               char: para.charAt(0),
-              lines: wrapText(ctx, para.slice(1), DROP_TEXT_W, STORY_FS),
+              lines: wrapText(ctx, para.slice(1), DROP_BODY_W, STORY_FS),
             };
           }
           ctx.font = BODY_FONT;
@@ -1127,19 +1133,18 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Render
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            // Drop cap letter — vertically centred against first body line
-            const capBaseY = curY + DROP_FS * 0.80;
+            // Drop cap letter — baseline at cap-height of body text
+            const capBaseY = curY + DROP_FS * 0.78;
             ctx.font = `bold ${DROP_FS}px Georgia, serif`;
             ctx.fillStyle = "#FF6B6B";
             ctx.textAlign = "left";
             ctx.fillText(p.char, LEFT_MARGIN, capBaseY);
 
-            // Body text — starts right of drop cap, top-aligned with curY
+            // Body text — fixed TEXT_START_X guarantees no overlap for any glyph
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
-            const textX = LEFT_MARGIN + DROP_W + DROP_PAD;
             p.lines.forEach((line, i) => {
-              ctx.fillText(line, textX, curY + i * STORY_LH + STORY_FS * 0.80);
+              ctx.fillText(line, TEXT_START_X, curY + i * STORY_LH + STORY_FS * 0.80);
             });
 
             ctx.textAlign = "center";
