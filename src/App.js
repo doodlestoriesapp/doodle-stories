@@ -997,7 +997,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               // Skip the leftmost 8% of source width to crop out watermark strips
               // common in stock photos (AI/EPS/SVG labels on left edge).
               // For a child's own drawing this trims a sliver of white background.
-              const srcSkipX  = Math.round(img.width * 0.08);
+              const srcSkipX  = Math.round(img.width * 0.03);
               const srcW      = img.width - srcSkipX;
               const srcH      = img.height;
               const scale     = Math.min(imgW / srcW, imgH / srcH);
