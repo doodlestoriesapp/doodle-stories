@@ -849,13 +849,37 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     try {
       const W = 1080, H = 1350;
 
+      // ── Layout constants ─────────────────────────────────────
+      // Instagram safe zone: ~120px top/bottom on 4:5 (1080×1350)
+      const SAFE = 120;
+      const ZONE_BOT = H - SAFE;  // 1230
+
+      // Footer geometry (anchored to ZONE_BOT)
+      const BRAND_H       = 76;
+      const GAP_NUM_BRAND = 10;
+      const NUM_H         = 30;
+      const GAP_DIV_NUM   = 28;
+      const FOOTER_H      = BRAND_H + GAP_NUM_BRAND + NUM_H + GAP_DIV_NUM; // 144
+      const footerDivY    = ZONE_BOT - FOOTER_H;  // 1086
+
       // ── Shared helpers ────────────────────────────────────────
       const drawBg = (ctx) => {
         const bg = ctx.createLinearGradient(0, 0, W, H);
-        bg.addColorStop(0, "#FFF4EC"); bg.addColorStop(0.5, "#FFF9F0"); bg.addColorStop(1, "#FFF0E8");
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-        const blobs = [[-60,-60,240,"rgba(255,107,107,0.08)"],[W+60,H+60,280,"rgba(77,150,255,0.07)"],[W+40,120,160,"rgba(255,217,61,0.09)"],[60,H-80,120,"rgba(107,203,119,0.08)"]];
-        blobs.forEach(([x,y,r,c]) => { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=c; ctx.fill(); });
+        bg.addColorStop(0, "#FFF4EC");
+        bg.addColorStop(0.5, "#FFF9F0");
+        bg.addColorStop(1, "#FFF0E8");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+        const blobs = [
+          [-60, -60, 240, "rgba(255,107,107,0.08)"],
+          [W+60, H+60, 280, "rgba(77,150,255,0.07)"],
+          [W+40, 120, 160, "rgba(255,217,61,0.09)"],
+          [60, H-80, 120, "rgba(107,203,119,0.08)"],
+        ];
+        blobs.forEach(([x,y,r,c]) => {
+          ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+          ctx.fillStyle = c; ctx.fill();
+        });
       };
 
       const drawRounded = (ctx, x, y, w, h, r) => {
@@ -863,36 +887,50 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
         ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
         ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-        ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+        ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+        ctx.closePath();
       };
 
-      const drawBranding = (ctx, y) => {
+      const drawFooter = (ctx, cardNum, total) => {
+        // Divider
+        ctx.beginPath();
+        ctx.moveTo(W/2-60, footerDivY);
+        ctx.lineTo(W/2+60, footerDivY);
+        ctx.strokeStyle = "rgba(255,107,107,0.35)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Page number
         ctx.textAlign = "center";
-        ctx.font = "bold 36px Georgia, serif"; ctx.fillStyle = "#FF6B6B";
-        ctx.fillText("🎨 doodlestories.app", W/2, y);
-        ctx.font = "28px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText("Turn your doodle into a magical story", W/2, y + 44);
+        ctx.font = "28px Georgia, serif";
+        ctx.fillStyle = "#8A8A8A";
+        ctx.fillText(`${cardNum} / ${total}`, W/2, footerDivY + GAP_DIV_NUM + NUM_H * 0.75);
+        // Branding
+        const brandY = footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND;
+        ctx.font = "bold 38px Georgia, serif";
+        ctx.fillStyle = "#FF6B6B";
+        ctx.fillText("🎨 doodlestories.app", W/2, brandY + 38);
+        ctx.font = "28px Georgia, serif";
+        ctx.fillStyle = "#8A8A8A";
+        ctx.fillText("Turn your doodle into a magical story", W/2, brandY + 38 + 42);
       };
 
-      const drawDivider = (ctx, y) => {
-        ctx.beginPath(); ctx.moveTo(W/2-60,y); ctx.lineTo(W/2+60,y);
-        ctx.strokeStyle = "rgba(255,107,107,0.35)"; ctx.lineWidth = 3; ctx.stroke();
-      };
-
-      const wrapText = (ctx, text, maxW, fontSize, style="") => {
+      const wrapText = (ctx, text, maxW, fontSize, style = "") => {
         ctx.font = `${style} ${fontSize}px Georgia, serif`.trim();
-        const words = text.split(" "); let lines = [], line = "";
+        const words = text.split(" ");
+        let lines = [], line = "";
         for (const word of words) {
-          const test = line ? line+" "+word : word;
-          if (ctx.measureText(test).width > maxW) { if (line) lines.push(line); line = word; }
-          else line = test;
+          const test = line ? line + " " + word : word;
+          if (ctx.measureText(test).width > maxW) {
+            if (line) lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
         }
         if (line) lines.push(line);
         return lines;
       };
 
-      // ── FIX: canvasToUrl returns a promise that resolves to a blob URL.
-      // We use toBlob for efficiency but wrap it so each card awaits correctly.
       const canvasToUrl = (canvas) => new Promise((resolve, reject) => {
         canvas.toBlob(blob => {
           if (!blob) { reject(new Error("toBlob failed")); return; }
@@ -900,14 +938,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         }, "image/png");
       });
 
-      // ── Chunk story into paragraphs ───────────────────────────
+      // ── Chunk story into pages ────────────────────────────────
       const paragraphs = story.story.split("\n\n").filter(p => p.trim());
-      const CHARS_PER_PAGE = 420;
+      const CHARS_PER_PAGE = 400;
       const pages = [];
       let current = "";
       for (const para of paragraphs) {
         if (current && (current + " " + para).length > CHARS_PER_PAGE) {
-          pages.push(current.trim()); current = para;
+          pages.push(current.trim());
+          current = para;
         } else {
           current = current ? current + "\n\n" + para : para;
         }
@@ -915,231 +954,207 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       if (current.trim()) pages.push(current.trim());
 
       const totalCards = 1 + pages.length;
-
-      // ── FIX: Pre-size the array so each card goes to its exact index slot.
-      // This prevents async timing from reordering cards if blobs resolve
-      // out of order. Card 0 = cover, cards 1..N = story pages.
       const urls = new Array(totalCards).fill(null);
 
-      // ── CARD 0 (index 0): Cover — doodle + title + opening ───
+      // ════════════════════════════════════════════════════════
+      // CARD 0 — Cover: image + title + teaser
+      // ════════════════════════════════════════════════════════
       {
         const canvas = document.createElement("canvas");
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // SAFE zone: Instagram crops ~240px top+bottom on 4:5 (1080×1350).
-        // Image starts INSIDE the safe zone with extra padding so the
-        // age badge (drawn at imgY+20) is never clipped.
-        const SAFE     = 260;
-        const ZONE_TOP = SAFE;
-        const ZONE_BOT = H - SAFE;
-        const ZONE_H   = ZONE_BOT - ZONE_TOP;    // 830px usable
-
+        // Image block
         const imgPad = 40;
-        const imgW   = W - imgPad * 2;           // 1000px wide
+        const imgW   = W - imgPad * 2;   // 1000px
+        const imgY   = SAFE;              // 120px from top
+        const imgH   = 540;              // tall enough to look rich
+        const imgBottom = imgY + imgH;   // 660
 
-        // Image takes 42% of usable zone
-        const imgH = Math.round(ZONE_H * 0.42);  // ~349px
-        const imgY = ZONE_TOP + 10;               // 10px breathing room inside safe zone
-
-        // Typography spacing
-        const GAP_IMG_TITLE = 28;
-        const TITLE_FS      = 48;
-        const TITLE_LH      = 58;
-        const GAP_TITLE_TEA = 14;
-        const TEASER_FS     = 26;
-        const TEASER_LH     = 37;
-        const GAP_DIV_NUM   = 30;
-        const NUM_H         = 28;
-        const GAP_NUM_BRAND = 8;
-        const BRAND_H       = 76;
-
-        // Pre-measure title and teaser lines
-        const titleLines = wrapText(ctx, story.title, W - 140, TITLE_FS, "bold");
-        const openPara   = paragraphs[0] || "";
-        const teaserText = "\u201c" + openPara.slice(0, 150).trimEnd() + "…\u201d";
-        const tLines     = wrapText(ctx, teaserText, W - 160, TEASER_FS, "italic");
-        const teaserShown = Math.min(tLines.length, 3);
-
-        // Doodle image — white card shadow then clipped image
+        // White card behind image
         ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.10)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
-        drawRounded(ctx, imgPad, imgY, imgW, imgH, 24);
-        ctx.fillStyle = "#FFFFFF"; ctx.fill();
+        ctx.shadowColor = "rgba(0,0,0,0.10)";
+        ctx.shadowBlur = 28;
+        ctx.shadowOffsetY = 8;
+        drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fill();
         ctx.restore();
 
+        // Draw doodle image clipped to rounded rect
         if (image) {
           await new Promise(resolve => {
-            const img = new Image(); img.crossOrigin = "anonymous";
+            const img = new Image();
+            img.crossOrigin = "anonymous";
             img.onload = () => {
               ctx.save();
-              drawRounded(ctx, imgPad, imgY, imgW, imgH, 24);
+              drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
               ctx.clip();
               const scale = Math.max(imgW / img.width, imgH / img.height);
               const sw = img.width * scale, sh = img.height * scale;
-              ctx.drawImage(img, imgPad + (imgW - sw) / 2, imgY + (imgH - sh) / 2, sw, sh);
-              ctx.restore(); resolve();
+              ctx.drawImage(
+                img,
+                imgPad + (imgW - sw) / 2,
+                imgY  + (imgH - sh) / 2,
+                sw, sh
+              );
+              ctx.restore();
+              resolve();
             };
-            img.onerror = resolve; img.src = image;
+            img.onerror = resolve;
+            img.src = image;
           });
         }
 
-        // Age badge — drawn inside image top-left, safely within SAFE zone
+        // Age badge — top-left corner of image
         ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.beginPath(); ctx.roundRect(imgPad + 20, imgY + 20, 210, 52, 26); ctx.fill();
-        ctx.font = "bold 26px Georgia, serif"; ctx.fillStyle = "#2D2D2D"; ctx.textAlign = "left";
-        ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad + 36, imgY + 50);
+        ctx.shadowColor = "rgba(0,0,0,0.15)";
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.beginPath();
+        ctx.roundRect(imgPad + 18, imgY + 18, 220, 56, 28);
+        ctx.fill();
         ctx.restore();
+        ctx.font = "bold 28px Georgia, serif";
+        ctx.fillStyle = "#2D2D2D";
+        ctx.textAlign = "left";
+        ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad + 34, imgY + 54);
+
+        // Measure text block
+        const TITLE_FS = 50, TITLE_LH = 62;
+        const TEASER_FS = 27, TEASER_LH = 40;
+        const GAP_T_TEA = 16;
+
+        ctx.textAlign = "center";
+        const titleLines  = wrapText(ctx, story.title, W - 120, TITLE_FS, "bold");
+        const openPara    = paragraphs[0] || "";
+        const teaserText  = "\u201c" + openPara.slice(0, 160).trimEnd() + "…\u201d";
+        const tLines      = wrapText(ctx, teaserText, W - 140, TEASER_FS, "italic");
+        const tShown      = Math.min(tLines.length, 3);
+
+        // Dynamically centre text block in space between image and footer
+        const textH = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
+        const zone  = footerDivY - imgBottom;
+        const gapAbove = Math.max(28, Math.round((zone - textH) / 2));
+        let ty = imgBottom + gapAbove;
 
         // Title
-        ctx.textAlign = "center";
-        ctx.font = `bold ${TITLE_FS}px Georgia, serif`; ctx.fillStyle = "#2D2D2D";
-        const titleY = imgY + imgH + GAP_IMG_TITLE;
-        titleLines.forEach((line, i) => ctx.fillText(line, W / 2, titleY + i * TITLE_LH));
+        ctx.font = `bold ${TITLE_FS}px Georgia, serif`;
+        ctx.fillStyle = "#2D2D2D";
+        titleLines.forEach((line, i) => ctx.fillText(line, W/2, ty + i * TITLE_LH));
+        ty += titleLines.length * TITLE_LH + GAP_T_TEA;
 
-        // Teaser (up to 3 lines)
-        const teaserY = titleY + titleLines.length * TITLE_LH + GAP_TITLE_TEA;
-        ctx.font = `italic ${TEASER_FS}px Georgia, serif`; ctx.fillStyle = "#8A8A8A";
-        tLines.slice(0, teaserShown).forEach((line, i) => ctx.fillText(line, W / 2, teaserY + i * TEASER_LH));
+        // Teaser
+        ctx.font = `italic ${TEASER_FS}px Georgia, serif`;
+        ctx.fillStyle = "#7A7A7A";
+        tLines.slice(0, tShown).forEach((line, i) => ctx.fillText(line, W/2, ty + i * TEASER_LH));
 
-        // Footer — divider + page counter + branding anchored to ZONE_BOT
-        const divY = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
-        drawDivider(ctx, divY);
-        ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`1 / ${totalCards}`, W / 2, divY + GAP_DIV_NUM);
-        drawBranding(ctx, divY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
-
-        // ── FIX: assign to slot 0, never push()
+        drawFooter(ctx, 1, totalCards);
         urls[0] = await canvasToUrl(canvas);
       }
 
-      // ── CARDS 1..N (indices 1+): Story pages ─────────────────
+      // ════════════════════════════════════════════════════════
+      // CARDS 1..N — Story pages
+      // ════════════════════════════════════════════════════════
       for (let pi = 0; pi < pages.length; pi++) {
         const canvas = document.createElement("canvas");
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        const cardNum = pi + 2;   // display label: "2 / N", "3 / N" …
-
-        // SAFE zone for story pages — same as cover for Instagram safety
-        const SAFE      = 180;
-        const ZONE_TOP  = SAFE;
-        const ZONE_BOT  = H - SAFE;
-
-        // Compact footer so branding sits tight to the bottom safe boundary
-        const BRAND_H       = 70;
-        const GAP_NUM_BRAND = 8;
-        const NUM_H         = 28;
-        const GAP_DIV_NUM   = 28;
-        const footerDivY    = ZONE_BOT - BRAND_H - GAP_NUM_BRAND - NUM_H - GAP_DIV_NUM;
-
-        ctx.textAlign = "center";
-        const pageParas = pages[pi].split("\n\n");
-        const STORY_FS  = 42;
-        const STORY_LH  = 60;
-        const PARA_GAP  = 40;
+        const STORY_FS  = 44;
+        const STORY_LH  = 66;
+        const PARA_GAP  = 44;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
+        const MAX_W     = W - 160;   // 920px, 80px margin each side
+        const LEFT_MARGIN = 80;
 
-        // Drop cap geometry — left-aligned coordinate system
-        const DROP_FS        = 96;
-        const DROP_PAD       = 28;                     // gap between drop cap and body text
-        const LEFT_MARGIN    = (W - (W - 160)) / 2;   // = 80px from left edge
-        const NORMAL_MAX_W   = W - 160;
+        // Drop cap geometry — only on first story page, first para
+        const DROP_FS  = 104;
+        const DROP_PAD = 32;   // gap between drop cap right edge and text
 
-        // Measure the actual rendered width of the drop cap letter so text
-        // never overlaps regardless of which character is the first letter.
-        let DROP_W = 72; // safe default
-        if (pageParas[0] && pi === 0) {
+        // Measure actual drop cap glyph width using bounding box
+        let DROP_W = 90;
+        const pageParas = pages[pi].split("\n\n");
+        if (pi === 0 && pageParas[0]) {
           ctx.font = `bold ${DROP_FS}px Georgia, serif`;
-          DROP_W = Math.ceil(ctx.measureText(pageParas[0].charAt(0)).width) + 4;
+          const m = ctx.measureText(pageParas[0].charAt(0));
+          const glyphW = (m.actualBoundingBoxRight !== undefined)
+            ? Math.ceil(m.actualBoundingBoxLeft + m.actualBoundingBoxRight)
+            : Math.ceil(m.width);
+          DROP_W = glyphW + 20;  // 20px safety buffer
         }
-        const TEXT_AFTER_DROP_W = NORMAL_MAX_W - DROP_W - DROP_PAD;
+        const DROP_TEXT_W = MAX_W - DROP_W - DROP_PAD;
 
-        // Pre-compute all line arrays once — used for BOTH measurement and render
+        // Pre-compute line arrays (single pass for both measure + render)
         const paraLines = pageParas.map((para, pp) => {
           if (pi === 0 && pp === 0) {
             ctx.font = BODY_FONT;
             return {
               type: "dropcap",
-              firstChar: para.charAt(0),
-              rest: para.slice(1),
-              lines: wrapText(ctx, para.slice(1), TEXT_AFTER_DROP_W, STORY_FS),
+              char: para.charAt(0),
+              lines: wrapText(ctx, para.slice(1), DROP_TEXT_W, STORY_FS),
             };
-          } else {
-            ctx.font = BODY_FONT;
-            return { type: "normal", lines: wrapText(ctx, para, NORMAL_MAX_W, STORY_FS) };
           }
+          ctx.font = BODY_FONT;
+          return { type: "normal", lines: wrapText(ctx, para, MAX_W, STORY_FS) };
         });
 
-        // Measure total text block height
-        // Measure total height using the SAME formula as the render pass
-        // so vertical centering is accurate.
-        const BODY_OFFSET_MEASURE = 8;
+        // Measure total text block height (same formula as render)
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            totalTextH += Math.max(p.lines.length * STORY_LH + BODY_OFFSET_MEASURE, DROP_FS + 24) + 32;
+            // Height = max of: lines beside drop cap, drop cap itself
+            totalTextH += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 28;
           } else {
             totalTextH += p.lines.length * STORY_LH;
             if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
           }
         });
 
-        // True vertical centre: place text block at the optical centre of the
-        // full card (H/2), clamped so it never overlaps the safe zones or footer.
-        const minY  = ZONE_TOP + 20;
+        // True optical centre, clamped to safe zone and above footer
+        const minY  = SAFE + 20;
         const maxY  = footerDivY - totalTextH - 20;
-        const idealY = Math.round(H / 2 - totalTextH / 2);
-        let curY = Math.min(maxY, Math.max(minY, idealY));
+        const ideal = Math.round(H / 2 - totalTextH / 2);
+        let curY    = Math.min(maxY, Math.max(minY, ideal));
 
-        // Render each paragraph using the pre-computed line arrays
+        // Render
         paraLines.forEach((p, pp) => {
           if (p.type === "dropcap") {
-            // Drop cap: baseline aligned to cap-height of first body line
-            // Body text top-aligned ~8px below curY so cap sits at same visual top
-            const BODY_OFFSET   = 8;   // push body text down slightly from curY
-            const dropBaseY     = curY + DROP_FS * 0.82;  // ~79% cap-height ratio for Georgia
+            // Drop cap letter — vertically centred against first body line
+            const capBaseY = curY + DROP_FS * 0.80;
             ctx.font = `bold ${DROP_FS}px Georgia, serif`;
             ctx.fillStyle = "#FF6B6B";
             ctx.textAlign = "left";
-            ctx.fillText(p.firstChar, LEFT_MARGIN, dropBaseY);
+            ctx.fillText(p.char, LEFT_MARGIN, capBaseY);
 
-            // Body text starts immediately right of measured drop cap + padding
+            // Body text — starts right of drop cap, top-aligned with curY
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
-            const lineX = LEFT_MARGIN + DROP_W + DROP_PAD;
+            const textX = LEFT_MARGIN + DROP_W + DROP_PAD;
             p.lines.forEach((line, i) => {
-              ctx.fillText(line, lineX, curY + BODY_OFFSET + i * STORY_LH);
+              ctx.fillText(line, textX, curY + i * STORY_LH + STORY_FS * 0.80);
             });
 
             ctx.textAlign = "center";
-            // After drop cap block: continue below whichever is taller
-            curY += Math.max(p.lines.length * STORY_LH + BODY_OFFSET, DROP_FS + 24) + 32;
+            curY += Math.max(p.lines.length * STORY_LH, DROP_FS + 20) + 28;
           } else {
             ctx.font = BODY_FONT;
             ctx.fillStyle = "#2D2D2D";
             ctx.textAlign = "center";
-            p.lines.forEach((line, i) => ctx.fillText(line, W / 2, curY + i * STORY_LH));
+            p.lines.forEach((line, i) => {
+              ctx.fillText(line, W / 2, curY + i * STORY_LH + STORY_FS * 0.80);
+            });
             curY += p.lines.length * STORY_LH;
             if (pp < paraLines.length - 1) curY += PARA_GAP;
           }
         });
 
-        // Footer
-        drawDivider(ctx, footerDivY);
-        ctx.font = "26px Georgia, serif"; ctx.fillStyle = "#8A8A8A";
-        ctx.textAlign = "center";
-        ctx.fillText(`${cardNum} / ${totalCards}`, W / 2, footerDivY + GAP_DIV_NUM);
-        drawBranding(ctx, footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND);
-
-        // ── FIX: assign to exact index slot, never push()
+        drawFooter(ctx, pi + 2, totalCards);
         urls[pi + 1] = await canvasToUrl(canvas);
       }
 
-      // Verify all slots filled (guard against any unexpected gaps)
       const finalUrls = urls.filter(Boolean);
 
       setShareCards(finalUrls);
