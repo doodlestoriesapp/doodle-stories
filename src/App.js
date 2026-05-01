@@ -968,7 +968,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         // Image block
         const imgPad = 40;
         const imgW   = W - imgPad * 2;   // 1000px
-        const imgY   = SAFE;              // 120px from top
+        const imgY   = SAFE + 80;         // 200px from top — breathing room above badge
         const imgH   = 460;              // balanced height — more room for text below
         const imgBottom = imgY + imgH;   // 660
 
@@ -1093,10 +1093,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         }
         const DROP_TEXT_W = MAX_W - DROP_W - DROP_PAD;
 
-        // Fixed column start for drop cap body text — guarantees no overlap
-        // for any letter at 104px bold Georgia (W/M are widest at ~100px)
-        const TEXT_START_X = LEFT_MARGIN + 150;
-        const DROP_BODY_W  = MAX_W - 150;  // wrap width for lines beside drop cap
+        // Dynamic text start: measured glyph width + 24px breathing gap
+        // Adapts per letter so L gets a tight gap and W/M get wider clearance
+        const TEXT_START_X = LEFT_MARGIN + DROP_W + 24;
+        const DROP_BODY_W  = MAX_W - (DROP_W + 24);  // wrap width beside drop cap
 
         // Pre-compute line arrays (single pass for both measure + render)
         const paraLines = pageParas.map((para, pp) => {
