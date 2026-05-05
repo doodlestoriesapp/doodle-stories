@@ -734,7 +734,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     const reader=new FileReader();
     reader.onload=async(e)=>{
       const base64 = e.target.result.split(",")[1];
-      // ── Moderation check before showing image or advancing ──
       try {
         const modRes = await fetch("/api/moderate-image", {
           method: "POST",
@@ -744,10 +743,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const modData = await modRes.json();
         if (!modData.safe) {
           setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
-          return; // do not advance — image stays unset
+          return;
         }
       } catch (err) {
-        // Fail open — a network/API error shouldn't block a child's drawing
         console.warn("Moderation check failed, failing open:", err?.message);
       }
       setImage(objectUrl);
@@ -759,7 +757,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   },[]);
 
   const handleCanvasUse=async(dataURL,base64)=>{
-    // ── Moderation check on drawn doodles too ──
     try {
       const modRes = await fetch("/api/moderate-image", {
         method: "POST",
@@ -849,19 +846,23 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     try {
       const W = 1080, H = 1350;
 
-      // ── Layout constants ─────────────────────────────────────
-   // Instagram safe zone: 200px bottom keeps branding above the like/comment bar
-const SAFE_TOP = 80;
-const SAFE_BOT = 200;                        // was 120 — Instagram UI eats ~180px
-const ZONE_BOT = H - SAFE_BOT;              // 1150
+      // ── Instagram safe zone ───────────────────────────────────
+      // SAFE_BOT = 200px: Instagram's like/comment bar + nav chrome
+      // consumes ~180–200px at the bottom of the rendered frame.
+      // Keeping all content above Y=1150 ensures the full branding
+      // block is visible in feed, carousel, and Reels cover views.
+      const SAFE_TOP = 80;
+      const SAFE_BOT = 200;
+      const ZONE_BOT = H - SAFE_BOT;   // 1150
 
-// Footer geometry (anchored to ZONE_BOT)
-const BRAND_H       = 76;
-const GAP_NUM_BRAND = 10;
-const NUM_H         = 30;
-const GAP_DIV_NUM   = 24;
-const FOOTER_H      = BRAND_H + GAP_NUM_BRAND + NUM_H + GAP_DIV_NUM; // 140
-const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
+      // Footer geometry — anchored to ZONE_BOT so branding never
+      // drifts below the safe line regardless of content length.
+      const BRAND_H       = 76;   // palette emoji + url line + tagline
+      const GAP_NUM_BRAND = 10;   // gap between page number and brand block
+      const NUM_H         = 30;   // page number text height
+      const GAP_DIV_NUM   = 24;   // gap between divider line and page number
+      const FOOTER_H      = BRAND_H + GAP_NUM_BRAND + NUM_H + GAP_DIV_NUM; // 140
+      const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
 
       // ── Shared helpers ────────────────────────────────────────
       const drawBg = (ctx) => {
@@ -893,23 +894,30 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
       };
 
       const drawFooter = (ctx, cardNum, total) => {
-        // Divider
+        // Divider line
         ctx.beginPath();
-        ctx.moveTo(W/2-60, footerDivY);
-        ctx.lineTo(W/2+60, footerDivY);
+        ctx.moveTo(W/2 - 60, footerDivY);
+        ctx.lineTo(W/2 + 60, footerDivY);
         ctx.strokeStyle = "rgba(255,107,107,0.35)";
         ctx.lineWidth = 3;
         ctx.stroke();
+
         // Page number
         ctx.textAlign = "center";
         ctx.font = "28px Georgia, serif";
         ctx.fillStyle = "#8A8A8A";
-        ctx.fillText(`${cardNum} / ${total}`, W/2, footerDivY + GAP_DIV_NUM + NUM_H * 0.75);
-        // Branding
+        ctx.fillText(
+          `${cardNum} / ${total}`,
+          W/2,
+          footerDivY + GAP_DIV_NUM + NUM_H * 0.75
+        );
+
+        // Brand block: emoji + URL on one line, tagline below
         const brandY = footerDivY + GAP_DIV_NUM + NUM_H + GAP_NUM_BRAND;
         ctx.font = "bold 38px Georgia, serif";
         ctx.fillStyle = "#FF6B6B";
         ctx.fillText("🎨 doodlestories.app", W/2, brandY + 38);
+
         ctx.font = "28px Georgia, serif";
         ctx.fillStyle = "#8A8A8A";
         ctx.fillText("Turn your doodle into a magical story", W/2, brandY + 38 + 42);
@@ -966,26 +974,24 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        // Image block
-        const imgPad = 40;
-        const imgW   = W - imgPad * 2;   // 1000px
-        const imgY   = SAFE + 80;         // 200px from top — breathing room above badge
-        const imgH   = 540;              // frame height — balanced with text zone below
-        const imgBottom = imgY + imgH;   // 660
+        // Image block — sits just below SAFE_TOP with breathing room
+        const imgPad    = 40;
+        const imgW      = W - imgPad * 2;  // 1000px
+        const imgY      = SAFE_TOP + 80;   // 160px from top
+        const imgH      = 520;             // slightly reduced vs old 540 to give text more room
+        const imgBottom = imgY + imgH;     // 680
 
-        // White card behind image
+        // White card shadow behind image
         ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.10)";
-        ctx.shadowBlur = 28;
+        ctx.shadowColor   = "rgba(0,0,0,0.10)";
+        ctx.shadowBlur    = 28;
         ctx.shadowOffsetY = 8;
         drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
         ctx.fillStyle = "#FFFFFF";
         ctx.fill();
         ctx.restore();
 
-        // Draw doodle image clipped to rounded rect
-        // Offset x slightly right (+10% of excess) to avoid left-edge watermarks
-        // that some stock photos include along their left margin.
+        // Draw doodle — contain-fit, centred, no cropping
         if (image) {
           await new Promise(resolve => {
             const img = new Image();
@@ -994,8 +1000,6 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
               ctx.save();
               drawRounded(ctx, imgPad, imgY, imgW, imgH, 28);
               ctx.clip();
-              // Contain scaling: fit full image within frame, perfectly centred.
-              // No source cropping — preserves children's drawings edge-to-edge.
               const scale   = Math.min(imgW / img.width, imgH / img.height);
               const sw      = img.width  * scale;
               const sh      = img.height * scale;
@@ -1010,46 +1014,45 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
           });
         }
 
-        // Age badge — top-left corner of image
+        // Age badge — top-left of image frame
         ctx.save();
         ctx.shadowColor = "rgba(0,0,0,0.15)";
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = "rgba(255,255,255,0.95)";
         ctx.beginPath();
         ctx.roundRect(imgPad + 18, imgY + 18, 220, 56, 28);
         ctx.fill();
         ctx.restore();
-        ctx.font = "bold 28px Georgia, serif";
+        ctx.font      = "bold 28px Georgia, serif";
         ctx.fillStyle = "#2D2D2D";
         ctx.textAlign = "left";
         ctx.fillText(`${ageGroup.emoji} ${ageGroup.label}`, imgPad + 34, imgY + 54);
 
-        // Measure text block
-        const TITLE_FS = 50, TITLE_LH = 62;
+        // Text block — title + teaser, dynamically centred between image and footer
+        const TITLE_FS  = 50, TITLE_LH  = 62;
         const TEASER_FS = 27, TEASER_LH = 40;
         const GAP_T_TEA = 16;
 
         ctx.textAlign = "center";
-        const titleLines  = wrapText(ctx, story.title, W - 120, TITLE_FS, "bold");
-        const openPara    = paragraphs[0] || "";
-        const teaserText  = "\u201c" + openPara.slice(0, 160).trimEnd() + "…\u201d";
-        const tLines      = wrapText(ctx, teaserText, W - 140, TEASER_FS, "italic");
-        const tShown      = Math.min(tLines.length, 3);
+        const titleLines = wrapText(ctx, story.title, W - 120, TITLE_FS, "bold");
+        const openPara   = paragraphs[0] || "";
+        const teaserText = "\u201c" + openPara.slice(0, 160).trimEnd() + "\u2026\u201d";
+        const tLines     = wrapText(ctx, teaserText, W - 140, TEASER_FS, "italic");
+        const tShown     = Math.min(tLines.length, 3);
 
-        // Dynamically centre text block in space between image and footer
-        const textH = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
-        const zone  = footerDivY - imgBottom;
-        const gapAbove = Math.max(48, Math.round((zone - textH) / 2));
-        let ty = imgBottom + gapAbove;
+        const textH    = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
+        const zone     = footerDivY - imgBottom;
+        const gapAbove = Math.max(40, Math.round((zone - textH) / 2));
+        let ty         = imgBottom + gapAbove;
 
         // Title
-        ctx.font = `bold ${TITLE_FS}px Georgia, serif`;
+        ctx.font      = `bold ${TITLE_FS}px Georgia, serif`;
         ctx.fillStyle = "#2D2D2D";
         titleLines.forEach((line, i) => ctx.fillText(line, W/2, ty + i * TITLE_LH));
         ty += titleLines.length * TITLE_LH + GAP_T_TEA;
 
         // Teaser
-        ctx.font = `italic ${TEASER_FS}px Georgia, serif`;
+        ctx.font      = `italic ${TEASER_FS}px Georgia, serif`;
         ctx.fillStyle = "#7A7A7A";
         tLines.slice(0, tShown).forEach((line, i) => ctx.fillText(line, W/2, ty + i * TEASER_LH));
 
@@ -1071,61 +1074,58 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
         const PARA_GAP  = 48;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
         const MAX_W     = W - 160;  // 920px text width, 80px margin each side
-        const CX        = W / 2;    // horizontal centre
+        const CX        = W / 2;
 
         const pageParas = pages[pi].split("\n\n");
 
-        // Pre-compute all lines — fully centred layout, no drop cap column
-        // First para on first page gets an inline large coloured first letter
+        // Pre-compute wrapped lines for every paragraph on this page
         const paraLines = pageParas.map((para, pp) => {
           ctx.font = BODY_FONT;
-          const lines = wrapText(ctx, para, MAX_W, STORY_FS);
+          const lines   = wrapText(ctx, para, MAX_W, STORY_FS);
           const isFirst = (pi === 0 && pp === 0);
           return { lines, isFirst };
         });
 
-        // Measure total text block height
+        // Total height of the text block
         let totalTextH = 0;
         paraLines.forEach((p, pp) => {
           totalTextH += p.lines.length * STORY_LH;
           if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
         });
 
-        // Optical centre biased slightly below true midpoint — visually balances
-        // the heavier top (larger font first letter) against the white space below.
-        const minY  = SAFE + 40;
+        // Vertically centre within the content zone (between SAFE_TOP and footer)
+        const minY  = SAFE_TOP + 40;            // 120px from top
         const maxY  = footerDivY - totalTextH - 20;
         const ideal = Math.round(H / 2 - totalTextH / 2 + 40);
         let curY    = Math.min(maxY, Math.max(minY, ideal));
 
-        // Render all paragraphs centred
+        // Render paragraphs — centred layout with inline drop cap on first line
         ctx.textAlign = "center";
         paraLines.forEach((p, pp) => {
           p.lines.forEach((line, i) => {
             const y = curY + i * STORY_LH + STORY_FS * 0.80;
             if (p.isFirst && i === 0) {
-              // Inline large coloured first letter on the first line
+              // Inline large coloured first letter
               const firstChar = line.charAt(0);
               const rest      = line.slice(1);
               const DROP_FS   = 64;
               ctx.font = `bold ${DROP_FS}px Georgia, serif`;
               const charW = ctx.measureText(firstChar).width;
-              ctx.font = BODY_FONT;
+              ctx.font    = BODY_FONT;
               const restW = ctx.measureText(rest).width;
-              const totalLineW = charW + restW;
-              const lineStartX = CX - totalLineW / 2;
-              // Draw big first letter
-              ctx.font = `bold ${DROP_FS}px Georgia, serif`;
+              const lineStartX = CX - (charW + restW) / 2;
+              // Big coloured first letter
+              ctx.font      = `bold ${DROP_FS}px Georgia, serif`;
               ctx.fillStyle = "#FF6B6B";
               ctx.textAlign = "left";
               ctx.fillText(firstChar, lineStartX, y + (DROP_FS - STORY_FS) * 0.1);
-              // Draw rest of first line
-              ctx.font = BODY_FONT;
+              // Remainder of first line
+              ctx.font      = BODY_FONT;
               ctx.fillStyle = "#2D2D2D";
               ctx.fillText(rest, lineStartX + charW, y);
               ctx.textAlign = "center";
             } else {
-              ctx.font = BODY_FONT;
+              ctx.font      = BODY_FONT;
               ctx.fillStyle = "#2D2D2D";
               ctx.fillText(line, CX, y);
             }
@@ -1139,7 +1139,6 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
       }
 
       const finalUrls = urls.filter(Boolean);
-
       setShareCards(finalUrls);
       setShareCardIndex(0);
       setSharing(false);
@@ -1325,7 +1324,7 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={()=>setShowShareModal(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:24,width:"100%",maxWidth:440,maxHeight:"92vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.35)",display:"flex",flexDirection:"column"}}>
 
-            {/* ── Header: nav + close ── */}
+            {/* Header */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px 0",flexShrink:0}}>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>{setShowShareModal(false);onNavigate("home");}} style={{padding:"7px 13px",borderRadius:10,border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",color:COLORS.text,fontSize:"0.78rem",fontFamily:"Georgia,serif",fontWeight:"bold"}}>🏠 Home</button>
@@ -1334,7 +1333,7 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
               <button onClick={()=>setShowShareModal(false)} style={{width:32,height:32,borderRadius:"50%",border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",color:COLORS.muted}}>✕</button>
             </div>
 
-            {/* ── Card preview ── */}
+            {/* Card preview */}
             <div style={{padding:"12px 16px 0",flexShrink:0}}>
               <div style={{position:"relative",background:"#FFF9F0",borderRadius:14,overflow:"hidden"}}>
                 <img
@@ -1361,7 +1360,7 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
               </p>
             </div>
 
-            {/* ── Scrollable content ── */}
+            {/* Actions */}
             <div style={{padding:"12px 16px 18px",display:"flex",flexDirection:"column",gap:8}}>
 
               {/* Download ZIP */}
@@ -1393,7 +1392,7 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
                 📦 Download All {shareCards.length} Cards as ZIP
               </button>
 
-              {/* Save single */}
+              {/* Save single card */}
               <button
                 onClick={()=>{
                   const a=document.createElement("a");
@@ -1416,7 +1415,7 @@ const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
                 </p>
               </div>
 
-              {/* Social links */}
+              {/* Social platform links */}
               <p style={{textAlign:"center",margin:"2px 0 0",color:COLORS.muted,fontSize:"0.74rem",fontFamily:"Georgia,serif"}}>Open your platform to post:</p>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
                 {[
