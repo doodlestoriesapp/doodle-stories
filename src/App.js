@@ -1051,12 +1051,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         titleLines.forEach((line, i) => ctx.fillText(line, W/2, ty + i * TITLE_LH));
         ty += titleLines.length * TITLE_LH;
 
-        // Decorative dot separator — centred in the gap between title and teaser
+        // Decorative dot separator — three coral dots centred between title and teaser
         const dotY = ty + GAP_T_TEA / 2;
+        ctx.save();
         ctx.fillStyle = "#FF6B6B";
-        ctx.beginPath(); ctx.arc(W/2,      dotY, 5, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(W/2 - 24, dotY, 3.5, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(W/2 + 24, dotY, 3.5, 0, Math.PI*2); ctx.fill();
+        [W/2 - 30, W/2, W/2 + 30].forEach((dx, di) => {
+          const r = di === 1 ? 8 : 6;  // centre dot slightly larger
+          ctx.beginPath(); ctx.arc(dx, dotY, r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.restore();
 
         ty += GAP_T_TEA;
 
@@ -1102,13 +1105,18 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
         });
 
-        // Vertically centre within the content zone (between SAFE_TOP and footer)
-        const minY    = SAFE_TOP + 60;                          // 140px from top
-        const maxY    = footerDivY - totalTextH - 40;           // 40px above footer
-        const zoneTop = SAFE_TOP + 60;
-        const zoneMid = Math.round((zoneTop + footerDivY) / 2); // true midpoint of content zone
-        const ideal   = zoneMid - Math.round(totalTextH / 2);
-        let curY      = Math.min(maxY, Math.max(minY, ideal));
+        // Vertically centre within the content zone (between SAFE_TOP and footer).
+        // We add STORY_FS * 0.80 because each line's y is curY + STORY_FS*0.80 (baseline offset),
+        // so the visual top of text is actually curY + STORY_FS*0.80 - STORY_FS ≈ curY - STORY_FS*0.20.
+        // To true-centre, we work in visual pixel space then subtract baseline offset back out.
+        const contentTop    = SAFE_TOP + 20;                             // 100px from top
+        const contentBot    = footerDivY - 40;                           // 40px above divider
+        const zoneMid       = Math.round((contentTop + contentBot) / 2); // midpoint of usable zone
+        const visualTextH   = totalTextH + STORY_FS * 0.80;             // add baseline offset
+        const visualTop     = zoneMid - Math.round(visualTextH / 2);    // visual top of text block
+        const minY          = contentTop;
+        const maxY          = contentBot - totalTextH;
+        let curY            = Math.min(maxY, Math.max(minY, visualTop));
 
         // Render paragraphs — centred layout with inline drop cap on first line
         ctx.textAlign = "center";
