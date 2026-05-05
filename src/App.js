@@ -850,17 +850,18 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       const W = 1080, H = 1350;
 
       // ── Layout constants ─────────────────────────────────────
-      // Instagram safe zone: ~120px top/bottom on 4:5 (1080×1350)
-      const SAFE = 120;
-      const ZONE_BOT = H - SAFE;  // 1230
+   // Instagram safe zone: 200px bottom keeps branding above the like/comment bar
+const SAFE_TOP = 80;
+const SAFE_BOT = 200;                        // was 120 — Instagram UI eats ~180px
+const ZONE_BOT = H - SAFE_BOT;              // 1150
 
-      // Footer geometry (anchored to ZONE_BOT)
-      const BRAND_H       = 76;
-      const GAP_NUM_BRAND = 10;
-      const NUM_H         = 30;
-      const GAP_DIV_NUM   = 28;
-      const FOOTER_H      = BRAND_H + GAP_NUM_BRAND + NUM_H + GAP_DIV_NUM; // 144
-      const footerDivY    = ZONE_BOT - FOOTER_H;  // 1086
+// Footer geometry (anchored to ZONE_BOT)
+const BRAND_H       = 76;
+const GAP_NUM_BRAND = 10;
+const NUM_H         = 30;
+const GAP_DIV_NUM   = 24;
+const FOOTER_H      = BRAND_H + GAP_NUM_BRAND + NUM_H + GAP_DIV_NUM; // 140
+const footerDivY    = ZONE_BOT - FOOTER_H;  // 1010
 
       // ── Shared helpers ────────────────────────────────────────
       const drawBg = (ctx) => {
