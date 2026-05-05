@@ -949,7 +949,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
       // ── Chunk story into pages ────────────────────────────────
       const paragraphs = story.story.split("\n\n").filter(p => p.trim());
-      const CHARS_PER_PAGE = 400;
+      const CHARS_PER_PAGE = 480;
       const pages = [];
       let current = "";
       for (const para of paragraphs) {
@@ -1069,9 +1069,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const ctx = canvas.getContext("2d");
         drawBg(ctx);
 
-        const STORY_FS  = 44;
-        const STORY_LH  = 66;
-        const PARA_GAP  = 48;
+        const STORY_FS  = 38;
+        const STORY_LH  = 56;
+        const PARA_GAP  = 40;
         const BODY_FONT = `${STORY_FS}px Georgia, serif`;
         const MAX_W     = W - 160;  // 920px text width, 80px margin each side
         const CX        = W / 2;
@@ -1108,7 +1108,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
               // Inline large coloured first letter
               const firstChar = line.charAt(0);
               const rest      = line.slice(1);
-              const DROP_FS   = 64;
+              const DROP_FS   = 56;
               ctx.font = `bold ${DROP_FS}px Georgia, serif`;
               const charW = ctx.measureText(firstChar).width;
               ctx.font    = BODY_FONT;
