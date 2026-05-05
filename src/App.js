@@ -1105,18 +1105,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           if (pp < paraLines.length - 1) totalTextH += PARA_GAP;
         });
 
-        // Vertically centre within the content zone (between SAFE_TOP and footer).
-        // We add STORY_FS * 0.80 because each line's y is curY + STORY_FS*0.80 (baseline offset),
-        // so the visual top of text is actually curY + STORY_FS*0.80 - STORY_FS ≈ curY - STORY_FS*0.20.
-        // To true-centre, we work in visual pixel space then subtract baseline offset back out.
-        const contentTop    = SAFE_TOP + 20;                             // 100px from top
-        const contentBot    = footerDivY - 40;                           // 40px above divider
-        const zoneMid       = Math.round((contentTop + contentBot) / 2); // midpoint of usable zone
-        const visualTextH   = totalTextH + STORY_FS * 0.80;             // add baseline offset
-        const visualTop     = zoneMid - Math.round(visualTextH / 2);    // visual top of text block
-        const minY          = contentTop;
-        const maxY          = contentBot - totalTextH;
-        let curY            = Math.min(maxY, Math.max(minY, visualTop));
+        // Vertically centre within the content zone.
+        // Visual span of text block (cap-height top to baseline of last line):
+        //   visualSpan = totalTextH - STORY_LH + STORY_FS
+        // curY is the render origin; first baseline lands at curY + BASELINE (STORY_FS*0.80).
+        // We solve: curY + BASELINE + visualSpan/2 - STORY_FS = zoneMid
+        const BASELINE    = STORY_FS * 0.80;
+        const visualSpan  = totalTextH - STORY_LH + STORY_FS;
+        const contentTop  = SAFE_TOP + 20;
+        const contentBot  = footerDivY - 40;
+        const zoneMid     = (contentTop + contentBot) / 2;
+        const idealCurY   = Math.round(zoneMid - BASELINE - visualSpan / 2 + STORY_FS);
+        const minY        = contentTop;
+        const maxY        = contentBot - totalTextH;
+        let curY          = Math.min(maxY, Math.max(minY, idealCurY));
 
         // Render paragraphs — centred layout with inline drop cap on first line
         ctx.textAlign = "center";
