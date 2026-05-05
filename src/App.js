@@ -1030,15 +1030,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         // Text block — title + teaser, dynamically centred between image and footer
         const TITLE_FS  = 50, TITLE_LH  = 62;
-        const TEASER_FS = 27, TEASER_LH = 40;
-        const GAP_T_TEA = 16;
+        const TEASER_FS = 30, TEASER_LH = 46;
+        const GAP_T_TEA = 24;
 
         ctx.textAlign = "center";
         const titleLines = wrapText(ctx, story.title, W - 120, TITLE_FS, "bold");
         const openPara   = paragraphs[0] || "";
-        const teaserText = "\u201c" + openPara.slice(0, 160).trimEnd() + "\u2026\u201d";
-        const tLines     = wrapText(ctx, teaserText, W - 140, TEASER_FS, "italic");
-        const tShown     = Math.min(tLines.length, 3);
+        const teaserText = "\u201c" + openPara.slice(0, 220).trimEnd() + "\u2026\u201d";
+        const tLines     = wrapText(ctx, teaserText, W - 120, TEASER_FS, "italic");
+        const tShown     = Math.min(tLines.length, 5);
 
         const textH    = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
         const zone     = footerDivY - imgBottom;
@@ -1049,7 +1049,16 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ctx.font      = `bold ${TITLE_FS}px Georgia, serif`;
         ctx.fillStyle = "#2D2D2D";
         titleLines.forEach((line, i) => ctx.fillText(line, W/2, ty + i * TITLE_LH));
-        ty += titleLines.length * TITLE_LH + GAP_T_TEA;
+        ty += titleLines.length * TITLE_LH;
+
+        // Decorative dot separator — centred in the gap between title and teaser
+        const dotY = ty + GAP_T_TEA / 2;
+        ctx.fillStyle = "#FF6B6B";
+        ctx.beginPath(); ctx.arc(W/2,      dotY, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W/2 - 24, dotY, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W/2 + 24, dotY, 3.5, 0, Math.PI*2); ctx.fill();
+
+        ty += GAP_T_TEA;
 
         // Teaser
         ctx.font      = `italic ${TEASER_FS}px Georgia, serif`;
@@ -1094,10 +1103,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         });
 
         // Vertically centre within the content zone (between SAFE_TOP and footer)
-        const minY  = SAFE_TOP + 40;            // 120px from top
-        const maxY  = footerDivY - totalTextH - 20;
-        const ideal = Math.round(H / 2 - totalTextH / 2 + 40);
-        let curY    = Math.min(maxY, Math.max(minY, ideal));
+        const minY    = SAFE_TOP + 60;                          // 140px from top
+        const maxY    = footerDivY - totalTextH - 40;           // 40px above footer
+        const zoneTop = SAFE_TOP + 60;
+        const zoneMid = Math.round((zoneTop + footerDivY) / 2); // true midpoint of content zone
+        const ideal   = zoneMid - Math.round(totalTextH / 2);
+        let curY      = Math.min(maxY, Math.max(minY, ideal));
 
         // Render paragraphs — centred layout with inline drop cap on first line
         ctx.textAlign = "center";
