@@ -1042,7 +1042,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
         const textH    = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
         const zone     = footerDivY - imgBottom;
-        const gapAbove = Math.max(40, Math.round((zone - textH) / 2));
+        // ty is the baseline of the first title line.
+        // Visual top of title = ty - TITLE_FS (cap height), so minimum gap
+        // from imgBottom to visual top must be at least 48px.
+        // Therefore minimum ty = imgBottom + TITLE_FS + 48
+        const minGap   = TITLE_FS + 48;  // 98px — keeps title visually clear of image
+        const gapAbove = Math.max(minGap, Math.round((zone - textH) / 2));
         let ty         = imgBottom + gapAbove;
 
         // Title
