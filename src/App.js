@@ -1032,21 +1032,27 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         const TITLE_FS  = 50, TITLE_LH  = 62;
         const TEASER_FS = 30, TEASER_LH = 46;
         const GAP_T_TEA = 24;
+        // ty is the baseline of the first title line.
+        // Visual top of title = ty - TITLE_FS, so we need ty >= imgBottom + TITLE_FS + 48
+        const minGap = TITLE_FS + 48;  // 98px minimum from imgBottom to ty
+        const zone   = footerDivY - imgBottom; // 330px
 
         ctx.textAlign = "center";
         const titleLines = wrapText(ctx, story.title, W - 120, TITLE_FS, "bold");
         const openPara   = paragraphs[0] || "";
         const teaserText = "\u201c" + openPara.slice(0, 220).trimEnd() + "\u2026\u201d";
         const tLines     = wrapText(ctx, teaserText, W - 120, TEASER_FS, "italic");
-        const tShown     = Math.min(tLines.length, 5);
 
-        const textH    = titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH;
-        const zone     = footerDivY - imgBottom;
-        // ty is the baseline of the first title line.
-        // Visual top of title = ty - TITLE_FS (cap height), so minimum gap
-        // from imgBottom to visual top must be at least 48px.
-        // Therefore minimum ty = imgBottom + TITLE_FS + 48
-        const minGap   = TITLE_FS + 48;  // 98px — keeps title visually clear of image
+        // Space available for teaser: zone minus minGap, title, and gap between title+teaser.
+        // We also leave 40px breathing room above footer divider.
+        const spaceForTeaser = zone - minGap - titleLines.length * TITLE_LH - GAP_T_TEA - 40;
+        const maxTeaserLines = Math.max(1, Math.floor(spaceForTeaser / TEASER_LH));
+        const tShown         = Math.min(tLines.length, maxTeaserLines);
+
+        const textH    = Math.min(
+          titleLines.length * TITLE_LH + GAP_T_TEA + tShown * TEASER_LH,
+          zone - minGap - 40   // hard ceiling: never overflow footer
+        );
         const gapAbove = Math.max(minGap, Math.round((zone - textH) / 2));
         let ty         = imgBottom + gapAbove;
 
