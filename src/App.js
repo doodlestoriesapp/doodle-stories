@@ -1060,19 +1060,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ctx.font      = `bold ${TITLE_FS}px Georgia, serif`;
         ctx.fillStyle = "#2D2D2D";
         titleLines.forEach((line, i) => ctx.fillText(line, W/2, ty + i * TITLE_LH));
-        ty += titleLines.length * TITLE_LH;
-
-        // Decorative dot separator — three coral dots centred between title and teaser
-        const dotY = ty + GAP_T_TEA / 2;
-        ctx.save();
-        ctx.fillStyle = "#FF6B6B";
-        [W/2 - 30, W/2, W/2 + 30].forEach((dx, di) => {
-          const r = di === 1 ? 8 : 6;  // centre dot slightly larger
-          ctx.beginPath(); ctx.arc(dx, dotY, r, 0, Math.PI * 2); ctx.fill();
-        });
-        ctx.restore();
-
-        ty += GAP_T_TEA;
+        ty += titleLines.length * TITLE_LH + GAP_T_TEA;
 
         // Teaser
         ctx.font      = `italic ${TEASER_FS}px Georgia, serif`;
