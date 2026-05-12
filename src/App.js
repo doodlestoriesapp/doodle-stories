@@ -18,6 +18,7 @@ const VOICE_LINES = {
   library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
   loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
   liked: "Wow, someone loved that story! What an amazing little author!",
+  readAloud: "Ooooh get ready! I'm warming up my storytelling voice — your magical story is about to come alive! Just a few seconds!",
 };
 
 const PALETTE = [
@@ -461,8 +462,17 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 
 // ── Reading Modal ────────────────────────────────────────────────
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
-  const { speakLong, stop, speaking } = useSpeech();
+  const { speak, speakLong, stop, speaking } = useSpeech();
+  const [readingLoading, setReadingLoading] = useState(false);
   useEffect(()=>()=>stop(),[stop]);
+
+  const handleReadAloud = async () => {
+    if (speaking) { stop(); return; }
+    setReadingLoading(true);
+    speak(VOICE_LINES.readAloud, 'readAloud');
+    await speakLong(`${story.title}. ${story.text}`);
+    setReadingLoading(false);
+  };
   return (
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:nightMode?"#1e1245":"white",borderRadius:28,padding:"28px 32px",maxWidth:580,width:"100%",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.4)",border:`2px solid ${nightMode?"rgba(255,255,255,0.1)":COLORS.border}`}}>
@@ -475,8 +485,8 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted}}>✕</button>
         </div>
         {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}/>}
-        <button onClick={()=>speaking?stop():speakLong(`${story.title}. ${story.text}`)} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-          {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+        <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:readingLoading?`linear-gradient(135deg,${COLORS.accent2},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+          {speaking?"⏹ Stop Reading":readingLoading?"✨ Warming up...":"🔊 Read This Story Aloud"}
         </button>
         <ReactionButtons story={story} votes={votes} onVote={onVote} nightMode={nightMode}/>
         <div style={{lineHeight:1.9}}>
@@ -907,6 +917,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   };
 
   const [sharing, setSharing] = useState(false);
+  const [readingLoading, setReadingLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareCards, setShareCards] = useState([]);
   const [shareCardIndex, setShareCardIndex] = useState(0);
@@ -1385,9 +1396,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                     </p>
                   ))}
                 </div>
-                <button onClick={()=>speaking?stop():speakLong(`${story.title}. ${story.story}`)}
-                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
-                  {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+                <button onClick={async()=>{
+                    if(speaking){stop();setReadingLoading(false);return;}
+                    setReadingLoading(true);
+                    speak(VOICE_LINES.readAloud,'readAloud');
+                    await speakLong(`${story.title}. ${story.story}`);
+                    setReadingLoading(false);
+                  }}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:readingLoading?`linear-gradient(135deg,${COLORS.accent2},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
+                  {speaking?"⏹ Stop Reading":readingLoading?"✨ Warming up...":"🔊 Read This Story Aloud"}
                 </button>
                 <button onClick={handleShare} disabled={sharing}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:sharing?"#ccc":`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:sharing?"not-allowed":"pointer",boxShadow:sharing?"none":"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
