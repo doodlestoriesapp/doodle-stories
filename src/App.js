@@ -79,70 +79,60 @@ function Confetti({ active, onDone }) {
 }
 
 // ── Speech ───────────────────────────────────────────────────────
+// Uses Google AI Studio TTS via /api/tts (Puck voice for mascot lines).
+// Session cache prevents repeat API calls for the same text.
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
-  const audioRef = useRef(null);
-  const cacheRef = useRef({});
-  const generatingRef = useRef(false);
-
-  useEffect(() => {
-    const cached = localStorage.getItem('doodle-voices-v1');
-    if (cached) {
-      try { cacheRef.current = JSON.parse(cached); console.log('✅ Voice cache loaded'); return; } catch {}
-    }
-    if (generatingRef.current) return;
-    generatingRef.current = true;
-    console.log('🎙️ Generating voice cache...');
-    fetch('/api/generate-voices', { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.voices) {
-          cacheRef.current = data.voices;
-          localStorage.setItem('doodle-voices-v1', JSON.stringify(data.voices));
-          console.log('✅ Voice cache saved');
-        }
-      })
-      .catch(err => console.log('Voice cache failed:', err));
-  }, []);
-
-  const fallbackSpeak = useCallback((text) => {
-    if (!window.speechSynthesis) { setSpeaking(false); return; }
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate=1.25; utter.pitch=1.5; utter.volume=1;
-    const trySpeak = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v=>v.name.toLowerCase().includes("samantha")||v.name.toLowerCase().includes("karen")||v.name.toLowerCase().includes("moira")||(v.lang.startsWith("en")&&v.localService));
-      if (preferred) utter.voice=preferred;
-      utter.onstart=()=>setSpeaking(true); utter.onend=()=>setSpeaking(false); utter.onerror=()=>setSpeaking(false);
-      window.speechSynthesis.speak(utter);
-    };
-    if (window.speechSynthesis.getVoices().length>0) trySpeak();
-    else window.speechSynthesis.onvoiceschanged=trySpeak;
-  }, []);
-
-  const speak = useCallback((text, cacheKey) => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
-    const cachedAudio = cacheKey && cacheRef.current[cacheKey];
-    if (cachedAudio) {
-      const audio = new Audio(`data:audio/wav;base64,${cachedAudio}`);
-      audioRef.current = audio;
-      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
-      audio.onerror = () => { setSpeaking(false); fallbackSpeak(text); };
-      setSpeaking(true);
-      audio.play();
-      return;
-    }
-    fallbackSpeak(text);
-  }, [fallbackSpeak]);
+  const audioRef  = useRef(null);
+  // Session-level cache: text → base64 audio data URI
+  const cacheRef  = useRef({});
 
   const stop = useCallback(() => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    window.speechSynthesis?.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
     setSpeaking(false);
   }, []);
+
+  const speak = useCallback(async (text, _cacheKey, voice = "Puck") => {
+    if (!text) return;
+    stop();
+    setSpeaking(true);
+
+    try {
+      // Return cached audio immediately if available
+      const cacheHit = cacheRef.current[text];
+      let dataURI;
+
+      if (cacheHit) {
+        dataURI = cacheHit;
+      } else {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice }),
+        });
+
+        if (!res.ok) throw new Error(`TTS API ${res.status}`);
+
+        const { audioData, mimeType } = await res.json();
+        dataURI = `data:${mimeType};base64,${audioData}`;
+        cacheRef.current[text] = dataURI;   // cache for this session
+      }
+
+      const audio = new Audio(dataURI);
+      audioRef.current = audio;
+      audio.onended  = () => { setSpeaking(false); audioRef.current = null; };
+      audio.onerror  = () => { setSpeaking(false); audioRef.current = null; };
+      await audio.play();
+
+    } catch (err) {
+      console.warn("Google TTS failed:", err.message);
+      setSpeaking(false);
+    }
+  }, [stop]);
 
   return { speak, stop, speaking };
 }
