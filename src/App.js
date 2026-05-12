@@ -100,15 +100,17 @@ function useSpeech() {
     if (!text) return;
     stop();
     setSpeaking(true);
+    console.log("🎙️ speak() called:", text.slice(0, 60));
 
     try {
-      // Return cached audio immediately if available
       const cacheHit = cacheRef.current[text];
       let dataURI;
 
       if (cacheHit) {
+        console.log("🎙️ Using cached audio");
         dataURI = cacheHit;
       } else {
+        console.log("🎙️ Calling /api/tts...");
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -118,22 +120,31 @@ function useSpeech() {
           }),
         });
 
-        if (!res.ok) throw new Error(`TTS API ${res.status}`);
+        console.log("🎙️ /api/tts status:", res.status);
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error("🎙️ /api/tts error body:", errBody);
+          throw new Error(`TTS API ${res.status}: ${errBody}`);
+        }
 
-        const { audio } = await res.json();
-        if (!audio) throw new Error("No audio in response");
+        const json = await res.json();
+        console.log("🎙️ /api/tts response keys:", Object.keys(json));
+        const { audio } = json;
+        if (!audio) throw new Error("No audio field in response");
         dataURI = `data:audio/wav;base64,${audio}`;
-        cacheRef.current[text] = dataURI;   // cache for this session
+        cacheRef.current[text] = dataURI;
       }
 
+      console.log("🎙️ Playing audio, dataURI length:", dataURI.length);
       const audio = new Audio(dataURI);
       audioRef.current = audio;
       audio.onended  = () => { setSpeaking(false); audioRef.current = null; };
-      audio.onerror  = () => { setSpeaking(false); audioRef.current = null; };
+      audio.onerror  = (e) => { console.error("🎙️ Audio play error:", e); setSpeaking(false); audioRef.current = null; };
       await audio.play();
+      console.log("🎙️ Audio playing ✅");
 
     } catch (err) {
-      console.warn("Google TTS failed:", err.message);
+      console.error("🎙️ Google TTS failed:", err.message);
       setSpeaking(false);
     }
   }, [stop]);
