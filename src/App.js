@@ -218,7 +218,6 @@ function useSpeech() {
 
   return { speak, speakLong, stop: stopAll, speaking };
 }
-}
 
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
 function DoodlePad({ onUse, onCancel }) {
