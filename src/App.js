@@ -79,43 +79,69 @@ function Confetti({ active, onDone }) {
 }
 
 // ── Speech ───────────────────────────────────────────────────────
-// Uses Google AI Studio TTS via /api/tts (Achernar voice).
-// Priority prefetch: the welcome line fires immediately on load.
-// Remaining lines are staggered 800ms apart to avoid rate limits.
+// Calls Google AI Studio TTS directly from the browser.
+// Key is stored as REACT_APP_GOOGLE_TTS_KEY (exposed in bundle — acceptable for TTS).
+const GOOGLE_TTS_KEY = process.env.REACT_APP_GOOGLE_TTS_KEY || "";
+const GOOGLE_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${GOOGLE_TTS_KEY}`;
 const PREFETCH_PROMPT = "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
+const STORY_PROMPT    = "Read aloud in a warm, engaging storytelling voice for children.";
 
-// Module-level cache shared across all useSpeech instances
+// Module-level audio cache — survives re-renders, shared across instances
 const _audioCache = {};
 let _prefetchStarted = false;
 
-async function fetchAndCache(text) {
-  if (_audioCache[text]) return;
-  try {
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, prompt: PREFETCH_PROMPT }),
-    });
-    if (!res.ok) return;
-    const { audio } = await res.json();
-    if (audio) {
-      _audioCache[text] = `data:audio/wav;base64,${audio}`;
-      console.log("🎙️ Cached:", text.slice(0, 40));
-    }
-  } catch { /* silent */ }
-}
+const fetchTTS = async (text, prompt, voice = "Achernar") => {
+  if (_audioCache[text]) return _audioCache[text];
+  const res = await fetch(GOOGLE_TTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `${prompt}\n\n${text}` }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+        },
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Google TTS ${res.status}`);
+  const data = await res.json();
+  const pcmBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!pcmBase64) throw new Error("No audio returned");
+
+  // Convert raw PCM → WAV so browsers can play it
+  const pcm        = Uint8Array.from(atob(pcmBase64), c => c.charCodeAt(0));
+  const sampleRate = 24000, channels = 1, bitsPerSample = 16;
+  const byteRate   = sampleRate * channels * bitsPerSample / 8;
+  const blockAlign = channels * bitsPerSample / 8;
+  const wavHeader  = new ArrayBuffer(44);
+  const view       = new DataView(wavHeader);
+  const write      = (off, val, size) => size === 4 ? view.setUint32(off, val, true) : view.setUint16(off, val, true);
+  const enc        = new TextEncoder();
+  const writeStr   = (off, s) => enc.encode(s).forEach((b, i) => view.setUint8(off + i, b));
+  writeStr(0, "RIFF"); write(4, 36 + pcm.length, 4); writeStr(8, "WAVE");
+  writeStr(12, "fmt "); write(16, 16, 4); write(20, 1, 2); write(22, channels, 2);
+  write(24, sampleRate, 4); write(28, byteRate, 4); write(32, blockAlign, 2);
+  write(34, bitsPerSample, 2); writeStr(36, "data"); write(40, pcm.length, 4);
+  const wav    = new Uint8Array(44 + pcm.length);
+  wav.set(new Uint8Array(wavHeader)); wav.set(pcm, 44);
+  const blob   = new Blob([wav], { type: "audio/wav" });
+  const uri    = URL.createObjectURL(blob);
+  _audioCache[text] = uri;
+  return uri;
+};
 
 async function prefetchVoiceLines() {
-  if (_prefetchStarted) return;
+  if (_prefetchStarted || !GOOGLE_TTS_KEY) return;
   _prefetchStarted = true;
-
   const lines = Object.values(VOICE_LINES);
-  // Fetch welcome line first (priority — shown immediately)
-  await fetchAndCache(lines[0]);
-  // Stagger remaining lines 800ms apart to avoid hammering the API
+  // Fetch welcome line first (shown immediately on load)
+  try { await fetchTTS(lines[0], PREFETCH_PROMPT); } catch {}
+  // Stagger remaining lines to avoid rate limits
   for (let i = 1; i < lines.length; i++) {
-    await new Promise(r => setTimeout(r, 800));
-    fetchAndCache(lines[i]); // fire and forget — no await
+    await new Promise(r => setTimeout(r, 600));
+    fetchTTS(lines[i], PREFETCH_PROMPT).catch(() => {});
   }
 }
 
@@ -125,50 +151,73 @@ function useSpeech() {
 
   useEffect(() => { prefetchVoiceLines(); }, []);
 
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current = null;
-    }
+  const stopAll = useCallback(() => {
+    if (audioRef.current?.pause) audioRef.current.pause();
+    audioRef.current = null;
     setSpeaking(false);
   }, []);
 
   const speak = useCallback(async (text, _cacheKey) => {
     if (!text) return;
-    stop();
+    stopAll();
     setSpeaking(true);
-
     try {
-      let dataURI = _audioCache[text];
-
-      if (!dataURI) {
-        // Not cached yet — fetch on demand
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, prompt: PREFETCH_PROMPT }),
-        });
-        if (!res.ok) throw new Error(`TTS API ${res.status}`);
-        const { audio } = await res.json();
-        if (!audio) throw new Error("No audio in response");
-        dataURI = `data:audio/wav;base64,${audio}`;
-        _audioCache[text] = dataURI;
-      }
-
-      const audio = new Audio(dataURI);
+      const uri   = await fetchTTS(text, PREFETCH_PROMPT);
+      const audio = new Audio(uri);
       audioRef.current = audio;
       audio.onended = () => { setSpeaking(false); audioRef.current = null; };
       audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
       await audio.play();
-
     } catch (err) {
       console.warn("🎙️ TTS failed:", err.message);
       setSpeaking(false);
     }
-  }, [stop]);
+  }, [stopAll]);
 
-  return { speak, stop, speaking };
+  // Pipeline approach: fetch next paragraph while current one plays
+  const speakLong = useCallback(async (text) => {
+    if (!text) return;
+    stopAll();
+    setSpeaking(true);
+
+    const paras = text
+      .split(/\n\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 2);
+
+    if (!paras.length) { setSpeaking(false); return; }
+
+    audioRef.current = {}; // sentinel
+
+    // Kick off first two fetches immediately
+    const pending = paras.map(() => null);
+    pending[0] = fetchTTS(paras[0], STORY_PROMPT);
+    if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
+
+    for (let i = 0; i < paras.length; i++) {
+      if (!audioRef.current) break; // stopped
+      // Prefetch one ahead
+      if (paras[i + 2] && !pending[i + 2]) {
+        pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
+      }
+      let uri;
+      try { uri = await pending[i]; } catch { break; }
+      if (!uri || !audioRef.current) break;
+      await new Promise((resolve) => {
+        const audio = new Audio(uri);
+        audioRef.current = audio;
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+      });
+    }
+
+    if (audioRef.current !== null) setSpeaking(false);
+    audioRef.current = null;
+  }, [stopAll]);
+
+  return { speak, speakLong, stop: stopAll, speaking };
+}
 }
 
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
@@ -413,7 +462,7 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 
 // ── Reading Modal ────────────────────────────────────────────────
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
-  const { speak, stop, speaking } = useSpeech();
+  const { speakLong, stop, speaking } = useSpeech();
   useEffect(()=>()=>stop(),[stop]);
   return (
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
@@ -427,7 +476,7 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted}}>✕</button>
         </div>
         {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}/>}
-        <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.text}`)} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+        <button onClick={()=>speaking?stop():speakLong(`${story.title}. ${story.text}`)} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
           {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
         </button>
         <ReactionButtons story={story} votes={votes} onVote={onVote} nightMode={nightMode}/>
@@ -728,7 +777,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const fileRef = useRef();
-  const { speak, stop, speaking } = useSpeech();
+  const { speak, speakLong, stop, speaking } = useSpeech();
   const spokenKeys = useRef(new Set());
 
   const getVoiceKey=(s,l,st)=>s===3&&l?"loading":s===3&&st?"story":String(s);
@@ -1337,7 +1386,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                     </p>
                   ))}
                 </div>
-                <button onClick={()=>speaking?stop():speak(`${story.title}. ${story.story}`)}
+                <button onClick={()=>speaking?stop():speakLong(`${story.title}. ${story.story}`)}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
                   {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
                 </button>
