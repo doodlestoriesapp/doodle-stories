@@ -96,7 +96,7 @@ function useSpeech() {
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text, _cacheKey, voice = "Puck") => {
+  const speak = useCallback(async (text, _cacheKey) => {
     if (!text) return;
     stop();
     setSpeaking(true);
@@ -112,13 +112,17 @@ function useSpeech() {
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, voice }),
+          body: JSON.stringify({
+            text,
+            prompt: "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.",
+          }),
         });
 
         if (!res.ok) throw new Error(`TTS API ${res.status}`);
 
-        const { audioData, mimeType } = await res.json();
-        dataURI = `data:${mimeType};base64,${audioData}`;
+        const { audio } = await res.json();
+        if (!audio) throw new Error("No audio in response");
+        dataURI = `data:audio/wav;base64,${audio}`;
         cacheRef.current[text] = dataURI;   // cache for this session
       }
 
