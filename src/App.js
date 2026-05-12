@@ -79,13 +79,51 @@ function Confetti({ active, onDone }) {
 }
 
 // ── Speech ───────────────────────────────────────────────────────
-// Uses Google AI Studio TTS via /api/tts (Puck voice for mascot lines).
-// Session cache prevents repeat API calls for the same text.
+// Uses Google AI Studio TTS via /api/tts (Achernar voice).
+// Priority prefetch: the welcome line fires immediately on load.
+// Remaining lines are staggered 800ms apart to avoid rate limits.
+const PREFETCH_PROMPT = "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
+
+// Module-level cache shared across all useSpeech instances
+const _audioCache = {};
+let _prefetchStarted = false;
+
+async function fetchAndCache(text) {
+  if (_audioCache[text]) return;
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, prompt: PREFETCH_PROMPT }),
+    });
+    if (!res.ok) return;
+    const { audio } = await res.json();
+    if (audio) {
+      _audioCache[text] = `data:audio/wav;base64,${audio}`;
+      console.log("🎙️ Cached:", text.slice(0, 40));
+    }
+  } catch { /* silent */ }
+}
+
+async function prefetchVoiceLines() {
+  if (_prefetchStarted) return;
+  _prefetchStarted = true;
+
+  const lines = Object.values(VOICE_LINES);
+  // Fetch welcome line first (priority — shown immediately)
+  await fetchAndCache(lines[0]);
+  // Stagger remaining lines 800ms apart to avoid hammering the API
+  for (let i = 1; i < lines.length; i++) {
+    await new Promise(r => setTimeout(r, 800));
+    fetchAndCache(lines[i]); // fire and forget — no await
+  }
+}
+
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
-  const audioRef  = useRef(null);
-  // Session-level cache: text → base64 audio data URI
-  const cacheRef  = useRef({});
+  const audioRef = useRef(null);
+
+  useEffect(() => { prefetchVoiceLines(); }, []);
 
   const stop = useCallback(() => {
     if (audioRef.current) {
@@ -100,51 +138,32 @@ function useSpeech() {
     if (!text) return;
     stop();
     setSpeaking(true);
-    console.log("🎙️ speak() called:", text.slice(0, 60));
 
     try {
-      const cacheHit = cacheRef.current[text];
-      let dataURI;
+      let dataURI = _audioCache[text];
 
-      if (cacheHit) {
-        console.log("🎙️ Using cached audio");
-        dataURI = cacheHit;
-      } else {
-        console.log("🎙️ Calling /api/tts...");
+      if (!dataURI) {
+        // Not cached yet — fetch on demand
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            prompt: "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.",
-          }),
+          body: JSON.stringify({ text, prompt: PREFETCH_PROMPT }),
         });
-
-        console.log("🎙️ /api/tts status:", res.status);
-        if (!res.ok) {
-          const errBody = await res.text();
-          console.error("🎙️ /api/tts error body:", errBody);
-          throw new Error(`TTS API ${res.status}: ${errBody}`);
-        }
-
-        const json = await res.json();
-        console.log("🎙️ /api/tts response keys:", Object.keys(json));
-        const { audio } = json;
-        if (!audio) throw new Error("No audio field in response");
+        if (!res.ok) throw new Error(`TTS API ${res.status}`);
+        const { audio } = await res.json();
+        if (!audio) throw new Error("No audio in response");
         dataURI = `data:audio/wav;base64,${audio}`;
-        cacheRef.current[text] = dataURI;
+        _audioCache[text] = dataURI;
       }
 
-      console.log("🎙️ Playing audio, dataURI length:", dataURI.length);
       const audio = new Audio(dataURI);
       audioRef.current = audio;
-      audio.onended  = () => { setSpeaking(false); audioRef.current = null; };
-      audio.onerror  = (e) => { console.error("🎙️ Audio play error:", e); setSpeaking(false); audioRef.current = null; };
+      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
+      audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
       await audio.play();
-      console.log("🎙️ Audio playing ✅");
 
     } catch (err) {
-      console.error("🎙️ Google TTS failed:", err.message);
+      console.warn("🎙️ TTS failed:", err.message);
       setSpeaking(false);
     }
   }, [stop]);
