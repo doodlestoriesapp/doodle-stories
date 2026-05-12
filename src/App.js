@@ -164,11 +164,13 @@ function useSpeech() {
     setSpeaking(true);
     try {
       const uri   = await fetchTTS(text, PREFETCH_PROMPT);
-      const audio = new Audio(uri);
-      audioRef.current = audio;
-      audio.onended = () => { setSpeaking(false); audioRef.current = null; };
-      audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
-      await audio.play();
+      await new Promise((resolve) => {
+        const audio = new Audio(uri);
+        audioRef.current = audio;
+        audio.onended = () => { setSpeaking(false); audioRef.current = null; resolve(); };
+        audio.onerror = () => { setSpeaking(false); audioRef.current = null; resolve(); };
+        audio.play().catch(resolve);
+      });
     } catch (err) {
       console.warn("🎙️ TTS failed:", err.message);
       setSpeaking(false);
@@ -469,7 +471,8 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   const handleReadAloud = async () => {
     if (speaking) { stop(); return; }
     setReadingLoading(true);
-    speak(VOICE_LINES.readAloud, 'readAloud');
+    // Await mascot intro line, then start story pipeline
+    await speak(VOICE_LINES.readAloud, 'readAloud');
     await speakLong(`${story.title}. ${story.text}`);
     setReadingLoading(false);
   };
@@ -1399,7 +1402,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                 <button onClick={async()=>{
                     if(speaking){stop();setReadingLoading(false);return;}
                     setReadingLoading(true);
-                    speak(VOICE_LINES.readAloud,'readAloud');
+                    await speak(VOICE_LINES.readAloud,'readAloud');
                     await speakLong(`${story.title}. ${story.story}`);
                     setReadingLoading(false);
                   }}
