@@ -1,0 +1,24 @@
+# DoodleStories robots.txt
+# https://doodlestories.app
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://doodlestories.app/sitemap.xml
+
+# Block any API routes from indexing
+Disallow: /api/
+
+# Allow all major search engine bots explicitly
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
