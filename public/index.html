@@ -1,77 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#FF6B6B" />
 
-    <!-- ── PWA / Theme ─────────────────────────────────────── -->
-    <meta name="theme-color" content="#FF6B6B" />
-    <meta name="background-color" content="#FFF9F0" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="DoodleStories" />
-    <meta name="application-name" content="DoodleStories" />
-    <meta name="msapplication-TileColor" content="#FF6B6B" />
+  <!-- Primary SEO -->
+  <title>Doodle Stories – Turn Kids' Drawings into Magical AI Bedtime Stories</title>
+  <meta name="description" content="Turn your child's drawing into a personalized bedtime story with AI. Free kids storytelling app for ages 2-13. Upload a doodle, pick an age group, get a magical story read aloud instantly." />
+  <meta name="keywords" content="kids storytelling app, AI bedtime stories, children's creative app, drawing to story, kids art app, bedtime story generator, classroom creative writing, toddler stories, kids drawing app, magical stories for kids, personalized children's stories, AI story generator for kids" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://doodlestories.app" />
 
-    <!-- ── SEO / Social ────────────────────────────────────── -->
-    <title>Doodle Stories – Turn your doodle into a magical story</title>
-    <meta name="description" content="Draw it. Upload it. Turn it into a magical bedtime story powered by AI. Share it with the world." />
-    <meta name="keywords" content="kids stories, AI story generator, children's bedtime stories, doodle, drawing, creative kids app" />
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://doodlestories.app" />
+  <meta property="og:title" content="Doodle Stories – Turn Kids' Drawings into Magical AI Bedtime Stories" />
+  <meta property="og:description" content="Your child draws it. AI turns it into a magical personalized story — read aloud in seconds. Free for ages 2-13." />
+  <meta property="og:image" content="https://doodlestories.app/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="Doodle Stories" />
 
-    <!-- Open Graph -->
-    <meta property="og:title" content="Doodle Stories" />
-    <meta property="og:description" content="Turn your child's drawing into a magical bedtime story with AI." />
-    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
-    <meta property="og:url" content="https://doodlestories.app" />
-    <meta property="og:type" content="website" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@doodlestoriesapp" />
+  <meta name="twitter:title" content="Doodle Stories – Turn Kids' Drawings into Magical AI Bedtime Stories" />
+  <meta name="twitter:description" content="Your child draws it. AI turns it into a magical personalized story — read aloud in seconds. Free for ages 2-13." />
+  <meta name="twitter:image" content="https://doodlestories.app/og-image.png" />
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Doodle Stories" />
-    <meta name="twitter:description" content="Turn your child's drawing into a magical bedtime story with AI." />
-    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="DoodleStories" />
+  <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- ── Icons ───────────────────────────────────────────── -->
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icons/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="%PUBLIC_URL%/icons/icon-152.png" />
-    <link rel="apple-touch-icon" sizes="144x144" href="%PUBLIC_URL%/icons/icon-144.png" />
-    <link rel="apple-touch-icon" sizes="128x128" href="%PUBLIC_URL%/icons/icon-128.png" />
+  <!-- Structured Data: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Doodle Stories",
+    "url": "https://doodlestories.app",
+    "description": "Turn your child's drawing into a personalized AI bedtime story read aloud instantly. Free kids storytelling app for ages 2-13.",
+    "applicationCategory": "EducationalApplication",
+    "applicationSubCategory": "Children's Storytelling",
+    "operatingSystem": "Web, iOS, Android",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "audience": {
+      "@type": "EducationalAudience",
+      "educationalRole": "student",
+      "audienceType": "Children ages 2-13"
+    },
+    "creator": { "@type": "Organization", "name": "Luminara Labs", "url": "https://luminaralabs.us" },
+    "featureList": ["Upload or draw a doodle", "AI generates personalized story", "Text-to-speech read aloud", "Bedtime story library", "Share as Instagram carousel", "Free to use"]
+  }
+  </script>
 
-    <!-- ── Manifest ─────────────────────────────────────────── -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-
-    <!-- ── Splash screens (iOS) ─────────────────────────────── -->
-    <!-- iPhone 14 Pro Max -->
-    <link rel="apple-touch-startup-image"
-      href="%PUBLIC_URL%/splash/splash-1290x2796.png"
-      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
-    <!-- iPhone 14 / 13 / 12 -->
-    <link rel="apple-touch-startup-image"
-      href="%PUBLIC_URL%/splash/splash-1170x2532.png"
-      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
-    <!-- iPhone SE -->
-    <link rel="apple-touch-startup-image"
-      href="%PUBLIC_URL%/splash/splash-750x1334.png"
-      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
-    <!-- iPad Pro 12.9 -->
-    <link rel="apple-touch-startup-image"
-      href="%PUBLIC_URL%/splash/splash-2048x2732.png"
-      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
-
-    <style>
-      /* Prevent flash of white on load */
-      body { background-color: #FFF9F0; margin: 0; }
-      /* Safe area insets for notched devices */
-      #root {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
+  <!-- Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Doodle Stories?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Doodle Stories is a free AI-powered app that turns children's drawings into personalized bedtime stories. Kids upload or draw a doodle, choose their age group, and AI creates a magical story read aloud instantly." }
+      },
+      {
+        "@type": "Question",
+        "name": "What age is Doodle Stories for?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Doodle Stories is designed for children ages 2-13, with four age groups: Tiny Tots (2-4), Little Readers (5-7), Story Lovers (8-10), and Big Kids (11-13)." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Doodle Stories free?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes, Doodle Stories is completely free to use. No account required, no personal data collected. Just draw, upload, and enjoy your magical story." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can teachers use Doodle Stories in the classroom?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Absolutely! Doodle Stories is perfect for creative writing lessons, art integration, and storytelling activities. Students draw something and instantly have a personalized story to share with the class." }
+      },
+      {
+        "@type": "Question",
+        "name": "How does Doodle Stories work?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Upload a photo of your child's drawing or draw directly in the app, select the child's age group, and tap Make My Story. AI creates a unique personalized story in seconds, read aloud instantly." }
       }
-    </style>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run Doodle Stories.</noscript>
-    <div id="root"></div>
-  </body>
+    ]
+  }
+  </script>
+
+  <style>
+    body { background-color: #FFF9F0; margin: 0; font-family: Georgia, serif; }
+    #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+    .seo-content { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run Doodle Stories.</noscript>
+
+  <!-- Hidden semantic content for search engines -->
+  <div class="seo-content" aria-hidden="true">
+    <h1>Doodle Stories – Free AI Bedtime Story Generator for Kids</h1>
+    <p>Turn your child's drawing into a magical personalized bedtime story with AI. Free kids storytelling app for ages 2-13. No account required.</p>
+
+    <h2>For Parents</h2>
+    <p>Looking for a fun bedtime story app for your child? Doodle Stories turns any drawing into a personalized AI story read aloud in seconds. Perfect for winding down at night. Free, safe, no ads, no accounts.</p>
+
+    <h2>For Teachers</h2>
+    <p>Bring creative writing to life in your classroom. Students draw anything and Doodle Stories instantly generates a personalized story. Perfect for art integration, literacy lessons, and creative writing for kids ages 2-13.</p>
+
+    <h2>For Kids</h2>
+    <p>Draw your favourite things and watch them come alive in a story! Upload your drawing or draw right in the app and hear your very own magical story read aloud just for you.</p>
+
+    <h2>How It Works</h2>
+    <ol>
+      <li>Upload a photo of your drawing or draw in the app</li>
+      <li>Choose your age group — Tiny Tots, Little Readers, Story Lovers, or Big Kids</li>
+      <li>Tap Make My Story and AI creates your personalized story</li>
+      <li>Listen to your story read aloud or save it to the Bedtime Story Library</li>
+      <li>Share as an Instagram carousel with family and friends</li>
+    </ol>
+
+    <h2>Features</h2>
+    <ul>
+      <li>AI-powered personalized children's stories from drawings</li>
+      <li>Text-to-speech read aloud with expressive voice</li>
+      <li>Bedtime story library shared by kids worldwide</li>
+      <li>Built-in drawing pad with colors and brushes</li>
+      <li>Share stories as Instagram carousel cards</li>
+      <li>Age-appropriate stories for ages 2-13</li>
+      <li>Free, no account required, no ads, safe for kids</li>
+      <li>Works on iPhone, Android, tablet, and desktop</li>
+    </ul>
+  </div>
+
+  <div id="root"></div>
+</body>
 </html>
