@@ -2,13 +2,76 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- ── PWA / Theme ─────────────────────────────────────── -->
     <meta name="theme-color" content="#FF6B6B" />
-    <meta name="description" content="Turn kids drawings into magical bedtime stories" />
-    <title>Doodle Stories</title>
+    <meta name="background-color" content="#FFF9F0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="DoodleStories" />
+    <meta name="application-name" content="DoodleStories" />
+    <meta name="msapplication-TileColor" content="#FF6B6B" />
+
+    <!-- ── SEO / Social ────────────────────────────────────── -->
+    <title>Doodle Stories – Turn your doodle into a magical story</title>
+    <meta name="description" content="Draw it. Upload it. Turn it into a magical bedtime story powered by AI. Share it with the world." />
+    <meta name="keywords" content="kids stories, AI story generator, children's bedtime stories, doodle, drawing, creative kids app" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Doodle Stories" />
+    <meta property="og:description" content="Turn your child's drawing into a magical bedtime story with AI." />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:url" content="https://doodlestories.app" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Doodle Stories" />
+    <meta name="twitter:description" content="Turn your child's drawing into a magical bedtime story with AI." />
+    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+
+    <!-- ── Icons ───────────────────────────────────────────── -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="%PUBLIC_URL%/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="%PUBLIC_URL%/icons/icon-144.png" />
+    <link rel="apple-touch-icon" sizes="128x128" href="%PUBLIC_URL%/icons/icon-128.png" />
+
+    <!-- ── Manifest ─────────────────────────────────────────── -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- ── Splash screens (iOS) ─────────────────────────────── -->
+    <!-- iPhone 14 Pro Max -->
+    <link rel="apple-touch-startup-image"
+      href="%PUBLIC_URL%/splash/splash-1290x2796.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+    <!-- iPhone 14 / 13 / 12 -->
+    <link rel="apple-touch-startup-image"
+      href="%PUBLIC_URL%/splash/splash-1170x2532.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+    <!-- iPhone SE -->
+    <link rel="apple-touch-startup-image"
+      href="%PUBLIC_URL%/splash/splash-750x1334.png"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+    <!-- iPad Pro 12.9 -->
+    <link rel="apple-touch-startup-image"
+      href="%PUBLIC_URL%/splash/splash-2048x2732.png"
+      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+
+    <style>
+      /* Prevent flash of white on load */
+      body { background-color: #FFF9F0; margin: 0; }
+      /* Safe area insets for notched devices */
+      #root {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>You need to enable JavaScript to run Doodle Stories.</noscript>
     <div id="root"></div>
   </body>
 </html>
