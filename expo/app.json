@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9acd1039-b6f8-4e8a-a55b-07bbe6e85399"
+      }
+    },
+    "owner": "doodlestoriesapp"
   }
 }
