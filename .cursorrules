@@ -1,0 +1,13 @@
+This is DoodleStories — a children's AI storytelling app.
+Tech stack: React (Create React App), Vercel serverless functions,
+Anthropic Claude API for story generation, Vercel KV, Google Cloud TTS
+(Gemini Pro, Achernar voice). Live at doodlestories.app.
+GitHub: doodlestoriesapp/doodle-stories
+
+Goal: Migrate from CRA to Expo for iOS and Android app store launch.
+- Keep all Vercel API routes unchanged (backend stays on Vercel)
+- Replace Canvas API with expo-image-manipulator or expo-sharing
+- Replace localStorage with AsyncStorage
+- Target bundle ID: app.doodlestories
+- Age rating: 4+ (children's app, COPPA compliant)
+- Preferred style: complete file replacements, not surgical diffs

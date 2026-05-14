@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -35,29 +36,44 @@ const COLORS = {
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
 
-// ── Storage ──────────────────────────────────────────────────────
+// ── Storage (@react-native-async-storage/async-storage) ─────────
+const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
+
 async function loadLibrary() {
   try {
-    const r = await window.storage.get("doodle-library", true);
-    if (!r) return [];
-    const parsed = JSON.parse(r.value);
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.library);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
+
 async function saveLibrary(stories) {
   try {
-    await window.storage.set("doodle-library", JSON.stringify(stories), true);
+    await AsyncStorage.setItem(STORAGE_KEYS.library, JSON.stringify(stories));
     console.log("✅ Library saved:", stories.length, "stories");
-  } catch(e) { console.error("❌ saveLibrary failed:", e); }
+  } catch (e) {
+    console.error("❌ saveLibrary failed:", e);
+  }
 }
+
 async function loadVotes() {
   try {
-    const r = await window.storage.get("doodle-votes", false);
-    return r ? JSON.parse(r.value) : {};
-  } catch { return {}; }
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.votes);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
+
 async function saveVotes(v) {
-  try { await window.storage.set("doodle-votes", JSON.stringify(v), false); } catch {}
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.votes, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── Confetti ─────────────────────────────────────────────────────
@@ -820,7 +836,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     reader.onload=async(e)=>{
       const base64 = e.target.result.split(",")[1];
       try {
-        const modRes = await fetch("/api/moderate-image", {
+        const modRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/moderate-image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: base64, mediaType }),
@@ -843,7 +859,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
   const handleCanvasUse=async(dataURL,base64)=>{
     try {
-      const modRes = await fetch("/api/moderate-image", {
+      const modRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/moderate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64, mediaType: "image/png" }),
@@ -870,7 +886,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     setLoading(true); setError(null);
     spokenKeys.current.delete("loading"); setStep(3);
     try {
-      const res=await fetch("/api/generate-story",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const res=await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/generate-story`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-20250514", max_tokens:1000,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Start the story with an engaging, specific opening line — NOT "Once upon a time". Jump straight into the action or introduce the character in a memorable way. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[
