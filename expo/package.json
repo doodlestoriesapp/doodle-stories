@@ -2,21 +2,31 @@
   "name": "doodle-stories-expo",
   "version": "1.0.0",
   "private": true,
+  "description": "Expo SDK 54 — DoodleStories mobile app",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
+    "start:tunnel": "expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.1.2",
-    "expo": "~52.0.49",
-    "expo-status-bar": "~2.0.1",
-    "react": "18.3.1",
-    "react-native": "0.76.9"
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~54.0.34",
+    "expo-av": "~16.0.8",
+    "expo-file-system": "~19.0.22",
+    "expo-image-picker": "~17.0.11",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-linking": "~8.0.12",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.25.2",
+    "@expo/ngrok": "^4.1.0"
   }
 }

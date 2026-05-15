@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -36,12 +35,12 @@ const COLORS = {
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
 
-// ── Storage (@react-native-async-storage/async-storage) ─────────
+// ── Storage (localStorage on web; Expo app uses AsyncStorage in expo/) ──
 const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
 
 async function loadLibrary() {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.library);
+    const raw = localStorage.getItem(STORAGE_KEYS.library);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -52,7 +51,7 @@ async function loadLibrary() {
 
 async function saveLibrary(stories) {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.library, JSON.stringify(stories));
+    localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(stories));
     console.log("✅ Library saved:", stories.length, "stories");
   } catch (e) {
     console.error("❌ saveLibrary failed:", e);
@@ -61,7 +60,7 @@ async function saveLibrary(stories) {
 
 async function loadVotes() {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.votes);
+    const raw = localStorage.getItem(STORAGE_KEYS.votes);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -70,7 +69,7 @@ async function loadVotes() {
 
 async function saveVotes(v) {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.votes, JSON.stringify(v));
+    localStorage.setItem(STORAGE_KEYS.votes, JSON.stringify(v));
   } catch {
     /* ignore */
   }

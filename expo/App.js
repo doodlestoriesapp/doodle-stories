@@ -1,32 +1,711 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { AGE_GROUPS, COLORS, VOICE_LINES } from "./src/constants";
+import { apiPost } from "./src/api";
+import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
+import { useSpeech } from "./src/useSpeech";
+
+function Btn({ label, onPress, primary, night, disabled, style }) {
+  const inner = (
+    <Text style={[styles.btnText, primary && styles.btnTextPrimary, night && styles.btnTextNight]}>
+      {label}
+    </Text>
+  );
+  if (primary) {
+    return (
+      <Pressable onPress={onPress} disabled={disabled} style={[styles.btnWrap, style, disabled && styles.disabled]}>
+        <LinearGradient colors={[COLORS.accent1, "#FF8E53"]} style={styles.btnGrad}>
+          {inner}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+  if (night) {
+    return (
+      <Pressable onPress={onPress} disabled={disabled} style={[styles.btnWrap, style, disabled && styles.disabled]}>
+        <LinearGradient colors={[COLORS.night2, COLORS.night3]} style={styles.btnGrad}>
+          {inner}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.btnOutline, style, disabled && styles.disabled]}
+    >
+      {inner}
+    </Pressable>
+  );
+}
+
+function Screen({ children, night }) {
+  return (
+    <SafeAreaView style={[styles.screen, night && styles.screenNight]}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function HomeScreen({ onNavigate, topLoved, topLiked }) {
+  return (
+    <Screen>
+      <Text style={styles.heroEmoji}>🎨</Text>
+      <Text style={styles.heroTitle}>
+        Doodle <Text style={{ color: COLORS.accent1 }}>Stories</Text>
+      </Text>
+      <Text style={styles.heroSub}>
+        Draw it. Upload it. Turn it into a magical story.{"\n"}Share it as a bedtime story for the world. 🌙
+      </Text>
+      <Btn label="🖼️ Create a Story from My Doodle" primary onPress={() => onNavigate("create")} style={styles.mb12} />
+      <Btn label="🌙 Bedtime Story Library" night onPress={() => onNavigate("library")} style={styles.mb24} />
+
+      {topLoved.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏆 Most Loved Stories</Text>
+          {topLoved.slice(0, 3).map((s, i) => (
+            <Pressable key={s.id} style={styles.heroCard} onPress={() => onNavigate("library")}>
+              <Text style={styles.rank}>#{i + 1}</Text>
+              {s.doodleUrl ? <Image source={{ uri: s.doodleUrl }} style={styles.heroImg} /> : null}
+              <Text style={styles.cardMeta}>{s.ageEmoji} {s.ageLabel}</Text>
+              <Text style={styles.cardTitle}>{s.title}</Text>
+              <Text style={styles.cardVotes}>❤️ {s.loves || 0}  👍 {s.likes || 0}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.footerLinks}>
+        <Pressable onPress={() => onNavigate("about")}>
+          <Text style={styles.link}>About Us</Text>
+        </Pressable>
+        <Pressable onPress={() => onNavigate("contact")}>
+          <Text style={styles.link}>Contact Us</Text>
+        </Pressable>
+      </View>
+    </Screen>
+  );
+}
+
+function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
+  const { speak, speakLong, stop, speaking } = useSpeech();
+  const [readingLoading, setReadingLoading] = useState(false);
+
+  const handleRead = async () => {
+    if (speaking) {
+      await stop();
+      return;
+    }
+    setReadingLoading(true);
+    await speak(VOICE_LINES.readAloud);
+    await speakLong(`${story.title}. ${story.text}`);
+    setReadingLoading(false);
+  };
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalCard, nightMode && styles.modalCardNight]}>
+          <Pressable onPress={onClose} style={styles.modalClose}>
+            <Text style={styles.modalCloseText}>✕</Text>
+          </Pressable>
+          <Text style={styles.modalMeta}>{story.ageEmoji} {story.ageLabel} · Bedtime Story</Text>
+          <Text style={[styles.modalTitle, nightMode && styles.textNight]}>{story.title}</Text>
+          {story.doodleUrl ? (
+            <Image source={{ uri: story.doodleUrl }} style={styles.modalImg} resizeMode="cover" />
+          ) : null}
+          <Btn
+            label={speaking ? "⏹ Stop Reading" : readingLoading ? "✨ Warming up..." : "🔊 Read This Story Aloud"}
+            primary
+            onPress={handleRead}
+            style={styles.mb12}
+          />
+          <ScrollView style={{ maxHeight: 280 }}>
+            {story.text.split("\n\n").map((para, i) => (
+              <Text key={i} style={[styles.storyPara, nightMode && styles.textNight]}>
+                {para}
+              </Text>
+            ))}
+          </ScrollView>
+          <View style={styles.reactionRow}>
+            <Pressable
+              disabled={!!votes[story.id]}
+              onPress={() => onVote(story.id, "like")}
+              style={styles.reactionBtn}
+            >
+              <Text>👍 {story.likes || 0}</Text>
+            </Pressable>
+            <Pressable
+              disabled={!!votes[story.id]}
+              onPress={() => onVote(story.id, "love")}
+              style={styles.reactionBtn}
+            >
+              <Text>❤️ {story.loves || 0}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
+  const [readingStory, setReadingStory] = useState(null);
+  const [nightMode, setNightMode] = useState(false);
+  const spoken = useRef(false);
+
+  useEffect(() => {
+    if (!spoken.current) {
+      spoken.current = true;
+      setTimeout(() => speak(VOICE_LINES.library), 500);
+    }
+  }, [speak]);
+
+  return (
+    <Screen night={nightMode}>
+      <View style={styles.rowBetween}>
+        <Btn label="← Home" onPress={() => onNavigate("home")} />
+        <Pressable onPress={() => setNightMode((n) => !n)}>
+          <Text style={styles.nightToggle}>{nightMode ? "☀️ Day" : "🌙 Night"}</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.heroTitle, nightMode && styles.textNight]}>Bedtime Story Library</Text>
+      <Text style={styles.heroSub}>Stories made from real kids' drawings</Text>
+
+      {library.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>📭</Text>
+          <Text style={styles.emptyText}>No stories yet! Be the first!</Text>
+          <Btn label="🎨 Create the First Story!" primary onPress={() => onNavigate("create")} />
+        </View>
+      ) : (
+        library.map((s) => (
+          <Pressable key={s.id} style={styles.storyCard} onPress={() => setReadingStory(s)}>
+            {s.doodleUrl ? <Image source={{ uri: s.doodleUrl }} style={styles.cardImg} /> : null}
+            <Text style={styles.cardMeta}>{s.ageEmoji} {s.ageLabel}</Text>
+            <Text style={styles.cardTitle}>{s.title}</Text>
+            <Text style={styles.cardPreview} numberOfLines={2}>{s.preview}</Text>
+            <Text style={styles.cardVotes}>❤️ {s.loves || 0}  👍 {s.likes || 0}</Text>
+          </Pressable>
+        ))
+      )}
+
+      <Btn label="🎨 Add Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
+
+      {readingStory && (
+        <ReadingModal
+          story={readingStory}
+          onClose={() => setReadingStory(null)}
+          nightMode={nightMode}
+          votes={votes}
+          onVote={onVote}
+        />
+      )}
+    </Screen>
+  );
+}
+
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
+  const [imageUri, setImageUri] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
+  const [imageMediaType, setImageMediaType] = useState("image/jpeg");
+  const [ageGroup, setAgeGroup] = useState(null);
+  const [story, setStory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [step, setStep] = useState(1);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const { speak, speakLong, stop, speaking } = useSpeech();
+  const spokenKeys = useRef(new Set());
+
+  useEffect(() => {
+    const key = step === 3 && loading ? "loading" : step === 3 && story ? "story" : String(step);
+    if (spokenKeys.current.has(key)) return;
+    spokenKeys.current.add(key);
+    const line = VOICE_LINES[key];
+    if (line) setTimeout(() => speak(line), 500);
+  }, [step, loading, story, speak]);
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setError("Please allow photo access to upload a drawing.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      base64: true,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    const base64 = asset.base64;
+    const mediaType = asset.mimeType || "image/jpeg";
+    if (!base64) {
+      setError("Could not read image. Try another photo.");
+      return;
+    }
+
+    try {
+      const mod = await apiPost("/api/moderate-image", { imageBase64: base64, mediaType });
+      if (!mod.safe) {
+        setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
+        return;
+      }
+    } catch (err) {
+      console.warn("Moderation failed open:", err?.message);
+    }
+
+    setError(null);
+    setImageUri(asset.uri);
+    setImageBase64(base64);
+    setImageMediaType(mediaType);
+    spokenKeys.current.delete("2");
+    setStep(2);
+  };
+
+  const generateStory = async () => {
+    if (!imageBase64 || !ageGroup) return;
+    setLoading(true);
+    setError(null);
+    spokenKeys.current.delete("loading");
+    setStep(3);
+    try {
+      const data = await apiPost("/api/generate-story", {
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system:
+          'You are a magical children\'s storyteller. Create a delightful story from a child\'s drawing. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, raw JSON only.',
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: imageMediaType, data: imageBase64 } },
+              {
+                type: "text",
+                text: `Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`,
+              },
+            ],
+          },
+        ],
+      });
+      const raw = data.content?.find((b) => b.type === "text")?.text || "";
+      const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+      spokenKeys.current.delete("story");
+      setStory(parsed);
+    } catch (err) {
+      setError(err?.message || "Oops! The story magic fizzled. Try again!");
+      setStep(2);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (share) => {
+    setShowSaveModal(false);
+    if (!share || !story) return;
+    const doodleUrl = imageUri || (imageBase64 ? `data:${imageMediaType};base64,${imageBase64}` : null);
+    const newEntry = {
+      id: Date.now(),
+      title: story.title,
+      text: story.story,
+      preview: story.story.split("\n\n")[0].slice(0, 120) + "...",
+      tags: story.tags || [],
+      ageLabel: ageGroup.label,
+      ageEmoji: ageGroup.emoji,
+      ageRange: ageGroup.range,
+      doodleUrl,
+      likes: 0,
+      loves: 0,
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    };
+    const updated = [newEntry, ...currentLibrary];
+    await saveLibrary(updated);
+    onStoryAdded(updated);
+  };
+
+  const shareStory = async () => {
+    if (!story) return;
+    await Share.share({
+      message: `${story.title}\n\n${story.story.slice(0, 500)}...\n\nMade with DoodleStories — doodlestories.app`,
+    });
+  };
+
+  const reset = () => {
+    stop();
+    setImageUri(null);
+    setImageBase64(null);
+    setAgeGroup(null);
+    setStory(null);
+    setError(null);
+    setStep(1);
+    spokenKeys.current.clear();
+  };
+
+  return (
+    <Screen>
+      <View style={styles.rowBetween}>
+        <Btn label="← Home" onPress={() => onNavigate("home")} />
+        <Btn label="🌙 Library" night onPress={() => onNavigate("library")} />
+      </View>
+      <Text style={styles.heroTitle}>Doodle Stories</Text>
+
+      {step === 1 && (
+        <View>
+          <Text style={styles.stepHint}>Upload a photo of your drawing to begin ✨</Text>
+          <Btn label="📸 Upload Drawing" primary onPress={pickImage} />
+          <Text style={styles.note}>Draw-in-app is on the web at doodlestories.app</Text>
+        </View>
+      )}
+
+      {step === 2 && (
+        <View>
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.previewImg} resizeMode="contain" /> : null}
+          <Text style={styles.stepHint}>How old is the little artist?</Text>
+          <View style={styles.ageGrid}>
+            {AGE_GROUPS.map((g) => (
+              <Pressable
+                key={g.range}
+                onPress={() => {
+                  setAgeGroup(g);
+                  setTimeout(() => speak(VOICE_LINES.ageSelected), 300);
+                }}
+                style={[styles.ageBtn, ageGroup?.range === g.range && styles.ageBtnOn]}
+              >
+                <Text style={styles.ageEmoji}>{g.emoji}</Text>
+                <Text style={styles.ageLabel}>{g.label}</Text>
+                <Text style={styles.ageRange}>Ages {g.range}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Btn label="← New Doodle" onPress={reset} style={styles.mb8} />
+          <Btn label="✨ Make My Story!" primary disabled={!ageGroup} onPress={generateStory} />
+        </View>
+      )}
+
+      {step === 3 && loading && (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.accent1} />
+          <Text style={styles.stepHint}>The story magic is happening...</Text>
+        </View>
+      )}
+
+      {step === 3 && !loading && story && (
+        <View>
+          <Text style={styles.storyHeading}>{story.title}</Text>
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.thumb} /> : null}
+          {story.story.split("\n\n").map((p, i) => (
+            <Text key={i} style={styles.storyPara}>{p}</Text>
+          ))}
+          <Btn
+            label={speaking ? "⏹ Stop Reading" : "🔊 Read This Story Aloud"}
+            primary
+            onPress={async () => {
+              if (speaking) {
+                await stop();
+                return;
+              }
+              await speak(VOICE_LINES.readAloud);
+              await speakLong(`${story.title}. ${story.story}`);
+            }}
+            style={styles.mb8}
+          />
+          <Btn label="📲 Share This Story" onPress={shareStory} style={styles.mb8} />
+          <Btn label="🌙 Save to Bedtime Library" night onPress={() => setShowSaveModal(true)} style={styles.mb8} />
+          <Btn label="🎨 New Doodle" onPress={reset} />
+        </View>
+      )}
+
+      {step === 3 && !loading && error && <Text style={styles.error}>{error}</Text>}
+
+      <Modal visible={showSaveModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Share with the Library?</Text>
+            <Text style={styles.modalBody}>
+              Share "{story?.title}" anonymously so other kids can enjoy it?
+            </Text>
+            <Btn label="✨ Yes, share it!" primary onPress={() => handleSave(true)} style={styles.mb8} />
+            <Btn label="Keep it just for us" onPress={() => handleSave(false)} />
+          </View>
+        </View>
+      </Modal>
+    </Screen>
+  );
+}
+
+function AboutScreen({ onNavigate }) {
+  const links = [
+    { label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
+    { label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
+    { label: "YouTube", url: "https://youtube.com/@DoodleStoriesapp" },
+    { label: "Facebook", url: "https://facebook.com/doodlestoriesapp" },
+  ];
+  return (
+    <Screen>
+      <Btn label="← Home" onPress={() => onNavigate("home")} style={styles.mb16} />
+      <Text style={styles.heroEmoji}>🎨</Text>
+      <Text style={styles.heroTitle}>About Doodle Stories</Text>
+      <Text style={styles.aboutPara}>
+        Doodle Stories turns children's drawings into personalized AI bedtime stories — narrated and shareable.
+      </Text>
+      {links.map((l) => (
+        <Pressable key={l.label} onPress={() => Linking.openURL(l.url)} style={styles.socialBtn}>
+          <Text style={styles.socialText}>{l.label}</Text>
+        </Pressable>
+      ))}
+      <Btn label="🎨 Create Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
+    </Screen>
+  );
+}
+
+function ContactScreen({ onNavigate }) {
+  const [form, setForm] = useState({ name: "", email: "", reason: "", message: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async () => {
+    if (!form.name || !form.email || !form.reason || !form.message) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    setSending(true);
+    setError(null);
+    try {
+      await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          ...form,
+          _subject: `DoodleStories Contact: ${form.reason}`,
+        }),
+      });
+      setSubmitted(true);
+    } catch {
+      setError("Something went wrong. Email doodlestoriesapp@gmail.com");
+    }
+    setSending(false);
+  };
+
+  return (
+    <Screen>
+      <Btn label="← Home" onPress={() => onNavigate("home")} style={styles.mb16} />
+      <Text style={styles.heroTitle}>Get in Touch</Text>
+      {submitted ? (
+        <View style={styles.centered}>
+          <Text style={styles.heroEmoji}>🎉</Text>
+          <Text style={styles.stepHint}>Message sent! We'll reply within 1–2 business days.</Text>
+          <Btn label="Back to Home" primary onPress={() => onNavigate("home")} />
+        </View>
+      ) : (
+        <View>
+          {["name", "email", "reason", "message"].map((field) => (
+            <TextInput
+              key={field}
+              placeholder={field === "name" ? "Your name" : field === "email" ? "Email" : field === "reason" ? "Reason" : "Message"}
+              value={form[field]}
+              onChangeText={(t) => setForm((f) => ({ ...f, [field]: t }))}
+              style={styles.input}
+              multiline={field === "message"}
+              keyboardType={field === "email" ? "email-address" : "default"}
+            />
+          ))}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Btn label={sending ? "Sending..." : "✉️ Send Message"} primary disabled={sending} onPress={submit} />
+        </View>
+      )}
+    </Screen>
+  );
+}
+
+function AppRoot() {
+  const [view, setView] = useState("home");
+  const [library, setLibrary] = useState([]);
+  const [votes, setVotes] = useState({});
+  const { speak } = useSpeech();
+
+  useEffect(() => {
+    Promise.all([loadLibrary(), loadVotes()]).then(([lib, v]) => {
+      setLibrary(lib);
+      setVotes(v);
+    });
+  }, []);
+
+  const handleVote = async (id, type) => {
+    if (votes[id]) return;
+    const newVotes = { ...votes, [id]: type };
+    setVotes(newVotes);
+    await saveVotes(newVotes);
+    const updated = library.map((s) =>
+      s.id === id ? { ...s, [type === "love" ? "loves" : "likes"]: (s[type === "love" ? "loves" : "likes"] || 0) + 1 } : s
+    );
+    setLibrary(updated);
+    await saveLibrary(updated);
+  };
+
+  const topLoved = [...library].sort((a, b) => (b.loves || 0) - (a.loves || 0)).filter((s) => (s.loves || 0) > 0);
+  const topLiked = [...library].sort((a, b) => (b.likes || 0) - (a.likes || 0)).filter((s) => (s.likes || 0) > 0);
+
+  let screen = null;
+  if (view === "home") screen = <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} />;
+  if (view === "library")
+    screen = (
+      <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak} />
+    );
+  if (view === "create")
+    screen = <CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} />;
+  if (view === "about") screen = <AboutScreen onNavigate={setView} />;
+  if (view === "contact") screen = <ContactScreen onNavigate={setView} />;
+
+  return (
+    <>
+      <StatusBar style="dark" />
+      {screen}
+    </>
+  );
+}
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>DoodleStories</Text>
-      <Text style={styles.subtitle}>Expo shell — migrate screens from CRA here.</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <AppRoot />
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  screen: { flex: 1, backgroundColor: COLORS.bg },
+  screenNight: { backgroundColor: COLORS.night1 },
+  scroll: { padding: 20, paddingBottom: 40 },
+  heroEmoji: { fontSize: 56, textAlign: "center", marginBottom: 8 },
+  heroTitle: { fontSize: 28, fontWeight: "700", textAlign: "center", color: COLORS.text, marginBottom: 8 },
+  heroSub: { fontSize: 15, textAlign: "center", color: COLORS.muted, fontStyle: "italic", marginBottom: 20, lineHeight: 22 },
+  btnWrap: { borderRadius: 16, overflow: "hidden" },
+  btnGrad: { paddingVertical: 14, paddingHorizontal: 20, alignItems: "center" },
+  btnOutline: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
+  btnText: { fontSize: 16, fontWeight: "600", color: COLORS.text },
+  btnTextPrimary: { color: "#fff" },
+  btnTextNight: { color: "#fff" },
+  disabled: { opacity: 0.5 },
+  mb8: { marginBottom: 8 },
+  mb12: { marginBottom: 12 },
+  mb16: { marginBottom: 16 },
+  mb24: { marginBottom: 24 },
+  mt16: { marginTop: 16 },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
+  heroCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rank: { fontWeight: "700", color: COLORS.accent1, marginBottom: 6 },
+  heroImg: { width: "100%", height: 85, borderRadius: 10, marginBottom: 8 },
+  storyCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cardImg: { width: "100%", height: 110, borderRadius: 10, marginBottom: 8 },
+  cardMeta: { fontSize: 11, color: COLORS.accent3, fontWeight: "700", textTransform: "uppercase" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.text, marginVertical: 4 },
+  cardPreview: { fontSize: 13, color: COLORS.muted },
+  cardVotes: { fontSize: 13, marginTop: 6, color: COLORS.text },
+  footerLinks: { flexDirection: "row", justifyContent: "center", gap: 24, marginTop: 24 },
+  link: { color: COLORS.muted, textDecorationLine: "underline" },
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  nightToggle: { fontSize: 14, color: COLORS.accent4 },
+  textNight: { color: "#fff" },
+  empty: { alignItems: "center", paddingVertical: 40 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { color: COLORS.muted, marginBottom: 16, textAlign: "center" },
+  stepHint: { textAlign: "center", color: COLORS.muted, marginBottom: 16, fontSize: 15 },
+  note: { textAlign: "center", color: "#ccc", fontSize: 12, marginTop: 12 },
+  previewImg: { width: "100%", height: 180, borderRadius: 14, marginBottom: 16, backgroundColor: "#fff" },
+  ageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  ageBtn: {
+    width: "48%",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+  },
+  ageBtnOn: { borderColor: COLORS.accent1, backgroundColor: "rgba(255,107,107,0.08)" },
+  ageEmoji: { fontSize: 24 },
+  ageLabel: { fontWeight: "700", color: COLORS.text },
+  ageRange: { fontSize: 12, color: COLORS.muted },
+  error: { color: COLORS.accent1, textAlign: "center", marginBottom: 12 },
+  centered: { alignItems: "center", paddingVertical: 32 },
+  storyHeading: { fontSize: 22, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
+  thumb: { width: 76, height: 76, borderRadius: 11, marginBottom: 12 },
+  storyPara: { fontSize: 16, lineHeight: 26, color: COLORS.text, marginBottom: 12 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 20 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 24, padding: 24, maxHeight: "90%" },
+  modalCardNight: { backgroundColor: COLORS.night2 },
+  modalClose: { alignSelf: "flex-end" },
+  modalCloseText: { fontSize: 22, color: COLORS.muted },
+  modalMeta: { fontSize: 11, color: COLORS.accent3, fontWeight: "700", marginBottom: 4 },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
+  modalBody: { color: COLORS.muted, marginBottom: 16, lineHeight: 22 },
+  modalImg: { width: "100%", height: 160, borderRadius: 14, marginBottom: 12 },
+  reactionRow: { flexDirection: "row", justifyContent: "center", gap: 16, marginTop: 12 },
+  reactionBtn: { padding: 10, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
+  input: {
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    backgroundColor: "#fff",
+    fontSize: 16,
+  },
+  aboutPara: { fontSize: 16, lineHeight: 24, color: COLORS.text, marginBottom: 16 },
+  socialBtn: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: 8,
+    backgroundColor: COLORS.card,
   },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-  },
+  socialText: { fontSize: 16, fontWeight: "600", color: COLORS.text },
 });
