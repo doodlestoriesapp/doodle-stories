@@ -19,7 +19,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AGE_GROUPS, COLORS, VOICE_LINES } from "./src/constants";
 import { apiPost } from "./src/api";
 import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
-import { useSpeech } from "./src/useSpeech";
+import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
 
 function Btn({ label, onPress, primary, night, disabled, style }) {
   const inner = (
@@ -314,6 +314,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       const parsed = JSON.parse(cleaned);
       spokenKeys.current.delete("story");
       setStory(parsed);
+      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
     } catch (err) {
       setError(err?.message || "Oops! The story magic fizzled. Try again!");
       setStep(2);

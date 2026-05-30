@@ -94,78 +94,89 @@ function Confetti({ active, onDone }) {
   );
 }
 
-// ── Speech ───────────────────────────────────────────────────────
-// Calls Google AI Studio TTS directly from the browser.
-// Key is stored as REACT_APP_GOOGLE_TTS_KEY (exposed in bundle — acceptable for TTS).
-const GOOGLE_TTS_KEY = process.env.REACT_APP_GOOGLE_TTS_KEY || "";
-const GOOGLE_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${GOOGLE_TTS_KEY}`;
-const PREFETCH_PROMPT = "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
-const STORY_PROMPT    = "Read aloud in a warm, engaging storytelling voice for children.";
+// ── Speech (TTS via Vercel /api/tts — key stays server-side only) ──
+const PREFETCH_PROMPT =
+  "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
+const STORY_PROMPT =
+  "Read aloud in a warm, engaging storytelling voice for children.";
 
-// Module-level audio cache — survives re-renders, shared across instances
-const _audioCache = {};
+/** Session-scoped blob URL cache — keyed by prompt+text */
+const _audioCache = new Map();
+const _pendingFetches = new Map();
 let _prefetchStarted = false;
 
-const fetchTTS = async (text, prompt, voice = "Achernar") => {
-  if (_audioCache[text]) return _audioCache[text];
-  const res = await fetch(GOOGLE_TTS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${prompt}\n\n${text}` }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-        },
-      },
-    }),
-  });
-  if (!res.ok) throw new Error(`Google TTS ${res.status}`);
-  const data = await res.json();
-  const pcmBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!pcmBase64) throw new Error("No audio returned");
+function ttsCacheKey(text, prompt) {
+  return `${prompt}::${text}`;
+}
 
-  // Convert raw PCM → WAV so browsers can play it
-  const pcm        = Uint8Array.from(atob(pcmBase64), c => c.charCodeAt(0));
-  const sampleRate = 24000, channels = 1, bitsPerSample = 16;
-  const byteRate   = sampleRate * channels * bitsPerSample / 8;
-  const blockAlign = channels * bitsPerSample / 8;
-  const wavHeader  = new ArrayBuffer(44);
-  const view       = new DataView(wavHeader);
-  const write      = (off, val, size) => size === 4 ? view.setUint32(off, val, true) : view.setUint16(off, val, true);
-  const enc        = new TextEncoder();
-  const writeStr   = (off, s) => enc.encode(s).forEach((b, i) => view.setUint8(off + i, b));
-  writeStr(0, "RIFF"); write(4, 36 + pcm.length, 4); writeStr(8, "WAVE");
-  writeStr(12, "fmt "); write(16, 16, 4); write(20, 1, 2); write(22, channels, 2);
-  write(24, sampleRate, 4); write(28, byteRate, 4); write(32, blockAlign, 2);
-  write(34, bitsPerSample, 2); writeStr(36, "data"); write(40, pcm.length, 4);
-  const wav    = new Uint8Array(44 + pcm.length);
-  wav.set(new Uint8Array(wavHeader)); wav.set(pcm, 44);
-  const blob   = new Blob([wav], { type: "audio/wav" });
-  const uri    = URL.createObjectURL(blob);
-  _audioCache[text] = uri;
-  return uri;
+const fetchTTS = async (text, prompt = PREFETCH_PROMPT) => {
+  const key = ttsCacheKey(text, prompt);
+  if (_audioCache.has(key)) return _audioCache.get(key);
+  if (_pendingFetches.has(key)) return _pendingFetches.get(key);
+
+  const promise = (async () => {
+    const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, prompt }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = data?.error;
+      throw new Error(typeof err === "string" ? err : err?.message || `TTS ${res.status}`);
+    }
+    if (!data.audio) throw new Error("No audio returned");
+
+    const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: "audio/wav" });
+    const uri = URL.createObjectURL(blob);
+    _audioCache.set(key, uri);
+    return uri;
+  })();
+
+  _pendingFetches.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    _pendingFetches.delete(key);
+  }
 };
 
+/** Stagger mascot line prefetch on app load */
 async function prefetchVoiceLines() {
-  if (_prefetchStarted || !GOOGLE_TTS_KEY) return;
+  if (_prefetchStarted) return;
   _prefetchStarted = true;
   const lines = Object.values(VOICE_LINES);
-  // Fetch welcome line first (shown immediately on load)
-  try { await fetchTTS(lines[0], PREFETCH_PROMPT); } catch {}
-  // Stagger remaining lines to avoid rate limits
+  try {
+    await fetchTTS(lines[0], PREFETCH_PROMPT);
+  } catch {
+    /* ignore */
+  }
   for (let i = 1; i < lines.length; i++) {
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 600));
     fetchTTS(lines[i], PREFETCH_PROMPT).catch(() => {});
   }
+}
+
+/** Prefetch first story chunks + read-aloud intro as soon as story text exists */
+function prefetchStoryTTS(fullText) {
+  const paras = fullText
+    .split(/\n\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 2);
+  if (!paras.length) return;
+  fetchTTS(paras[0], STORY_PROMPT).catch(() => {});
+  if (paras[1]) fetchTTS(paras[1], STORY_PROMPT).catch(() => {});
+  fetchTTS(VOICE_LINES.readAloud, PREFETCH_PROMPT).catch(() => {});
 }
 
 function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
 
-  useEffect(() => { prefetchVoiceLines(); }, []);
+  useEffect(() => {
+    prefetchVoiceLines();
+  }, []);
 
   const stopAll = useCallback(() => {
     if (audioRef.current?.pause) audioRef.current.pause();
@@ -173,68 +184,88 @@ function useSpeech() {
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text, _cacheKey) => {
-    if (!text) return;
-    stopAll();
-    setSpeaking(true);
-    try {
-      const uri   = await fetchTTS(text, PREFETCH_PROMPT);
-      await new Promise((resolve) => {
+  const playUri = useCallback(
+    (uri) =>
+      new Promise((resolve) => {
         const audio = new Audio(uri);
         audioRef.current = audio;
-        audio.onended = () => { setSpeaking(false); audioRef.current = null; resolve(); };
-        audio.onerror = () => { setSpeaking(false); audioRef.current = null; resolve(); };
+        audio.onended = () => {
+          setSpeaking(false);
+          audioRef.current = null;
+          resolve();
+        };
+        audio.onerror = () => {
+          setSpeaking(false);
+          audioRef.current = null;
+          resolve();
+        };
         audio.play().catch(resolve);
-      });
-    } catch (err) {
-      console.warn("🎙️ TTS failed:", err.message);
-      setSpeaking(false);
-    }
-  }, [stopAll]);
+      }),
+    []
+  );
 
-  // Pipeline approach: fetch next paragraph while current one plays
-  const speakLong = useCallback(async (text) => {
-    if (!text) return;
-    stopAll();
-    setSpeaking(true);
-
-    const paras = text
-      .split(/\n\n/)
-      .map(s => s.trim())
-      .filter(s => s.length > 2);
-
-    if (!paras.length) { setSpeaking(false); return; }
-
-    audioRef.current = {}; // sentinel
-
-    // Kick off first two fetches immediately
-    const pending = paras.map(() => null);
-    pending[0] = fetchTTS(paras[0], STORY_PROMPT);
-    if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
-
-    for (let i = 0; i < paras.length; i++) {
-      if (!audioRef.current) break; // stopped
-      // Prefetch one ahead
-      if (paras[i + 2] && !pending[i + 2]) {
-        pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
+  const speak = useCallback(
+    async (text, _cacheKey) => {
+      if (!text) return;
+      stopAll();
+      setSpeaking(true);
+      try {
+        const uri = await fetchTTS(text, PREFETCH_PROMPT);
+        await playUri(uri);
+      } catch (err) {
+        console.warn("🎙️ TTS failed:", err.message);
+        setSpeaking(false);
       }
-      let uri;
-      try { uri = await pending[i]; } catch { break; }
-      if (!uri || !audioRef.current) break;
-      await new Promise((resolve) => {
-        const audio = new Audio(uri);
-        audioRef.current = audio;
-        audio.onended = resolve;
-        audio.onerror = resolve;
-        audio.play().catch(resolve);
-      });
-    }
+    },
+    [stopAll, playUri]
+  );
 
-    if (audioRef.current !== null) setSpeaking(false);
-    audioRef.current = null;
-  }, [stopAll]);
+  // Pipeline: prefetch next paragraph while current audio plays
+  const speakLong = useCallback(
+    async (text) => {
+      if (!text) return;
+      stopAll();
+      setSpeaking(true);
 
-  return { speak, speakLong, stop: stopAll, speaking };
+      const paras = text
+        .split(/\n\n/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 2);
+
+      if (!paras.length) {
+        setSpeaking(false);
+        return;
+      }
+
+      audioRef.current = {}; // sentinel — not stopped
+
+      const pending = paras.map(() => null);
+      pending[0] = fetchTTS(paras[0], STORY_PROMPT);
+      if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
+
+      for (let i = 0; i < paras.length; i++) {
+        if (!audioRef.current) break;
+        if (paras[i + 2] && !pending[i + 2]) {
+          pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
+        }
+        let uri;
+        try {
+          uri = await pending[i];
+        } catch {
+          break;
+        }
+        if (!uri || !audioRef.current) break;
+        setSpeaking(true);
+        await playUri(uri);
+      }
+
+      if (audioRef.current !== null) setSpeaking(false);
+      audioRef.current = null;
+    },
+    [stopAll, playUri]
+  );
+
+  return { speak, speakLong, stop: stopAll, speaking, prefetchStoryTTS };
 }
 
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
@@ -900,7 +931,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       console.log("📖 Raw story response:", raw.slice(0,300));
       const cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
       const parsed=JSON.parse(cleaned);
-      spokenKeys.current.delete("story"); setStory(parsed);
+      spokenKeys.current.delete("story");
+      setStory(parsed);
+      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
     } catch(err) {
       console.error("❌ Story generation error:", err);
       setError(err?.message||"Oops! The story magic fizzled. Try again!");

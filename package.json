@@ -9,11 +9,13 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "node node_modules/react-scripts/bin/react-scripts.js build",
     "start:clear": "npm --prefix expo run start:clear",
     "expo:start": "npm --prefix expo run start",
     "expo:start:clear": "npm --prefix expo run start:clear",
-    "expo:start:tunnel": "npm --prefix expo run start:tunnel"
+    "expo:start:tunnel": "npm --prefix expo run start:tunnel",
+    "eas:build": "npm --prefix expo exec -- eas build",
+    "eas:build:android": "npm --prefix expo exec -- eas build --platform android --profile preview"
   },
   "browserslist": {
     "production": [">0.2%", "not dead", "not op_mini all"],
