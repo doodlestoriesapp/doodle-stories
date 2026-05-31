@@ -1,25 +1,12 @@
 /* DoodleStories Service Worker
  * Strategy:
- *   - App shell (HTML, JS, CSS) → Cache First (fast loads)
- *   - API calls (generate-story, tts, Google) → Network Only (always fresh)
- *   - Images/assets → Stale While Revalidate (fast + stays fresh)
+ *   - HTML + /static/js/* + /static/css/* → Network first (fresh bundles after deploy)
+ *   - API + external TTS → Network only (never cache)
+ *   - Other assets → Stale while revalidate
  */
 
-const CACHE_NAME = "doodlestories-v1";
-const CACHE_VERSION = 1;
+const CACHE_NAME = "doodlestories-v3";
 
-const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/static/js/main.chunk.js",
-  "/static/js/bundle.js",
-  "/static/css/main.chunk.css",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-];
-
-// Never cache these — always go to network
 const NETWORK_ONLY = [
   "/api/",
   "generativelanguage.googleapis.com",
@@ -27,23 +14,20 @@ const NETWORK_ONLY = [
   "formsubmit.co",
 ];
 
-// ── Install: pre-cache app shell ──────────────────────────────────
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("[SW] Pre-caching app shell");
-      // Use addAll with individual error handling so one failure doesn't block install
-      return Promise.allSettled(
-        APP_SHELL.map((url) =>
-          cache.add(url).catch((err) => console.warn("[SW] Failed to cache:", url, err))
-        )
-      );
-    })
+function isNetworkFirst(request, pathname) {
+  return (
+    request.mode === "navigate" ||
+    pathname === "/" ||
+    pathname.endsWith(".html") ||
+    pathname.startsWith("/static/js/") ||
+    pathname.startsWith("/static/css/")
   );
+}
+
+self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// ── Activate: clean up old caches ────────────────────────────────
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -60,15 +44,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// ── Fetch: routing strategy ───────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
   if (request.method !== "GET") return;
 
-  // Network Only: API calls and external services
   const isNetworkOnly = NETWORK_ONLY.some(
     (pattern) => url.pathname.startsWith(pattern) || url.hostname.includes(pattern)
   );
@@ -77,17 +58,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache First: HTML navigation (app shell)
-  if (request.mode === "navigate") {
+  if (isNetworkFirst(request, url.pathname)) {
     event.respondWith(
-      caches.match("/index.html").then(
-        (cached) => cached || fetch(request)
-      )
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
 
-  // Stale While Revalidate: JS, CSS, images, fonts
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
@@ -96,14 +80,13 @@ self.addEventListener("fetch", (event) => {
           if (response.ok) cache.put(request, response.clone());
           return response;
         })
-        .catch(() => cached); // fall back to cache if offline
+        .catch(() => cached);
 
       return cached || fetchPromise;
     })
   );
 });
 
-// ── Background sync: notify clients of updates ───────────────────
 self.addEventListener("message", (event) => {
   if (event.data === "skipWaiting") self.skipWaiting();
 });

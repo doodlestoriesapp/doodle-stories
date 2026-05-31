@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useSpeech, prefetchStoryTTS, useTtsErrorBanner } from "./tts";
+import { VOICE_LINES } from "./voiceLines";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -7,19 +9,6 @@ const AGE_GROUPS = [
   { label: "Story Lovers",   range: "8–10", emoji: "🌟", prompt: "4-5 paragraphs, imaginative with some twists, richer vocabulary" },
   { label: "Big Kids",       range: "11–13",emoji: "🚀", prompt: "5-6 paragraphs, exciting plot with a surprise ending, expressive language" },
 ];
-
-const VOICE_LINES = {
-  1: "Woohoo! Welcome to Doodle Stories! You can upload your drawing OR draw one right here! Let's make some magic!",
-  draw: "Time to get creative! Pick a colour, grab the brush, and draw anything you like! When you're done tap Use This Doodle!",
-  2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
-  ageSelected: "Let's go make a story by tapping the big orange Make My Story button!",
-  loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
-  story: "Ta-daaa! Your very own story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
-  library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
-  loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
-  liked: "Wow, someone loved that story! What an amazing little author!",
-  readAloud: "Ooooh get ready! I'm warming up my storytelling voice — your magical story is about to come alive! Just a few seconds!",
-};
 
 const PALETTE = [
   "#000000","#FFFFFF","#FF6B6B","#FF8E53","#FFD93D","#6BCB77",
@@ -92,180 +81,6 @@ function Confetti({ active, onDone }) {
       ))}
     </div>
   );
-}
-
-// ── Speech (TTS via Vercel /api/tts — key stays server-side only) ──
-const PREFETCH_PROMPT =
-  "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
-const STORY_PROMPT =
-  "Read aloud in a warm, engaging storytelling voice for children.";
-
-/** Session-scoped blob URL cache — keyed by prompt+text */
-const _audioCache = new Map();
-const _pendingFetches = new Map();
-let _prefetchStarted = false;
-
-function ttsCacheKey(text, prompt) {
-  return `${prompt}::${text}`;
-}
-
-const fetchTTS = async (text, prompt = PREFETCH_PROMPT) => {
-  const key = ttsCacheKey(text, prompt);
-  if (_audioCache.has(key)) return _audioCache.get(key);
-  if (_pendingFetches.has(key)) return _pendingFetches.get(key);
-
-  const promise = (async () => {
-    const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, prompt }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = data?.error;
-      throw new Error(typeof err === "string" ? err : err?.message || `TTS ${res.status}`);
-    }
-    if (!data.audio) throw new Error("No audio returned");
-
-    const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
-    const blob = new Blob([bytes], { type: "audio/wav" });
-    const uri = URL.createObjectURL(blob);
-    _audioCache.set(key, uri);
-    return uri;
-  })();
-
-  _pendingFetches.set(key, promise);
-  try {
-    return await promise;
-  } finally {
-    _pendingFetches.delete(key);
-  }
-};
-
-/** Stagger mascot line prefetch on app load */
-async function prefetchVoiceLines() {
-  if (_prefetchStarted) return;
-  _prefetchStarted = true;
-  const lines = Object.values(VOICE_LINES);
-  try {
-    await fetchTTS(lines[0], PREFETCH_PROMPT);
-  } catch {
-    /* ignore */
-  }
-  for (let i = 1; i < lines.length; i++) {
-    await new Promise((r) => setTimeout(r, 600));
-    fetchTTS(lines[i], PREFETCH_PROMPT).catch(() => {});
-  }
-}
-
-/** Prefetch first story chunks + read-aloud intro as soon as story text exists */
-function prefetchStoryTTS(fullText) {
-  const paras = fullText
-    .split(/\n\n/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 2);
-  if (!paras.length) return;
-  fetchTTS(paras[0], STORY_PROMPT).catch(() => {});
-  if (paras[1]) fetchTTS(paras[1], STORY_PROMPT).catch(() => {});
-  fetchTTS(VOICE_LINES.readAloud, PREFETCH_PROMPT).catch(() => {});
-}
-
-function useSpeech() {
-  const [speaking, setSpeaking] = useState(false);
-  const audioRef = useRef(null);
-
-  useEffect(() => {
-    prefetchVoiceLines();
-  }, []);
-
-  const stopAll = useCallback(() => {
-    if (audioRef.current?.pause) audioRef.current.pause();
-    audioRef.current = null;
-    setSpeaking(false);
-  }, []);
-
-  const playUri = useCallback(
-    (uri) =>
-      new Promise((resolve) => {
-        const audio = new Audio(uri);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setSpeaking(false);
-          audioRef.current = null;
-          resolve();
-        };
-        audio.onerror = () => {
-          setSpeaking(false);
-          audioRef.current = null;
-          resolve();
-        };
-        audio.play().catch(resolve);
-      }),
-    []
-  );
-
-  const speak = useCallback(
-    async (text, _cacheKey) => {
-      if (!text) return;
-      stopAll();
-      setSpeaking(true);
-      try {
-        const uri = await fetchTTS(text, PREFETCH_PROMPT);
-        await playUri(uri);
-      } catch (err) {
-        console.warn("🎙️ TTS failed:", err.message);
-        setSpeaking(false);
-      }
-    },
-    [stopAll, playUri]
-  );
-
-  // Pipeline: prefetch next paragraph while current audio plays
-  const speakLong = useCallback(
-    async (text) => {
-      if (!text) return;
-      stopAll();
-      setSpeaking(true);
-
-      const paras = text
-        .split(/\n\n/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 2);
-
-      if (!paras.length) {
-        setSpeaking(false);
-        return;
-      }
-
-      audioRef.current = {}; // sentinel — not stopped
-
-      const pending = paras.map(() => null);
-      pending[0] = fetchTTS(paras[0], STORY_PROMPT);
-      if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
-
-      for (let i = 0; i < paras.length; i++) {
-        if (!audioRef.current) break;
-        if (paras[i + 2] && !pending[i + 2]) {
-          pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
-        }
-        let uri;
-        try {
-          uri = await pending[i];
-        } catch {
-          break;
-        }
-        if (!uri || !audioRef.current) break;
-        setSpeaking(true);
-        await playUri(uri);
-      }
-
-      if (audioRef.current !== null) setSpeaking(false);
-      audioRef.current = null;
-    },
-    [stopAll, playUri]
-  );
-
-  return { speak, speakLong, stop: stopAll, speaking, prefetchStoryTTS };
 }
 
 // ── Canvas Doodle Pad ─────────────────────────────────────────────
@@ -1304,6 +1119,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     }
   };
 
+  const downloadAllCards = async () => {
+    for (let i = 0; i < shareCards.length; i++) {
+      const a = document.createElement("a");
+      a.href = shareCards[i];
+      a.download = `card-${String(i + 1).padStart(2, "0")}-of-${shareCards.length}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      if (i < shareCards.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+  };
+
   const reset=()=>{
     stop();
     setImage(null); setImageBase64(null); setImageMediaType("image/png"); setAgeGroup(null);
@@ -1525,31 +1354,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
               {/* Download ZIP */}
               <button
-                onClick={async()=>{
-                  if(!window.JSZip){
-                    await new Promise((resolve,reject)=>{
-                      const s=document.createElement("script");
-                      s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-                      s.onload=resolve; s.onerror=reject;
-                      document.head.appendChild(s);
-                    });
-                  }
-                  const zip=new window.JSZip();
-                  const storySlug=story.title.replace(/[^a-z0-9]/gi,"-").toLowerCase().slice(0,30);
-                  const folder=zip.folder(`doodle-story-${storySlug}`);
-                  for(let i=0;i<shareCards.length;i++){
-                    const res=await fetch(shareCards[i]);
-                    const blob=await res.blob();
-                    folder.file(`card-${String(i+1).padStart(2,"0")}-of-${shareCards.length}.png`,blob);
-                  }
-                  const zipBlob=await zip.generateAsync({type:"blob"});
-                  const a=document.createElement("a");
-                  a.href=URL.createObjectURL(zipBlob);
-                  a.download=`doodle-story-${storySlug}.zip`;
-                  a.click();
-                }}
+                onClick={downloadAllCards}
                 style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 5px 16px rgba(255,107,107,0.3)"}}>
-                📦 Download All {shareCards.length} Cards as ZIP
+                📦 Download Cards
               </button>
 
               {/* Save single card */}
@@ -1761,11 +1568,38 @@ function ContactScreen({ onNavigate }) {
 }
 
 // ── ROOT ─────────────────────────────────────────────────────────
+function TtsErrorToast({ visible }) {
+  if (!visible) return null;
+  return (
+    <div
+      role="status"
+      style={{
+        position: "fixed",
+        bottom: 20,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 9999,
+        background: "rgba(45, 27, 110, 0.92)",
+        color: "white",
+        padding: "10px 18px",
+        borderRadius: 14,
+        fontSize: "0.86rem",
+        fontFamily: "Georgia, serif",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+        pointerEvents: "none",
+      }}
+    >
+      🔇 Audio unavailable right now
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState("home");
   const [library, setLibrary] = useState([]);
   const [votes, setVotes] = useState({});
   const { speak } = useSpeech();
+  const ttsError = useTtsErrorBanner();
 
   useEffect(()=>{
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v])=>{
@@ -1791,10 +1625,17 @@ export default function App() {
   const topLoved = [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
   const topLiked = [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
 
-  if (view==="home")    return <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>;
-  if (view==="library") return <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>;
-  if (view==="create")  return <CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library}/>;
-  if (view==="about")   return <AboutScreen onNavigate={setView}/>;
-  if (view==="contact") return <ContactScreen onNavigate={setView}/>;
+  const wrap = (screen) => (
+    <>
+      <TtsErrorToast visible={ttsError} />
+      {screen}
+    </>
+  );
+
+  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>);
+  if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library}/>);
+  if (view==="about")   return wrap(<AboutScreen onNavigate={setView}/>);
+  if (view==="contact") return wrap(<ContactScreen onNavigate={setView}/>);
   return null;
 }
