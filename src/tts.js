@@ -79,7 +79,8 @@ async function fetchTTS(text, prompt = PREFETCH_PROMPT) {
     if (!data.audio) throw new Error("No audio returned");
 
     const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
-    const blob = new Blob([bytes], { type: "audio/wav" });
+    const mimeType = data.format === "mp3" ? "audio/mpeg" : "audio/wav";
+    const blob = new Blob([bytes], { type: mimeType });
     const uri = URL.createObjectURL(blob);
     _audioCache.set(key, uri);
     return uri;
