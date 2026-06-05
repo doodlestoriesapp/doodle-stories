@@ -1,9 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
+// Raw fetch to Anthropic API — no SDK import (matches generate-story.js for Vercel serverless)
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-// Vercel already parses JSON bodies for serverless functions,
-// but we guard against edge cases explicitly.
 export default async function handler(req, res) {
   console.log("🔑 ANTHROPIC_API_KEY configured:", !!process.env.ANTHROPIC_API_KEY);
 
@@ -16,6 +12,12 @@ export default async function handler(req, res) {
     if (req.method === "OPTIONS") return res.status(200).end();
     if (req.method !== "POST") {
       return res.status(405).json({ safe: true, error: "Method not allowed" });
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error("❌ moderate-image: ANTHROPIC_API_KEY not set");
+      return res.status(200).json({ safe: true });
     }
 
     // Body may arrive as string if Content-Type isn't set correctly
@@ -38,24 +40,31 @@ export default async function handler(req, res) {
 
     console.log("🔍 Running moderation check, mediaType:", safeMediaType);
 
-    const moderationResponse = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 20,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: safeMediaType,
-                data: imageBase64,
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 20,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: safeMediaType,
+                  data: imageBase64,
+                },
               },
-            },
-            {
-              type: "text",
-              text: `You are a strict content moderator for a children's storytelling app used by kids aged 2–13.
+              {
+                type: "text",
+                text: `You are a strict content moderator for a children's storytelling app used by kids aged 2–13.
 
 Examine this image carefully and reply with only one word.
 
@@ -74,11 +83,19 @@ Reply SAFE for all of the following:
 When in doubt, reply SAFE. Do not over-flag innocent children's art.
 
 Reply only the single word SAFE or UNSAFE — nothing else.`,
-            },
-          ],
-        },
-      ],
+              },
+            ],
+          },
+        ],
+      }),
     });
+
+    const moderationResponse = await anthropicRes.json();
+
+    if (!anthropicRes.ok) {
+      console.error("❌ moderate-image API error:", anthropicRes.status, moderationResponse);
+      return res.status(200).json({ safe: true });
+    }
 
     const raw = moderationResponse.content?.[0]?.text?.trim().toUpperCase() ?? "";
     // Accept anything that starts with UNSAFE as a block signal
