@@ -5,7 +5,7 @@
  *   - Other assets → Stale while revalidate
  */
 
-const CACHE_NAME = "doodlestories-v3";
+const CACHE_NAME = "doodlestories-v4";
 
 const NETWORK_ONLY = [
   "/api/",
