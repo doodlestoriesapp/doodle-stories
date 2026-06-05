@@ -28,16 +28,28 @@ function notifySpeaking(speaking) {
   _speakingStateListeners.forEach((fn) => fn(speaking));
 }
 
-export function stopAllSpeech() {
-  _speechGeneration += 1;
-  if (_activeAudio?.pause) {
+let _playResolve = null;
+
+function haltActiveAudio() {
+  if (_activeAudio) {
     try {
       _activeAudio.pause();
+      _activeAudio.currentTime = 0;
     } catch {
       /* ignore */
     }
+    _activeAudio = null;
   }
-  _activeAudio = null;
+  if (_playResolve) {
+    const done = _playResolve;
+    _playResolve = null;
+    done();
+  }
+}
+
+export function stopAllSpeech() {
+  _speechGeneration += 1;
+  haltActiveAudio();
   _speakLongActive = false;
   notifySpeaking(false);
 }
@@ -126,29 +138,42 @@ async function fetchTTS(text, prompt = PREFETCH_PROMPT, language = "English") {
   }
 }
 
-function playUri(uri) {
+function playUri(uri, sessionGen) {
   return new Promise((resolve) => {
-    if (_activeAudio?.pause) {
+    if (sessionGen !== _speechGeneration) {
+      resolve();
+      return;
+    }
+
+    if (_activeAudio) {
       try {
         _activeAudio.pause();
+        _activeAudio.currentTime = 0;
       } catch {
         /* ignore */
       }
     }
-    const audio = new Audio(uri);
+    if (_playResolve) {
+      const prev = _playResolve;
+      _playResolve = null;
+      prev();
+    }
+
+    let audio;
+    const finish = () => {
+      if (_playResolve === resolve) _playResolve = null;
+      if (_activeAudio === audio) _activeAudio = null;
+      notifySpeaking(false);
+      resolve();
+    };
+
+    _playResolve = resolve;
+    audio = new Audio(uri);
     _activeAudio = audio;
     notifySpeaking(true);
-    audio.onended = () => {
-      _activeAudio = null;
-      notifySpeaking(false);
-      resolve();
-    };
-    audio.onerror = () => {
-      _activeAudio = null;
-      notifySpeaking(false);
-      resolve();
-    };
-    audio.play().catch(resolve);
+    audio.onended = finish;
+    audio.onerror = finish;
+    audio.play().catch(finish);
   });
 }
 
@@ -220,7 +245,7 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
     try {
       const uri = await fetchTTS(text, PREFETCH_PROMPT);
       if (gen !== _speechGeneration) return;
-      await playUri(uri);
+      await playUri(uri, gen);
     } catch (err) {
       if (gen !== _speechGeneration) return;
       console.warn("🎙️ TTS failed:", err.message);
@@ -248,26 +273,23 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
         return;
       }
 
-      const pending = paras.map(() => null);
-      pending[0] = fetchTTS(paras[0], STORY_PROMPT, storyLanguage);
-      if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT, storyLanguage);
-
       let failed = false;
 
       for (let i = 0; i < paras.length; i++) {
         if (!_speakLongActive || gen !== _speechGeneration) break;
-        if (paras[i + 2] && !pending[i + 2]) {
-          pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT, storyLanguage);
-        }
+
         let uri;
         try {
-          uri = await pending[i];
+          uri = await fetchTTS(paras[i], STORY_PROMPT, storyLanguage);
         } catch {
           failed = true;
           break;
         }
-        if (!uri || !_speakLongActive || gen !== _speechGeneration) break;
-        await playUri(uri);
+
+        if (!_speakLongActive || gen !== _speechGeneration) break;
+        if (!uri) break;
+        await playUri(uri, gen);
+        if (!_speakLongActive || gen !== _speechGeneration) break;
       }
 
       if (failed && gen === _speechGeneration) setSharedTtsError(true);
