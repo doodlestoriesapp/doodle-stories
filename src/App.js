@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech, registerSpeechInteractionStop } from "./tts";
+import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech } from "./tts";
 import { VOICE_LINES } from "./voiceLines";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -394,20 +394,29 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   const { speakLong, stop } = useSpeech();
   const [storyReading, setStoryReading] = useState(false);
+  const isStoppingRef = useRef(false);
   useEffect(()=>()=>{ stop(); setStoryReading(false); },[stop]);
 
-  const handleReadAloud = async () => {
-    if (storyReading) {
-      stop();
-      setStoryReading(false);
-      return;
-    }
+  const handleStartReading = async () => {
+    if (isStoppingRef.current) return;
     setStoryReading(true);
     try {
       await speakLong(`${story.title}. ${story.text}`);
     } finally {
-      setStoryReading(false);
+      if (!isStoppingRef.current) setStoryReading(false);
     }
+  };
+
+  const handleReadAloud = () => {
+    if (storyReading) {
+      isStoppingRef.current = true;
+      stop();
+      setStoryReading(false);
+      setTimeout(() => { isStoppingRef.current = false; }, 500);
+      return;
+    }
+    if (isStoppingRef.current) return;
+    handleStartReading();
   };
   return (
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
@@ -767,6 +776,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [storyReading, setStoryReading] = useState(false);
+  const isStoppingRef = useRef(false);
   const fileRef = useRef();
   const { speak, speakLong, stop, speaking } = useSpeech({ storyLanguage: selectedLanguage });
   const spokenKeys = useRef(new Set());
@@ -1291,18 +1301,26 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     spokenKeys.current.clear(); setStep(1);
   };
 
-  const handleStoryReadAloud=async()=>{
-    if(storyReading){
-      stop();
-      setStoryReading(false);
-      return;
-    }
+  const handleStartReading=async()=>{
+    if(isStoppingRef.current) return;
     setStoryReading(true);
     try{
       await speakLong(`${story.title}. ${story.story}`);
     }finally{
-      setStoryReading(false);
+      if(!isStoppingRef.current) setStoryReading(false);
     }
+  };
+
+  const handleStoryReadAloud=()=>{
+    if(storyReading){
+      isStoppingRef.current=true;
+      stop();
+      setStoryReading(false);
+      setTimeout(()=>{ isStoppingRef.current=false; },500);
+      return;
+    }
+    if(isStoppingRef.current) return;
+    handleStartReading();
   };
 
   const VoiceBubble=({text})=>(
@@ -1762,7 +1780,6 @@ export default function App() {
   const ttsError = useTtsErrorBanner();
 
   useEffect(()=>{
-    registerSpeechInteractionStop();
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v])=>{
       setLibrary(lib);
       setVotes(v);

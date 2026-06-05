@@ -14,7 +14,6 @@ const _audioCache = new Map();
 const _pendingFetches = new Map();
 let _interactionPrefetchStarted = false;
 let _interactionListenerRegistered = false;
-let _interactionStopRegistered = false;
 let _sharedTtsError = false;
 const _ttsErrorListeners = new Set();
 
@@ -52,13 +51,6 @@ export function stopAllSpeech() {
   haltActiveAudio();
   _speakLongActive = false;
   notifySpeaking(false);
-}
-
-export function registerSpeechInteractionStop() {
-  if (_interactionStopRegistered) return;
-  _interactionStopRegistered = true;
-  document.addEventListener("pointerdown", stopAllSpeech, true);
-  document.addEventListener("click", stopAllSpeech, true);
 }
 
 function setSharedTtsError(value) {
@@ -226,7 +218,6 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
 
   useEffect(() => {
     registerInteractionPrefetch();
-    registerSpeechInteractionStop();
     const errListener = (v) => setTtsError(v);
     const speakListener = (v) => setSpeaking(v);
     _ttsErrorListeners.add(errListener);
