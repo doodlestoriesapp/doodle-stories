@@ -5,17 +5,19 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // Vercel already parses JSON bodies for serverless functions,
 // but we guard against edge cases explicitly.
 export default async function handler(req, res) {
-  // Allow CORS for local dev
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") {
-    return res.status(405).json({ safe: true, error: "Method not allowed" });
-  }
+  console.log("🔑 ANTHROPIC_API_KEY configured:", !!process.env.ANTHROPIC_API_KEY);
 
   try {
+    // Allow CORS for local dev
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") return res.status(200).end();
+    if (req.method !== "POST") {
+      return res.status(405).json({ safe: true, error: "Method not allowed" });
+    }
+
     // Body may arrive as string if Content-Type isn't set correctly
     let body = req.body;
     if (typeof body === "string") {
@@ -84,7 +86,6 @@ Reply only the single word SAFE or UNSAFE — nothing else.`,
 
     console.log(`🔍 Moderation raw response: "${raw}" → safe=${safe}`);
     return res.status(200).json({ safe });
-
   } catch (err) {
     console.error("❌ moderate-image exception:", err?.message ?? err);
     // Fail open — a crashed moderation check shouldn't break the app for kids
