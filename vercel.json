@@ -3,14 +3,5 @@
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/robots.txt", "destination": "/api/robots" },
     { "source": "/((?!api/.*).*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/service-worker.js",
-      "headers": [
-        { "key": "Service-Worker-Allowed", "value": "/" },
-        { "key": "Cache-Control", "value": "no-cache" }
-      ]
-    }
   ]
 }

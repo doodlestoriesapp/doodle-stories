@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { register } from './serviceWorkerRegistration';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -10,6 +9,12 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for PWA support
-// This enables offline use and "Add to Home Screen" on iOS/Android
-register();
+// Unregister any legacy service workers so fresh JS bundles always load
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+  if ('caches' in window) {
+    caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))));
+  }
+}

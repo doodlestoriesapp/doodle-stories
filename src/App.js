@@ -392,12 +392,22 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 
 // ── Reading Modal ────────────────────────────────────────────────
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
-  const { speak, speakLong, stop, speaking } = useSpeech();
-  useEffect(()=>()=>stop(),[stop]);
+  const { speakLong, stop } = useSpeech();
+  const [storyReading, setStoryReading] = useState(false);
+  useEffect(()=>()=>{ stop(); setStoryReading(false); },[stop]);
 
   const handleReadAloud = async () => {
-    if (speaking) { stop(); return; }
-    await speakLong(`${story.title}. ${story.text}`);
+    if (storyReading) {
+      stop();
+      setStoryReading(false);
+      return;
+    }
+    setStoryReading(true);
+    try {
+      await speakLong(`${story.title}. ${story.text}`);
+    } finally {
+      setStoryReading(false);
+    }
   };
   return (
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
@@ -411,8 +421,8 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted}}>✕</button>
         </div>
         {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}/>}
-        <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-          {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+        <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:storyReading?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+          {storyReading?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
         </button>
         <ReactionButtons story={story} votes={votes} onVote={onVote} nightMode={nightMode}/>
         <div style={{lineHeight:1.9}}>
@@ -756,6 +766,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
   const [step, setStep] = useState(1);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [storyReading, setStoryReading] = useState(false);
   const fileRef = useRef();
   const { speak, speakLong, stop, speaking } = useSpeech({ storyLanguage: selectedLanguage });
   const spokenKeys = useRef(new Set());
@@ -1274,9 +1285,24 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
 
   const reset=()=>{
     stop();
+    setStoryReading(false);
     setImage(null); setImageBase64(null); setImageMediaType("image/png"); setAgeGroup(null);
     setStory(null); setError(null); setMode(null);
     spokenKeys.current.clear(); setStep(1);
+  };
+
+  const handleStoryReadAloud=async()=>{
+    if(storyReading){
+      stop();
+      setStoryReading(false);
+      return;
+    }
+    setStoryReading(true);
+    try{
+      await speakLong(`${story.title}. ${story.story}`);
+    }finally{
+      setStoryReading(false);
+    }
   };
 
   const VoiceBubble=({text})=>(
@@ -1415,12 +1441,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
                     </p>
                   ))}
                 </div>
-                <button onClick={async()=>{
-                    if(speaking){stop();return;}
-                    await speakLong(`${story.title}. ${story.story}`);
-                  }}
-                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
-                  {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
+                <button onClick={handleStoryReadAloud}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:storyReading?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:storyReading?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
+                  {storyReading?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
                 </button>
                 <button onClick={handleShare} disabled={sharing}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:sharing?"#ccc":`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:sharing?"not-allowed":"pointer",boxShadow:sharing?"none":"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
