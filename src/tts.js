@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { VOICE_LINES } from "./voiceLines";
 
 const PREFETCH_PROMPT =
@@ -14,8 +14,40 @@ const _audioCache = new Map();
 const _pendingFetches = new Map();
 let _interactionPrefetchStarted = false;
 let _interactionListenerRegistered = false;
+let _interactionStopRegistered = false;
 let _sharedTtsError = false;
 const _ttsErrorListeners = new Set();
+
+/** Single active audio element — stops mascot/story overlap across components */
+let _activeAudio = null;
+let _speakLongActive = false;
+let _speechGeneration = 0;
+const _speakingStateListeners = new Set();
+
+function notifySpeaking(speaking) {
+  _speakingStateListeners.forEach((fn) => fn(speaking));
+}
+
+export function stopAllSpeech() {
+  _speechGeneration += 1;
+  if (_activeAudio?.pause) {
+    try {
+      _activeAudio.pause();
+    } catch {
+      /* ignore */
+    }
+  }
+  _activeAudio = null;
+  _speakLongActive = false;
+  notifySpeaking(false);
+}
+
+export function registerSpeechInteractionStop() {
+  if (_interactionStopRegistered) return;
+  _interactionStopRegistered = true;
+  document.addEventListener("pointerdown", stopAllSpeech, true);
+  document.addEventListener("click", stopAllSpeech, true);
+}
 
 function setSharedTtsError(value) {
   _sharedTtsError = value;
@@ -94,6 +126,32 @@ async function fetchTTS(text, prompt = PREFETCH_PROMPT, language = "English") {
   }
 }
 
+function playUri(uri) {
+  return new Promise((resolve) => {
+    if (_activeAudio?.pause) {
+      try {
+        _activeAudio.pause();
+      } catch {
+        /* ignore */
+      }
+    }
+    const audio = new Audio(uri);
+    _activeAudio = audio;
+    notifySpeaking(true);
+    audio.onended = () => {
+      _activeAudio = null;
+      notifySpeaking(false);
+      resolve();
+    };
+    audio.onerror = () => {
+      _activeAudio = null;
+      notifySpeaking(false);
+      resolve();
+    };
+    audio.play().catch(resolve);
+  });
+}
+
 /** Prefetch mascot lines once per session — only after first user interaction */
 async function prefetchVoiceLinesOnInteraction() {
   if (_interactionPrefetchStarted) return;
@@ -140,65 +198,45 @@ export function prefetchStoryTTS(fullText, language = "English") {
 export function useSpeech({ storyLanguage = "English" } = {}) {
   const [speaking, setSpeaking] = useState(false);
   const [ttsError, setTtsError] = useState(_sharedTtsError);
-  const audioRef = useRef(null);
 
   useEffect(() => {
     registerInteractionPrefetch();
-    const listener = (v) => setTtsError(v);
-    _ttsErrorListeners.add(listener);
-    return () => _ttsErrorListeners.delete(listener);
+    registerSpeechInteractionStop();
+    const errListener = (v) => setTtsError(v);
+    const speakListener = (v) => setSpeaking(v);
+    _ttsErrorListeners.add(errListener);
+    _speakingStateListeners.add(speakListener);
+    return () => {
+      _ttsErrorListeners.delete(errListener);
+      _speakingStateListeners.delete(speakListener);
+    };
   }, []);
 
-  const stopAll = useCallback(() => {
-    if (audioRef.current?.pause) audioRef.current.pause();
-    audioRef.current = null;
-    setSpeaking(false);
+  const speak = useCallback(async (text, _cacheKey) => {
+    if (!text) return;
+    prefetchVoiceLinesOnInteraction();
+    stopAllSpeech();
+    const gen = _speechGeneration;
+    try {
+      const uri = await fetchTTS(text, PREFETCH_PROMPT);
+      if (gen !== _speechGeneration) return;
+      await playUri(uri);
+    } catch (err) {
+      if (gen !== _speechGeneration) return;
+      console.warn("🎙️ TTS failed:", err.message);
+      notifySpeaking(false);
+      setSharedTtsError(true);
+    }
   }, []);
-
-  const playUri = useCallback(
-    (uri) =>
-      new Promise((resolve) => {
-        const audio = new Audio(uri);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setSpeaking(false);
-          audioRef.current = null;
-          resolve();
-        };
-        audio.onerror = () => {
-          setSpeaking(false);
-          audioRef.current = null;
-          resolve();
-        };
-        audio.play().catch(resolve);
-      }),
-    []
-  );
-
-  const speak = useCallback(
-    async (text, _cacheKey) => {
-      if (!text) return;
-      prefetchVoiceLinesOnInteraction();
-      stopAll();
-      setSpeaking(true);
-      try {
-        const uri = await fetchTTS(text, PREFETCH_PROMPT);
-        await playUri(uri);
-      } catch (err) {
-        console.warn("🎙️ TTS failed:", err.message);
-        setSpeaking(false);
-        setSharedTtsError(true);
-      }
-    },
-    [stopAll, playUri]
-  );
 
   const speakLong = useCallback(
     async (text) => {
       if (!text) return;
       prefetchVoiceLinesOnInteraction();
-      stopAll();
-      setSpeaking(true);
+      stopAllSpeech();
+      const gen = _speechGeneration;
+      _speakLongActive = true;
+      notifySpeaking(true);
 
       const paras = text
         .split(/\n\n/)
@@ -206,11 +244,9 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
         .filter((s) => s.length > 2);
 
       if (!paras.length) {
-        setSpeaking(false);
+        stopAllSpeech();
         return;
       }
-
-      audioRef.current = {};
 
       const pending = paras.map(() => null);
       pending[0] = fetchTTS(paras[0], STORY_PROMPT, storyLanguage);
@@ -219,7 +255,7 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
       let failed = false;
 
       for (let i = 0; i < paras.length; i++) {
-        if (!audioRef.current) break;
+        if (!_speakLongActive || gen !== _speechGeneration) break;
         if (paras[i + 2] && !pending[i + 2]) {
           pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT, storyLanguage);
         }
@@ -230,17 +266,15 @@ export function useSpeech({ storyLanguage = "English" } = {}) {
           failed = true;
           break;
         }
-        if (!uri || !audioRef.current) break;
-        setSpeaking(true);
+        if (!uri || !_speakLongActive || gen !== _speechGeneration) break;
         await playUri(uri);
       }
 
-      if (failed) setSharedTtsError(true);
-      if (audioRef.current !== null) setSpeaking(false);
-      audioRef.current = null;
+      if (failed && gen === _speechGeneration) setSharedTtsError(true);
+      if (gen === _speechGeneration) stopAllSpeech();
     },
-    [stopAll, playUri, storyLanguage]
+    [storyLanguage]
   );
 
-  return { speak, speakLong, stop: stopAll, speaking, ttsError };
+  return { speak, speakLong, stop: stopAllSpeech, speaking, ttsError };
 }

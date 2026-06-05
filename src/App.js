@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useSpeech, prefetchStoryTTS, useTtsErrorBanner } from "./tts";
+import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech, registerSpeechInteractionStop } from "./tts";
 import { VOICE_LINES } from "./voiceLines";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -34,12 +34,22 @@ const COLORS = {
 // ── Storage (localStorage on web; Expo app uses AsyncStorage in expo/) ──
 const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
 
+function normalizeStoryEntry(story) {
+  if (!story || typeof story !== "object") return story;
+  let doodleUrl = story.doodleUrl || story.image || null;
+  if (typeof doodleUrl === "string" && doodleUrl.startsWith("blob:")) {
+    doodleUrl = null;
+  }
+  return { ...story, doodleUrl };
+}
+
 async function loadLibrary() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.library);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeStoryEntry);
   } catch {
     return [];
   }
@@ -51,6 +61,56 @@ async function saveLibrary(stories) {
     console.log("✅ Library saved:", stories.length, "stories");
   } catch (e) {
     console.error("❌ saveLibrary failed:", e);
+    throw e;
+  }
+}
+
+/** Persist doodle images — blob: URLs expire after the session */
+async function blobUrlToDataUrl(blobUrl) {
+  if (!blobUrl) return blobUrl;
+  if (blobUrl.startsWith("data:")) return blobUrl;
+  const blob = await fetch(blobUrl).then((r) => r.blob());
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Shrink doodle for localStorage — full PNG data URLs often exceed quota */
+async function compressDoodleDataUrl(dataUrl, maxDim = 480, quality = 0.82) {
+  if (!dataUrl?.startsWith("data:")) return dataUrl;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height, 1));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+async function persistDoodleUrl(image, imageBase64, imageMediaType) {
+  let dataUrl = null;
+  if (imageBase64) {
+    dataUrl = `data:${imageMediaType || "image/png"};base64,${imageBase64}`;
+  } else if (image) {
+    dataUrl = await blobUrlToDataUrl(image);
+  }
+  if (!dataUrl) return null;
+  try {
+    return await compressDoodleDataUrl(dataUrl);
+  } catch (err) {
+    console.warn("Doodle compress failed, saving original:", err?.message);
+    return dataUrl;
   }
 }
 
@@ -512,8 +572,23 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
   const [nightMode, setNightMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const spokenLib = useRef(false);
+  const libMascotTimerRef = useRef(null);
 
-  useEffect(()=>{ if(!spokenLib.current){spokenLib.current=true;setTimeout(()=>speak(VOICE_LINES.library,'library'),500);} },[speak]);
+  useEffect(()=>{
+    if(spokenLib.current) return;
+    spokenLib.current=true;
+    libMascotTimerRef.current=setTimeout(()=>{
+      libMascotTimerRef.current=null;
+      speak(VOICE_LINES.library,'library');
+    },500);
+    return()=>{ if(libMascotTimerRef.current) clearTimeout(libMascotTimerRef.current); };
+  },[speak]);
+
+  useEffect(()=>{
+    const cancel=()=>{ if(libMascotTimerRef.current) clearTimeout(libMascotTimerRef.current); };
+    document.addEventListener("pointerdown",cancel,true);
+    return()=>document.removeEventListener("pointerdown",cancel,true);
+  },[]);
 
   const handleVote = (id, type) => {
     onVote(id, type);
@@ -684,6 +759,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
   const fileRef = useRef();
   const { speak, speakLong, stop, speaking } = useSpeech({ storyLanguage: selectedLanguage });
   const spokenKeys = useRef(new Set());
+  const mascotTimerRef = useRef(null);
 
   const getVoiceKey=(s,l,st)=>s===3&&l?"loading":s===3&&st?"story":String(s);
 
@@ -693,9 +769,23 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     if(spokenKeys.current.has(key)) return;
     spokenKeys.current.add(key);
     const keyMap = { '1':'welcome', '2':'age', 'loading':'loading', 'story':'story' };
-    const t=setTimeout(()=>{if(VOICE_LINES[key])speak(VOICE_LINES[key],keyMap[key]);},500);
-    return()=>clearTimeout(t);
+    mascotTimerRef.current=setTimeout(()=>{
+      mascotTimerRef.current=null;
+      if(VOICE_LINES[key]) speak(VOICE_LINES[key],keyMap[key]);
+    },500);
+    return()=>{ if(mascotTimerRef.current) clearTimeout(mascotTimerRef.current); };
   },[step,loading,story,voiceEnabled,speak]);
+
+  useEffect(()=>{
+    const cancelScheduledMascot=()=>{
+      if(mascotTimerRef.current){
+        clearTimeout(mascotTimerRef.current);
+        mascotTimerRef.current=null;
+      }
+    };
+    document.addEventListener("pointerdown",cancelScheduledMascot,true);
+    return()=>document.removeEventListener("pointerdown",cancelScheduledMascot,true);
+  },[]);
 
   const replayVoice=()=>{
     const key=getVoiceKey(step,loading,story);
@@ -792,8 +882,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
   };
 
   const handleSave=async(share)=>{
+    stopAllSpeech();
     setShowSaveModal(false);
     if(!share||!story) return;
+    let doodleUrl = null;
+    try {
+      doodleUrl = await persistDoodleUrl(image, imageBase64, imageMediaType);
+    } catch (err) {
+      console.warn("Failed to persist doodle image:", err?.message);
+    }
     const newEntry = {
       id: Date.now(),
       title: story.title,
@@ -803,14 +900,24 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       ageLabel: ageGroup.label,
       ageEmoji: ageGroup.emoji,
       ageRange: ageGroup.range,
-      doodleUrl: image,
+      doodleUrl,
       likes: 0,
       loves: 0,
       date: new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
     };
-    const updated = [newEntry, ...currentLibrary];
+    let updated = [newEntry, ...currentLibrary];
     console.log("💾 Saving story. Library will have", updated.length, "entries.");
-    await saveLibrary(updated);
+    try {
+      await saveLibrary(updated);
+    } catch (e) {
+      if (doodleUrl) {
+        console.warn("Storage quota hit — saving story without doodle image:", e?.message);
+        updated = [{ ...newEntry, doodleUrl: null }, ...currentLibrary];
+        await saveLibrary(updated);
+      } else {
+        throw e;
+      }
+    }
     onStoryAdded(updated);
     console.log("✅ onStoryAdded called with", updated.length, "entries.");
   };
@@ -1247,7 +1354,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
             <h2 style={{textAlign:"center",color:COLORS.text,fontSize:"1rem",fontWeight:"normal",marginBottom:12}}>How old is the little artist? 👇</h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
               {AGE_GROUPS.map(group=>(
-                <button key={group.range} onClick={()=>{ setAgeGroup(group); stop(); setTimeout(()=>speak(VOICE_LINES.ageSelected,'ageSelected'),300); }}
+                <button key={group.range} onClick={()=>{ setAgeGroup(group); setTimeout(()=>speak(VOICE_LINES.ageSelected,'ageSelected'),300); }}
                   style={{padding:"13px 10px",borderRadius:14,border:`3px solid ${ageGroup?.range===group.range?COLORS.accent1:COLORS.border}`,background:ageGroup?.range===group.range?"rgba(255,107,107,0.06)":COLORS.card,cursor:"pointer",transition:"all 0.2s",boxShadow:ageGroup?.range===group.range?`0 6px 20px rgba(255,107,107,0.2)`:"0 4px 12px rgba(0,0,0,0.04)",transform:ageGroup?.range===group.range?"scale(1.03)":"scale(1)"}}>
                   <div style={{fontSize:24,marginBottom:3}}>{group.emoji}</div>
                   <div style={{fontWeight:"bold",color:COLORS.text,fontSize:"0.85rem"}}>{group.label}</div>
@@ -1632,6 +1739,7 @@ export default function App() {
   const ttsError = useTtsErrorBanner();
 
   useEffect(()=>{
+    registerSpeechInteractionStop();
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v])=>{
       setLibrary(lib);
       setVotes(v);
