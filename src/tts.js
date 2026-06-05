@@ -135,7 +135,6 @@ export function prefetchStoryTTS(fullText, language = "English") {
   if (!paras.length) return;
   fetchTTS(paras[0], STORY_PROMPT, language).catch(() => {});
   if (paras[1]) fetchTTS(paras[1], STORY_PROMPT, language).catch(() => {});
-  fetchTTS(VOICE_LINES.readAloud, PREFETCH_PROMPT).catch(() => {});
 }
 
 export function useSpeech({ storyLanguage = "English" } = {}) {

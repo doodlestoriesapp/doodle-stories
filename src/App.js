@@ -333,16 +333,11 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 // ── Reading Modal ────────────────────────────────────────────────
 function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   const { speak, speakLong, stop, speaking } = useSpeech();
-  const [readingLoading, setReadingLoading] = useState(false);
   useEffect(()=>()=>stop(),[stop]);
 
   const handleReadAloud = async () => {
     if (speaking) { stop(); return; }
-    setReadingLoading(true);
-    // Await mascot intro line, then start story pipeline
-    await speak(VOICE_LINES.readAloud, 'readAloud');
     await speakLong(`${story.title}. ${story.text}`);
-    setReadingLoading(false);
   };
   return (
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
@@ -356,8 +351,8 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted}}>✕</button>
         </div>
         {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}/>}
-        <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:readingLoading?`linear-gradient(135deg,${COLORS.accent2},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-          {speaking?"⏹ Stop Reading":readingLoading?"✨ Warming up...":"🔊 Read This Story Aloud"}
+        <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+          {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
         </button>
         <ReactionButtons story={story} votes={votes} onVote={onVote} nightMode={nightMode}/>
         <div style={{lineHeight:1.9}}>
@@ -394,7 +389,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
+function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange }) {
   const HeroCard = ({ story, rank, accent }) => (
     <div onClick={()=>onRead(story)} style={{background:"white",borderRadius:18,padding:"14px 16px",cursor:"pointer",border:`2px solid ${accent}30`,boxShadow:`0 5px 20px ${accent}20`,position:"relative",transition:"transform 0.2s"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
@@ -427,9 +422,39 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead }) {
           <h1 style={{fontSize:"clamp(2rem,6vw,3rem)",color:COLORS.text,margin:"0 0 10px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
             Doodle <span style={{color:COLORS.accent1}}>Stories</span>
           </h1>
-          <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",margin:"0 0 34px",lineHeight:1.6}}>
+          <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",margin:"0 0 22px",lineHeight:1.6}}>
             Draw it. Upload it. Turn it into a magical story.<br/>Share it as a bedtime story for the world. 🌙
           </p>
+          <p style={{
+            color:COLORS.text,fontSize:"clamp(0.95rem,3vw,1.1rem)",lineHeight:1.55,
+            margin:"0 auto 14px",maxWidth:480,fontWeight:"bold",
+            background:"linear-gradient(135deg,#FFF8E1,#FFFDF5)",
+            border:`2px solid ${COLORS.accent2}`,borderRadius:18,padding:"14px 18px",
+            boxShadow:"0 4px 16px rgba(255,217,61,0.18)",
+          }}>
+            Welcome to Doodle Stories! 🎨 Pick your language and let&apos;s make magic!
+          </p>
+          <div style={{maxWidth:420,width:"100%",margin:"0 auto 28px"}}>
+            <label htmlFor="home-story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:8}}>
+              🌍 Story Language
+            </label>
+            <select
+              id="home-story-language"
+              value={selectedLanguage}
+              onChange={(e)=>onLanguageChange(e.target.value)}
+              style={{
+                width:"100%",padding:"14px 16px",borderRadius:16,
+                border:`2px solid ${COLORS.accent1}`,background:COLORS.card,
+                color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif",
+                cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,107,0.15)",
+                appearance:"auto",textAlign:"center",
+              }}
+            >
+              {TTS_LANGUAGES.map((lang)=>(
+                <option key={lang} value={lang}>{lang}</option>
+              ))}
+            </select>
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <button onClick={()=>onNavigate("create")} style={{padding:"16px 32px",borderRadius:20,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1.08rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 8px 28px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif",transition:"transform 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
@@ -643,7 +668,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -654,7 +679,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState(1);
-  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const fileRef = useRef();
@@ -792,7 +816,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   };
 
   const [sharing, setSharing] = useState(false);
-  const [readingLoading, setReadingLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareCards, setShareCards] = useState([]);
   const [shareCardIndex, setShareCardIndex] = useState(0);
@@ -1189,27 +1212,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         {step===1&&!mode&&(
           <div>
             <VoiceBubble text={VOICE_LINES[1]}/>
-            <div style={{marginBottom:14}}>
-              <label htmlFor="story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:6}}>
-                🌍 Story Language
-              </label>
-              <select
-                id="story-language"
-                value={selectedLanguage}
-                onChange={(e)=>setSelectedLanguage(e.target.value)}
-                style={{
-                  width:"100%",padding:"11px 14px",borderRadius:14,
-                  border:`2px solid ${COLORS.border}`,background:COLORS.card,
-                  color:COLORS.text,fontSize:"0.9rem",fontFamily:"Georgia,serif",
-                  cursor:"pointer",boxShadow:"0 4px 14px rgba(0,0,0,0.05)",
-                  appearance:"auto",
-                }}
-              >
-                {TTS_LANGUAGES.map((lang)=>(
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
-            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
               <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()}
                 style={{border:`3px dashed ${dragOver?COLORS.accent1:COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(255,107,107,0.04)":COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
@@ -1307,14 +1309,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
                   ))}
                 </div>
                 <button onClick={async()=>{
-                    if(speaking){stop();setReadingLoading(false);return;}
-                    setReadingLoading(true);
-                    await speak(VOICE_LINES.readAloud,'readAloud');
+                    if(speaking){stop();return;}
                     await speakLong(`${story.title}. ${story.story}`);
-                    setReadingLoading(false);
                   }}
-                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:readingLoading?`linear-gradient(135deg,${COLORS.accent2},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
-                  {speaking?"⏹ Stop Reading":readingLoading?"✨ Warming up...":"🔊 Read This Story Aloud"}
+                  style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:speaking?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:"pointer",boxShadow:speaking?"0 6px 20px rgba(255,107,107,0.35)":"0 6px 20px rgba(77,150,255,0.3)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
+                  {speaking?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
                 </button>
                 <button onClick={handleShare} disabled={sharing}
                   style={{width:"100%",padding:"12px",borderRadius:14,border:"none",marginBottom:9,background:sharing?"#ccc":`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"0.92rem",fontWeight:"bold",cursor:sharing?"not-allowed":"pointer",boxShadow:sharing?"none":"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif",transition:"all 0.2s"}}>
@@ -1626,6 +1625,7 @@ function TtsErrorToast({ visible }) {
 
 export default function App() {
   const [view, setView] = useState("home");
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [library, setLibrary] = useState([]);
   const [votes, setVotes] = useState({});
   const { speak } = useSpeech();
@@ -1662,9 +1662,9 @@ export default function App() {
     </>
   );
 
-  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={setView}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={setView}/>);
   return null;

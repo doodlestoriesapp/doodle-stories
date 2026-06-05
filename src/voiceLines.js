@@ -8,5 +8,5 @@ export const VOICE_LINES = {
   library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
   loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
   liked: "Wow, someone loved that story! What an amazing little author!",
-  readAloud: "Ooooh get ready! I'm warming up my storytelling voice — your magical story is about to come alive! Just a few seconds!",
+  readAloud: "Here comes your magical story!",
 };
