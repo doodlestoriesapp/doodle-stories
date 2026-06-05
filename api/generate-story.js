@@ -7,7 +7,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, system, model, max_tokens } = req.body;
+    const { messages, system, model, max_tokens, language } = req.body;
+
+    let finalSystem = system || "";
+    if (language && language !== "English") {
+      finalSystem += `\n\nWrite the entire story in ${language}. The title and all story text must be in ${language}.`;
+    }
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -19,7 +24,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: model || "claude-sonnet-4-20250514",
         max_tokens: max_tokens || 1000,
-        system,
+        system: finalSystem,
         messages,
       }),
     });

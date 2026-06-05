@@ -17,6 +17,13 @@ const PALETTE = [
 
 const BRUSH_SIZES = [3, 7, 13, 20];
 
+const TTS_LANGUAGES = [
+  "English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch",
+  "Russian", "Mandarin Chinese", "Japanese", "Korean", "Arabic", "Hindi", "Turkish",
+  "Polish", "Swedish", "Norwegian", "Danish", "Finnish", "Ukrainian", "Greek", "Czech",
+  "Romanian", "Hungarian", "Thai", "Vietnamese", "Indonesian", "Malay", "Tagalog", "Hebrew",
+];
+
 const COLORS = {
   bg:"#FFF9F0", card:"#FFFFFF",
   accent1:"#FF6B6B", accent2:"#FFD93D", accent3:"#6BCB77", accent4:"#4D96FF", accent5:"#FF4ECD",
@@ -647,10 +654,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState(1);
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const fileRef = useRef();
-  const { speak, speakLong, stop, speaking } = useSpeech();
+  const { speak, speakLong, stop, speaking } = useSpeech({ storyLanguage: selectedLanguage });
   const spokenKeys = useRef(new Set());
 
   const getVoiceKey=(s,l,st)=>s===3&&l?"loading":s===3&&st?"story":String(s);
@@ -733,6 +741,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     try {
       const res=await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/generate-story`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-20250514", max_tokens:1000,
+        language:selectedLanguage,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Start the story with an engaging, specific opening line — NOT "Once upon a time". Jump straight into the action or introduce the character in a memorable way. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:imageMediaType,data:imageBase64}},
@@ -748,7 +757,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       const parsed=JSON.parse(cleaned);
       spokenKeys.current.delete("story");
       setStory(parsed);
-      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
+      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`, selectedLanguage);
     } catch(err) {
       console.error("❌ Story generation error:", err);
       setError(err?.message||"Oops! The story magic fizzled. Try again!");
@@ -1180,6 +1189,27 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         {step===1&&!mode&&(
           <div>
             <VoiceBubble text={VOICE_LINES[1]}/>
+            <div style={{marginBottom:14}}>
+              <label htmlFor="story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:6}}>
+                🌍 Story Language
+              </label>
+              <select
+                id="story-language"
+                value={selectedLanguage}
+                onChange={(e)=>setSelectedLanguage(e.target.value)}
+                style={{
+                  width:"100%",padding:"11px 14px",borderRadius:14,
+                  border:`2px solid ${COLORS.border}`,background:COLORS.card,
+                  color:COLORS.text,fontSize:"0.9rem",fontFamily:"Georgia,serif",
+                  cursor:"pointer",boxShadow:"0 4px 14px rgba(0,0,0,0.05)",
+                  appearance:"auto",
+                }}
+              >
+                {TTS_LANGUAGES.map((lang)=>(
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
               <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()}
                 style={{border:`3px dashed ${dragOver?COLORS.accent1:COLORS.border}`,borderRadius:22,padding:"32px 16px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(255,107,107,0.04)":COLORS.card,transition:"all 0.2s",boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>

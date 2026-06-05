@@ -32,15 +32,15 @@ export function useTtsErrorBanner() {
   return ttsError;
 }
 
-function ttsCacheKey(text, prompt) {
-  return `${prompt}::${text}`;
+function ttsCacheKey(text, prompt, language = "English") {
+  return `${language}::${prompt}::${text}`;
 }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function postTtsWithRetry(text, prompt) {
+async function postTtsWithRetry(text, prompt, language = "English") {
   let lastRes = null;
   let lastData = {};
 
@@ -48,7 +48,7 @@ async function postTtsWithRetry(text, prompt) {
     lastRes = await fetch(TTS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, prompt }),
+      body: JSON.stringify({ text, prompt, language }),
     });
     lastData = await lastRes.json().catch(() => ({}));
 
@@ -61,13 +61,13 @@ async function postTtsWithRetry(text, prompt) {
 }
 
 /** Only TTS network call in the frontend: POST /api/tts { text, prompt } */
-async function fetchTTS(text, prompt = PREFETCH_PROMPT) {
-  const key = ttsCacheKey(text, prompt);
+async function fetchTTS(text, prompt = PREFETCH_PROMPT, language = "English") {
+  const key = ttsCacheKey(text, prompt, language);
   if (_audioCache.has(key)) return _audioCache.get(key);
   if (_pendingFetches.has(key)) return _pendingFetches.get(key);
 
   const promise = (async () => {
-    const { res, data } = await postTtsWithRetry(text, prompt);
+    const { res, data } = await postTtsWithRetry(text, prompt, language);
     if (!res.ok) {
       const err = data?.error;
       const message =
@@ -127,18 +127,18 @@ function registerInteractionPrefetch() {
   document.addEventListener("click", onFirstInteraction, true);
 }
 
-export function prefetchStoryTTS(fullText) {
+export function prefetchStoryTTS(fullText, language = "English") {
   const paras = fullText
     .split(/\n\n/)
     .map((s) => s.trim())
     .filter((s) => s.length > 2);
   if (!paras.length) return;
-  fetchTTS(paras[0], STORY_PROMPT).catch(() => {});
-  if (paras[1]) fetchTTS(paras[1], STORY_PROMPT).catch(() => {});
+  fetchTTS(paras[0], STORY_PROMPT, language).catch(() => {});
+  if (paras[1]) fetchTTS(paras[1], STORY_PROMPT, language).catch(() => {});
   fetchTTS(VOICE_LINES.readAloud, PREFETCH_PROMPT).catch(() => {});
 }
 
-export function useSpeech() {
+export function useSpeech({ storyLanguage = "English" } = {}) {
   const [speaking, setSpeaking] = useState(false);
   const [ttsError, setTtsError] = useState(_sharedTtsError);
   const audioRef = useRef(null);
@@ -214,15 +214,15 @@ export function useSpeech() {
       audioRef.current = {};
 
       const pending = paras.map(() => null);
-      pending[0] = fetchTTS(paras[0], STORY_PROMPT);
-      if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
+      pending[0] = fetchTTS(paras[0], STORY_PROMPT, storyLanguage);
+      if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT, storyLanguage);
 
       let failed = false;
 
       for (let i = 0; i < paras.length; i++) {
         if (!audioRef.current) break;
         if (paras[i + 2] && !pending[i + 2]) {
-          pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
+          pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT, storyLanguage);
         }
         let uri;
         try {
@@ -240,7 +240,7 @@ export function useSpeech() {
       if (audioRef.current !== null) setSpeaking(false);
       audioRef.current = null;
     },
-    [stopAll, playUri]
+    [stopAll, playUri, storyLanguage]
   );
 
   return { speak, speakLong, stop: stopAll, speaking, ttsError };
