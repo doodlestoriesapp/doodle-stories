@@ -32,6 +32,33 @@ const COLORS = {
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
 
+function GoPremiumButton({ isPremium, setShowPaywall, nightMode }) {
+  if (isPremium) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => setShowPaywall(true)}
+      style={{
+        padding: "6px 11px",
+        borderRadius: 12,
+        border: `1.5px solid ${nightMode ? "rgba(255,217,61,0.45)" : "#E6C200"}`,
+        background: nightMode
+          ? "rgba(255,217,61,0.12)"
+          : "linear-gradient(135deg,#FFF8E1,#FFEFAA)",
+        color: nightMode ? COLORS.accent2 : "#9A7200",
+        fontSize: "0.72rem",
+        fontWeight: "bold",
+        cursor: "pointer",
+        fontFamily: "Georgia,serif",
+        whiteSpace: "nowrap",
+        boxShadow: "0 2px 8px rgba(255,217,61,0.22)",
+      }}
+    >
+      ⭐ Go Premium
+    </button>
+  );
+}
+
 // ── Storage (localStorage on web; Expo app uses AsyncStorage in expo/) ──
 const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
 
@@ -469,7 +496,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange }) {
+function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
   const HeroCard = ({ story, rank, accent }) => (
     <div onClick={()=>onRead(story)} style={{background:"white",borderRadius:18,padding:"14px 16px",cursor:"pointer",border:`2px solid ${accent}30`,boxShadow:`0 5px 20px ${accent}20`,position:"relative",transition:"transform 0.2s"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
@@ -497,6 +524,9 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
       <div style={{position:"fixed",top:-80,right:-80,width:300,height:300,borderRadius:"50%",background:"rgba(255,107,107,0.12)",zIndex:0}}/>
       <div style={{position:"fixed",bottom:-60,left:-60,width:250,height:250,borderRadius:"50%",background:"rgba(77,150,255,0.10)",zIndex:0}}/>
       <div style={{position:"relative",zIndex:1,maxWidth:640,margin:"0 auto",padding:"44px 24px 60px"}}>
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} />
+        </div>
         <div style={{textAlign:"center",marginBottom:40}}>
           <div style={{fontSize:66,marginBottom:12,animation:"float 3s infinite ease-in-out"}}>🎨</div>
           <h1 style={{fontSize:"clamp(2rem,6vw,3rem)",color:COLORS.text,margin:"0 0 10px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
@@ -584,7 +614,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
 }
 
 // ── LIBRARY ──────────────────────────────────────────────────────
-function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
+function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, setShowPaywall }) {
   const [tab, setTab] = useState("all");
   const [filterAge, setFilterAge] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -672,7 +702,10 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
             <h1 style={{margin:0,fontSize:"clamp(1.2rem,4vw,1.8rem)",color:nightMode?"white":COLORS.text}}>🌙 Bedtime Library</h1>
             <p style={{margin:"2px 0 0",fontSize:"0.74rem",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,fontStyle:"italic"}}>{library.length} {library.length===1?"story":"stories"} · by kids, for kids</p>
           </div>
-          <button onClick={()=>setNightMode(n=>!n)} style={{background:nightMode?"rgba(255,255,255,0.1)":COLORS.card,border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 12px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.95rem"}}>{nightMode?"☀️":"🌙"}</button>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} nightMode={nightMode} />
+            <button onClick={()=>setNightMode(n=>!n)} style={{background:nightMode?"rgba(255,255,255,0.1)":COLORS.card,border:`2px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"7px 12px",cursor:"pointer",color:nightMode?"white":COLORS.text,fontSize:"0.95rem"}}>{nightMode?"☀️":"🌙"}</button>
+          </div>
         </div>
 
         <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
@@ -763,7 +796,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, setShowPaywall, onStoryGenerated }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, setShowPaywall, onStoryGenerated, isPremium }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -1347,7 +1380,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       <div style={{position:"relative",zIndex:1,maxWidth:700,margin:"0 auto",padding:"30px 20px 60px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
           <button onClick={()=>mode?setMode(null):onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← {mode?"Cancel":"Home"}</button>
-          <button onClick={()=>onNavigate("library")} style={{background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,border:"none",borderRadius:12,padding:"7px 13px",cursor:"pointer",color:"white",fontSize:"0.8rem",fontFamily:"Georgia,serif"}}>🌙 Library</button>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} />
+            <button onClick={()=>onNavigate("library")} style={{background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,border:"none",borderRadius:12,padding:"7px 13px",cursor:"pointer",color:"white",fontSize:"0.8rem",fontFamily:"Georgia,serif"}}>🌙 Library</button>
+          </div>
         </div>
         <div style={{textAlign:"center",marginBottom:20}}>
           <div style={{fontSize:40,marginBottom:4}}>🎨</div>
@@ -1592,7 +1628,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
 }
 
 // ── ABOUT ────────────────────────────────────────────────────────
-function AboutScreen({ onNavigate }) {
+function AboutScreen({ onNavigate, isPremium, setShowPaywall }) {
   const SOCIALS = [
     { icon:"🎵", label:"TikTok",    url:"https://tiktok.com/@doodlestoriesapp" },
     { icon:"📸", label:"Instagram", url:"https://instagram.com/doodlestoriesapp" },
@@ -1602,8 +1638,9 @@ function AboutScreen({ onNavigate }) {
   return (
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif"}}>
       <div style={{maxWidth:680,margin:"0 auto",padding:"30px 24px 60px"}}>
-        <div style={{display:"flex",alignItems:"center",marginBottom:32}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:32}}>
           <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
+          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} />
         </div>
         <div style={{textAlign:"center",marginBottom:40}}>
           <div style={{fontSize:60,marginBottom:12}}>🎨</div>
@@ -1660,7 +1697,7 @@ function AboutScreen({ onNavigate }) {
 }
 
 // ── CONTACT ───────────────────────────────────────────────────────
-function ContactScreen({ onNavigate }) {
+function ContactScreen({ onNavigate, isPremium, setShowPaywall }) {
   const [form,setForm]=useState({name:"",email:"",reason:"",message:""});
   const [submitted,setSubmitted]=useState(false);
   const [sending,setSending]=useState(false);
@@ -1686,8 +1723,9 @@ function ContactScreen({ onNavigate }) {
   return (
     <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif"}}>
       <div style={{maxWidth:620,margin:"0 auto",padding:"30px 24px 60px"}}>
-        <div style={{display:"flex",alignItems:"center",marginBottom:32}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:32}}>
           <button onClick={()=>onNavigate("home")} style={{background:"none",border:`2px solid ${COLORS.border}`,borderRadius:12,padding:"7px 13px",cursor:"pointer",color:COLORS.text,fontSize:"0.86rem",fontFamily:"Georgia,serif"}}>← Home</button>
+          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} />
         </div>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{fontSize:52,marginBottom:10}}>💌</div>
@@ -1785,6 +1823,7 @@ export default function App() {
   const [votes, setVotes] = useState({});
   const [showPaywall, setShowPaywall] = useState(false);
   const [storyCount, setStoryCount] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
   const { speak } = useSpeech();
   const ttsError = useTtsErrorBanner();
 
@@ -1798,7 +1837,10 @@ export default function App() {
   useEffect(()=>{
     fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
       .then((res)=>res.json())
-      .then((data)=>setStoryCount(data.count ?? 0))
+      .then((data)=>{
+        setStoryCount(data.count ?? 0);
+        setIsPremium(!!data.isPremium);
+      })
       .catch(()=>{});
   },[]);
 
@@ -1810,7 +1852,10 @@ export default function App() {
     });
     fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
       .then((res)=>res.json())
-      .then((data)=>setStoryCount(data.count ?? 0))
+      .then((data)=>{
+        setStoryCount(data.count ?? 0);
+        setIsPremium(!!data.isPremium);
+      })
       .catch(()=>{});
   };
 
@@ -1839,10 +1884,10 @@ export default function App() {
     </>
   );
 
-  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage}/>);
-  if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated}/>);
-  if (view==="about")   return wrap(<AboutScreen onNavigate={setView}/>);
-  if (view==="contact") return wrap(<ContactScreen onNavigate={setView}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
+  if (view==="about")   return wrap(<AboutScreen onNavigate={setView} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="contact") return wrap(<ContactScreen onNavigate={setView} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   return null;
 }
