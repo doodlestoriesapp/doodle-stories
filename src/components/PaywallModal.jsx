@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-const MONTHLY_PRICE_ID = "price_1TfNw1Am0Jr2oBFCOhjX75Iw";
-const ANNUAL_PRICE_ID = "price_1TfNzNAm0Jr2oBFCuPAoWxG6";
+const MONTHLY_PRICE_ID = "price_1TfRHlPQ9TnCZr87tO1waQAy";
+const ANNUAL_PRICE_ID = "price_1TfRHjPQ9TnCZr87yn9DvCCK";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 
