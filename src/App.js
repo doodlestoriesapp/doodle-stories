@@ -3,6 +3,8 @@ import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech } from ".
 import { VOICE_LINES } from "./voiceLines";
 import PaywallModal from "./components/PaywallModal";
 import SuccessScreen from "./components/SuccessScreen";
+import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
+import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -645,9 +647,11 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
 
         <div style={{textAlign:"center",marginTop:40,paddingTop:24,borderTop:`1px solid ${COLORS.border}`}}>
           <p style={{color:COLORS.muted,fontSize:"0.78rem",margin:"0 0 10px"}}>Made with ❤️ for little storytellers everywhere</p>
-          <div style={{display:"flex",justifyContent:"center",gap:20}}>
+          <div style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap"}}>
             <button onClick={()=>onNavigate("about")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>About Us</button>
             <button onClick={()=>onNavigate("contact")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Contact Us</button>
+            <button onClick={()=>onNavigate("privacy")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Privacy Policy</button>
+            <button onClick={()=>onNavigate("terms")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Terms of Service</button>
           </div>
         </div>
       </div>
@@ -1946,5 +1950,7 @@ export default function App() {
   if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="privacy") return wrap(<PrivacyPolicyScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="terms")   return wrap(<TermsOfServiceScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   return null;
 }
