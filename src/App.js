@@ -32,26 +32,29 @@ const COLORS = {
   text:"#2D2D2D", muted:"#8A8A8A", border:"#F0E6D3",
 };
 
-function GoPremiumButton({ isPremium, setShowPaywall, nightMode }) {
+function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "filled" }) {
   if (isPremium) return null;
+  const isOutline = variant === "outline";
   return (
     <button
       type="button"
       onClick={() => setShowPaywall(true)}
       style={{
-        padding: "6px 11px",
+        padding: isOutline ? "5px 14px" : "6px 11px",
         borderRadius: 12,
-        border: `1.5px solid ${nightMode ? "rgba(255,217,61,0.45)" : "#E6C200"}`,
-        background: nightMode
-          ? "rgba(255,217,61,0.12)"
-          : "linear-gradient(135deg,#FFF8E1,#FFEFAA)",
-        color: nightMode ? COLORS.accent2 : "#9A7200",
-        fontSize: "0.72rem",
+        border: `1.5px solid ${nightMode ? "rgba(255,217,61,0.45)" : isOutline ? "#D4AF37" : "#E6C200"}`,
+        background: isOutline
+          ? "transparent"
+          : nightMode
+            ? "rgba(255,217,61,0.12)"
+            : "linear-gradient(135deg,#FFF8E1,#FFEFAA)",
+        color: nightMode ? COLORS.accent2 : isOutline ? "#B8860B" : "#9A7200",
+        fontSize: isOutline ? "0.7rem" : "0.72rem",
         fontWeight: "bold",
         cursor: "pointer",
         fontFamily: "Georgia,serif",
         whiteSpace: "nowrap",
-        boxShadow: "0 2px 8px rgba(255,217,61,0.22)",
+        boxShadow: isOutline ? "none" : "0 2px 8px rgba(255,217,61,0.22)",
       }}
     >
       ⭐ Go Premium
@@ -523,59 +526,97 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
       `}</style>
       <div style={{position:"fixed",top:-80,right:-80,width:300,height:300,borderRadius:"50%",background:"rgba(255,107,107,0.12)",zIndex:0}}/>
       <div style={{position:"fixed",bottom:-60,left:-60,width:250,height:250,borderRadius:"50%",background:"rgba(77,150,255,0.10)",zIndex:0}}/>
-      <div style={{position:"relative",zIndex:1,maxWidth:640,margin:"0 auto",padding:"44px 24px 60px"}}>
-        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
-          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} />
-        </div>
-        <div style={{textAlign:"center",marginBottom:40}}>
-          <div style={{fontSize:66,marginBottom:12,animation:"float 3s infinite ease-in-out"}}>🎨</div>
-          <h1 style={{fontSize:"clamp(2rem,6vw,3rem)",color:COLORS.text,margin:"0 0 10px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
+      <div style={{position:"relative",zIndex:1,maxWidth:680,margin:"0 auto",padding:"56px 28px 72px"}}>
+        <header style={{textAlign:"center",marginBottom:52}}>
+          <div style={{fontSize:72,marginBottom:20,animation:"float 3s infinite ease-in-out"}}>🎨</div>
+          <h1 style={{fontSize:"clamp(2rem,6vw,3rem)",color:COLORS.text,margin:"0 0 18px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
             Doodle <span style={{color:COLORS.accent1}}>Stories</span>
           </h1>
-          <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",margin:"0 0 22px",lineHeight:1.6}}>
+          <p style={{color:COLORS.muted,fontSize:"1.05rem",fontStyle:"italic",margin:"0 0 28px",lineHeight:1.65,maxWidth:460,marginLeft:"auto",marginRight:"auto"}}>
             Draw it. Upload it. Turn it into a magical story.<br/>Share it as a bedtime story for the world. 🌙
           </p>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:36}}>
+            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+          </div>
           <p style={{
-            color:COLORS.text,fontSize:"clamp(0.95rem,3vw,1.1rem)",lineHeight:1.55,
-            margin:"0 auto 14px",maxWidth:480,fontWeight:"bold",
-            background:"linear-gradient(135deg,#FFF8E1,#FFFDF5)",
-            border:`2px solid ${COLORS.accent2}`,borderRadius:18,padding:"14px 18px",
-            boxShadow:"0 4px 16px rgba(255,217,61,0.18)",
+            color:COLORS.muted,fontSize:"0.82rem",lineHeight:1.5,
+            margin:"0 auto",maxWidth:420,
+            background:"rgba(255,255,255,0.55)",
+            border:`1px solid ${COLORS.border}`,borderRadius:14,padding:"10px 16px",
           }}>
             Welcome to Doodle Stories! 🎨 Pick your language and let&apos;s make magic!
           </p>
-          <div style={{maxWidth:420,width:"100%",margin:"0 auto 28px"}}>
-            <label htmlFor="home-story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:8}}>
-              🌍 Story Language
-            </label>
-            <select
-              id="home-story-language"
-              value={selectedLanguage}
-              onChange={(e)=>onLanguageChange(e.target.value)}
-              style={{
-                width:"100%",padding:"14px 16px",borderRadius:16,
-                border:`2px solid ${COLORS.accent1}`,background:COLORS.card,
-                color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif",
-                cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,107,0.15)",
-                appearance:"auto",textAlign:"center",
-              }}
-            >
-              {TTS_LANGUAGES.map((lang)=>(
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <button onClick={()=>onNavigate("create")} style={{padding:"16px 32px",borderRadius:20,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1.08rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 8px 28px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif",transition:"transform 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-              🖼️ Create a Story from My Doodle
-            </button>
-            <button onClick={()=>onNavigate("library")} style={{padding:"16px 32px",borderRadius:20,border:"none",background:`linear-gradient(135deg,${COLORS.night2},${COLORS.night3})`,color:"white",fontSize:"1.08rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 8px 28px rgba(45,27,110,0.35)",fontFamily:"Georgia,serif",transition:"transform 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-              🌙 Bedtime Story Library
-            </button>
-          </div>
-        </div>
+        </header>
+
+        <section style={{maxWidth:420,width:"100%",margin:"0 auto 52px"}}>
+          <label htmlFor="home-story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:10}}>
+            🌍 Story Language
+          </label>
+          <select
+            id="home-story-language"
+            value={selectedLanguage}
+            onChange={(e)=>onLanguageChange(e.target.value)}
+            style={{
+              width:"100%",padding:"14px 16px",borderRadius:16,
+              border:`2px solid ${COLORS.accent1}`,background:COLORS.card,
+              color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif",
+              cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,107,0.12)",
+              appearance:"auto",textAlign:"center",
+            }}
+          >
+            {TTS_LANGUAGES.map((lang)=>(
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+        </section>
+
+        <section style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",
+          gap:20,
+          marginBottom:48,
+        }}>
+          <button
+            type="button"
+            onClick={()=>onNavigate("create")}
+            style={{
+              padding:"26px 22px",borderRadius:22,border:`1px solid rgba(255,107,107,0.2)`,
+              background:COLORS.card,cursor:"pointer",textAlign:"left",
+              boxShadow:"0 8px 28px rgba(255,107,107,0.12)",
+              fontFamily:"Georgia,serif",transition:"transform 0.15s, box-shadow 0.15s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 32px rgba(255,107,107,0.18)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 8px 28px rgba(255,107,107,0.12)";}}
+          >
+            <div style={{fontSize:"1.75rem",marginBottom:12}}>🖼️</div>
+            <div style={{fontSize:"1.05rem",fontWeight:"bold",color:COLORS.text,marginBottom:8,lineHeight:1.3}}>
+              Create a Story from My Doodle
+            </div>
+            <div style={{fontSize:"0.84rem",color:COLORS.muted,lineHeight:1.45,fontWeight:"normal"}}>
+              Upload your drawing and watch it come to life
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={()=>onNavigate("library")}
+            style={{
+              padding:"26px 22px",borderRadius:22,border:`1px solid rgba(45,27,110,0.18)`,
+              background:COLORS.card,cursor:"pointer",textAlign:"left",
+              boxShadow:"0 8px 28px rgba(45,27,110,0.1)",
+              fontFamily:"Georgia,serif",transition:"transform 0.15s, box-shadow 0.15s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 32px rgba(45,27,110,0.16)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 8px 28px rgba(45,27,110,0.1)";}}
+          >
+            <div style={{fontSize:"1.75rem",marginBottom:12}}>🌙</div>
+            <div style={{fontSize:"1.05rem",fontWeight:"bold",color:COLORS.text,marginBottom:8,lineHeight:1.3}}>
+              Bedtime Story Library
+            </div>
+            <div style={{fontSize:"0.84rem",color:COLORS.muted,lineHeight:1.45,fontWeight:"normal"}}>
+              Revisit your magical stories anytime
+            </div>
+          </button>
+        </section>
 
         {topLoved.length>0&&(
           <div style={{marginBottom:32}}>
