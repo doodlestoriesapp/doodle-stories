@@ -469,7 +469,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange, storyCount }) {
+function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange }) {
   const HeroCard = ({ story, rank, accent }) => (
     <div onClick={()=>onRead(story)} style={{background:"white",borderRadius:18,padding:"14px 16px",cursor:"pointer",border:`2px solid ${accent}30`,boxShadow:`0 5px 20px ${accent}20`,position:"relative",transition:"transform 0.2s"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
@@ -504,9 +504,6 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
           </h1>
           <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",margin:"0 0 22px",lineHeight:1.6}}>
             Draw it. Upload it. Turn it into a magical story.<br/>Share it as a bedtime story for the world. 🌙
-          </p>
-          <p style={{margin:"0 0 18px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
-            {storyCount}/10 free stories used this month
           </p>
           <p style={{
             color:COLORS.text,fontSize:"clamp(0.95rem,3vw,1.1rem)",lineHeight:1.55,
@@ -1842,7 +1839,7 @@ export default function App() {
     </>
   );
 
-  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} storyCount={storyCount}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>);
   if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={setView}/>);
