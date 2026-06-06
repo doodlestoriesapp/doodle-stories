@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech } from "./tts";
 import { VOICE_LINES } from "./voiceLines";
 import PaywallModal from "./components/PaywallModal";
+import SuccessScreen from "./components/SuccessScreen";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -1857,8 +1858,15 @@ function TtsErrorToast({ visible }) {
   );
 }
 
+function getInitialView() {
+  if (typeof window !== "undefined" && window.location.pathname === "/success") {
+    return "success";
+  }
+  return "home";
+}
+
 export default function App() {
-  const [view, setView] = useState("home");
+  const [view, setView] = useState(getInitialView);
   const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [library, setLibrary] = useState([]);
   const [votes, setVotes] = useState({});
@@ -1917,6 +1925,13 @@ export default function App() {
   const topLoved = [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
   const topLiked = [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
 
+  const navigate = (next) => {
+    if (next === "home" && window.location.pathname === "/success") {
+      window.history.replaceState(null, "", "/");
+    }
+    setView(next);
+  };
+
   const wrap = (screen) => (
     <>
       <TtsErrorToast visible={ttsError} />
@@ -1925,10 +1940,11 @@ export default function App() {
     </>
   );
 
-  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
-  if (view==="about")   return wrap(<AboutScreen onNavigate={setView} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="contact") return wrap(<ContactScreen onNavigate={setView} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} topLoved={topLoved} topLiked={topLiked} onRead={()=>navigate("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
+  if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="contact") return wrap(<ContactScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   return null;
 }
