@@ -1,4 +1,19 @@
 // v5 - raw fetch, no SDK import
+
+function getRequestOrigin(req) {
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  const proto = req.headers["x-forwarded-proto"] || "https";
+  return `${proto}://${host}`;
+}
+
+function getLimitHeaders(req) {
+  const headers = {};
+  if (req.headers["x-forwarded-for"]) {
+    headers["x-forwarded-for"] = req.headers["x-forwarded-for"];
+  }
+  return headers;
+}
+
 export default async function handler(req, res) {
   console.log("generate-story v5 called");
 
@@ -7,6 +22,23 @@ export default async function handler(req, res) {
   }
 
   try {
+    const origin = getRequestOrigin(req);
+    const limitHeaders = getLimitHeaders(req);
+
+    const limitRes = await fetch(`${origin}/api/check-story-limit`, {
+      method: "GET",
+      headers: limitHeaders,
+    });
+    const limitData = await limitRes.json().catch(() => ({}));
+
+    if (!limitData.canGenerate && !limitData.isPremium) {
+      return res.status(403).json({
+        error: "STORY_LIMIT_REACHED",
+        message: "You have reached your 10 story limit for this month.",
+        upgradeUrl: "/upgrade",
+      });
+    }
+
     const { messages, system, model, max_tokens, language } = req.body;
 
     let finalSystem = system || "";
@@ -35,6 +67,13 @@ export default async function handler(req, res) {
     if (!anthropicRes.ok) {
       return res.status(500).json({ error: data?.error?.message || "Anthropic API error" });
     }
+
+    fetch(`${origin}/api/check-story-limit`, {
+      method: "POST",
+      headers: limitHeaders,
+    }).catch((err) =>
+      console.warn("Failed to increment story limit:", err?.message ?? err)
+    );
 
     return res.status(200).json(data);
 

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSpeech, prefetchStoryTTS, useTtsErrorBanner, stopAllSpeech } from "./tts";
 import { VOICE_LINES } from "./voiceLines";
+import PaywallModal from "./components/PaywallModal";
 
 // ── Constants ────────────────────────────────────────────────────
 const AGE_GROUPS = [
@@ -468,7 +469,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange }) {
+function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange, storyCount }) {
   const HeroCard = ({ story, rank, accent }) => (
     <div onClick={()=>onRead(story)} style={{background:"white",borderRadius:18,padding:"14px 16px",cursor:"pointer",border:`2px solid ${accent}30`,boxShadow:`0 5px 20px ${accent}20`,position:"relative",transition:"transform 0.2s"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
@@ -503,6 +504,9 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
           </h1>
           <p style={{color:COLORS.muted,fontSize:"1rem",fontStyle:"italic",margin:"0 0 22px",lineHeight:1.6}}>
             Draw it. Upload it. Turn it into a magical story.<br/>Share it as a bedtime story for the world. 🌙
+          </p>
+          <p style={{margin:"0 0 18px",color:COLORS.muted,fontSize:"0.78rem",fontFamily:"Georgia,serif"}}>
+            {storyCount}/10 free stories used this month
           </p>
           <p style={{
             color:COLORS.text,fontSize:"clamp(0.95rem,3vw,1.1rem)",lineHeight:1.55,
@@ -762,7 +766,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, setShowPaywall, onStoryGenerated }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -885,6 +889,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       })});
       const data=await res.json();
       console.log("🌐 API status:", res.status, "| data:", JSON.stringify(data).slice(0,300));
+      if(res.status===403&&data.error==="STORY_LIMIT_REACHED"){
+        setShowPaywall(true);
+        setStep(2);
+        return;
+      }
       if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
       const raw=data.content?.find(b=>b.type==="text")?.text||"";
       console.log("📖 Raw story response:", raw.slice(0,300));
@@ -893,6 +902,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       spokenKeys.current.delete("story");
       setStory(parsed);
       prefetchStoryTTS(`${parsed.title}. ${parsed.story}`, selectedLanguage);
+      onStoryGenerated?.();
     } catch(err) {
       console.error("❌ Story generation error:", err);
       setError(err?.message||"Oops! The story magic fizzled. Try again!");
@@ -1776,6 +1786,8 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [library, setLibrary] = useState([]);
   const [votes, setVotes] = useState({});
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [storyCount, setStoryCount] = useState(0);
   const { speak } = useSpeech();
   const ttsError = useTtsErrorBanner();
 
@@ -1785,6 +1797,25 @@ export default function App() {
       setVotes(v);
     });
   },[]);
+
+  useEffect(()=>{
+    fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
+      .then((res)=>res.json())
+      .then((data)=>setStoryCount(data.count ?? 0))
+      .catch(()=>{});
+  },[]);
+
+  const onStoryGenerated = () => {
+    setStoryCount((prev) => {
+      const next = Math.min(prev + 1, 10);
+      if (next >= 10) setShowPaywall(true);
+      return next;
+    });
+    fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
+      .then((res)=>res.json())
+      .then((data)=>setStoryCount(data.count ?? 0))
+      .catch(()=>{});
+  };
 
   const handleVote = async (id, type) => {
     if (votes[id]) return;
@@ -1806,13 +1837,14 @@ export default function App() {
   const wrap = (screen) => (
     <>
       <TtsErrorToast visible={ttsError} />
+      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
       {screen}
     </>
   );
 
-  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} onRead={()=>setView("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} storyCount={storyCount}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={setView}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={setView}/>);
   return null;
