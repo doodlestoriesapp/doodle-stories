@@ -68,13 +68,26 @@ function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "fill
 // ── Storage (localStorage on web; Expo app uses AsyncStorage in expo/) ──
 const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
 
+function resolveDoodleUrl(story) {
+  if (!story || typeof story !== "object") return null;
+  const candidates = [story.doodleUrl, story.image].filter(
+    (v) => typeof v === "string" && v.length > 0
+  );
+  for (const url of candidates) {
+    if (url.startsWith("data:")) return url;
+    if (url.startsWith("blob:")) continue;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  }
+  return null;
+}
+
 function normalizeStoryEntry(story) {
   if (!story || typeof story !== "object") return story;
-  let doodleUrl = story.doodleUrl || story.image || null;
-  if (typeof doodleUrl === "string" && doodleUrl.startsWith("blob:")) {
-    doodleUrl = null;
-  }
-  return { ...story, doodleUrl };
+  return { ...story, doodleUrl: resolveDoodleUrl(story) };
+}
+
+function getStoryDoodleUrl(story) {
+  return resolveDoodleUrl(story);
 }
 
 async function loadLibrary() {
@@ -83,7 +96,20 @@ async function loadLibrary() {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeStoryEntry);
+    const normalized = parsed.map(normalizeStoryEntry);
+    const migrated = normalized.some(
+      (s, i) => s.doodleUrl !== resolveDoodleUrl(parsed[i])
+    );
+    if (migrated) {
+      console.log("📚 Migrated library entries with recoverable doodle data URLs");
+      try {
+        localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(normalized));
+      } catch (e) {
+        console.warn("Could not persist migrated library:", e?.message);
+      }
+    }
+    console.log("📚 Library loaded from localStorage:", normalized.length, "stories");
+    return normalized;
   } catch {
     return [];
   }
@@ -91,8 +117,24 @@ async function loadLibrary() {
 
 async function saveLibrary(stories) {
   try {
-    localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(stories));
-    console.log("✅ Library saved:", stories.length, "stories");
+    const sanitized = stories.map((story) => {
+      const doodleUrl = getStoryDoodleUrl(story);
+      if (doodleUrl?.startsWith("blob:")) {
+        console.warn("⚠️ Stripping expired blob doodleUrl before save for story:", story.id);
+        return { ...story, doodleUrl: null };
+      }
+      return doodleUrl !== story.doodleUrl ? { ...story, doodleUrl } : story;
+    });
+    localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(sanitized));
+    const sample = sanitized[0];
+    console.log(
+      "✅ Library saved to localStorage:",
+      sanitized.length,
+      "stories | sample doodleUrl:",
+      sample?.doodleUrl
+        ? `${sample.doodleUrl.startsWith("data:") ? "data:" : sample.doodleUrl.slice(0, 20)}... (${sample.doodleUrl.length} chars)`
+        : "none"
+    );
   } catch (e) {
     console.error("❌ saveLibrary failed:", e);
     throw e;
@@ -136,14 +178,39 @@ async function persistDoodleUrl(image, imageBase64, imageMediaType) {
   let dataUrl = null;
   if (imageBase64) {
     dataUrl = `data:${imageMediaType || "image/png"};base64,${imageBase64}`;
+    console.log("🖼️ persistDoodleUrl: built from imageBase64");
   } else if (image) {
-    dataUrl = await blobUrlToDataUrl(image);
+    if (image.startsWith("data:")) {
+      dataUrl = image;
+      console.log("🖼️ persistDoodleUrl: image already a data URL, skipping conversion");
+    } else if (image.startsWith("blob:")) {
+      console.log("🖼️ persistDoodleUrl: converting blob URL to data URL...");
+      dataUrl = await blobUrlToDataUrl(image);
+    }
   }
-  if (!dataUrl) return null;
+  if (!dataUrl) {
+    console.warn("🖼️ persistDoodleUrl: no image data available");
+    return null;
+  }
+  if (dataUrl.startsWith("blob:")) {
+    console.error("🖼️ persistDoodleUrl: conversion failed — still a blob URL");
+    return null;
+  }
   try {
-    return await compressDoodleDataUrl(dataUrl);
+    const compressed = await compressDoodleDataUrl(dataUrl);
+    console.log(
+      "🖼️ persistDoodleUrl result:",
+      compressed.startsWith("data:")
+        ? `data:... (${compressed.length} chars)`
+        : compressed.slice(0, 40)
+    );
+    return compressed;
   } catch (err) {
     console.warn("Doodle compress failed, saving original:", err?.message);
+    console.log(
+      "🖼️ persistDoodleUrl result (uncompressed):",
+      dataUrl.startsWith("data:") ? `data:... (${dataUrl.length} chars)` : dataUrl.slice(0, 40)
+    );
     return dataUrl;
   }
 }
@@ -377,6 +444,50 @@ function StarryBg() {
   );
 }
 
+// ── Doodle image with placeholder fallback ───────────────────────
+function DoodleImage({ src, alt = "doodle", style, nightMode, placeholderLabel = "Doodle" }) {
+  const [failed, setFailed] = useState(false);
+  const showPlaceholder = !src || failed;
+
+  if (showPlaceholder) {
+    return (
+      <div
+        style={{
+          ...style,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 4,
+          background: nightMode
+            ? "rgba(255,255,255,0.08)"
+            : "linear-gradient(135deg,#FFF8E1,#E8F4FF)",
+          border: `2px dashed ${nightMode ? "rgba(255,255,255,0.2)" : COLORS.border}`,
+          color: nightMode ? "rgba(255,255,255,0.45)" : COLORS.muted,
+          boxSizing: "border-box",
+        }}
+      >
+        <span style={{ fontSize: "1.75rem", lineHeight: 1 }}>🎨</span>
+        <span style={{ fontSize: "0.62rem", fontFamily: "Georgia,serif", letterSpacing: "0.04em" }}>
+          {placeholderLabel}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      style={style}
+      onError={() => {
+        console.warn("Doodle image failed to load:", src?.slice(0, 60));
+        setFailed(true);
+      }}
+    />
+  );
+}
+
 // ── Badge ────────────────────────────────────────────────────────
 function Badge({ likes=0, loves=0, small=false }) {
   if (!likes&&!loves) return null;
@@ -414,7 +525,11 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
     <div onClick={()=>onRead(story)} style={{background:highlight?(nightMode?"rgba(255,78,205,0.1)":"rgba(255,78,205,0.05)"):(nightMode?"rgba(255,255,255,0.07)":COLORS.card),border:`2px solid ${highlight?COLORS.accent5:(nightMode?"rgba(255,255,255,0.12)":COLORS.border)}`,borderRadius:20,padding:"16px 18px",cursor:"pointer",transition:"all 0.2s",boxShadow:highlight?`0 4px 20px rgba(255,78,205,0.2)`:(nightMode?"0 4px 20px rgba(0,0,0,0.3)":"0 4px 16px rgba(0,0,0,0.06)"),position:"relative"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
       {isTop&&<div style={{position:"absolute",top:-10,right:12,fontSize:"1.1rem"}}>{(story.loves||0)>=5?"🏆":"⭐"}</div>}
-      {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",height:110,objectFit:"cover",borderRadius:10,marginBottom:10,border:`3px solid ${nightMode?"rgba(255,255,255,0.15)":"white"}`,boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}/>}
+      <DoodleImage
+        src={getStoryDoodleUrl(story)}
+        nightMode={nightMode}
+        style={{width:"100%",height:110,objectFit:"cover",borderRadius:10,marginBottom:10,border:`3px solid ${nightMode?"rgba(255,255,255,0.15)":"white"}`,boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}
+      />
       <div style={{fontSize:"0.68rem",color:nightMode?COLORS.accent2:COLORS.accent3,fontWeight:"bold",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:3}}>{story.ageEmoji} {story.ageLabel}</div>
       <h3 style={{margin:"0 0 5px",fontSize:"0.92rem",color:nightMode?"white":COLORS.text,lineHeight:1.3}}>{story.title}</h3>
       <p style={{margin:"0 0 8px",fontSize:"0.76rem",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted,lineHeight:1.4}}>{story.preview}</p>
@@ -430,6 +545,18 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   const [storyReading, setStoryReading] = useState(false);
   const isStoppingRef = useRef(false);
   useEffect(()=>()=>{ stop(); setStoryReading(false); },[stop]);
+  useEffect(() => {
+    const doodleUrl = getStoryDoodleUrl(story);
+    console.log("📖 Opened library story:", {
+      id: story?.id,
+      title: story?.title,
+      doodleUrl: doodleUrl
+        ? `${doodleUrl.startsWith("data:") ? "data:" : doodleUrl.slice(0, 24)}... (${doodleUrl.length} chars)`
+        : null,
+      rawDoodleUrl: story?.doodleUrl?.slice(0, 24) ?? null,
+      rawImage: story?.image?.slice(0, 24) ?? null,
+    });
+  }, [story]);
 
   const handleStartReading = async () => {
     if (isStoppingRef.current) return;
@@ -463,7 +590,11 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:nightMode?"rgba(255,255,255,0.5)":COLORS.muted}}>✕</button>
         </div>
-        {story.doodleUrl&&<img src={story.doodleUrl} alt="doodle" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}/>}
+        <DoodleImage
+          src={getStoryDoodleUrl(story)}
+          nightMode={nightMode}
+          style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:14,marginBottom:18,border:`4px solid ${nightMode?"rgba(255,255,255,0.1)":"white"}`,boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}
+        />
         <button onClick={handleReadAloud} style={{width:"100%",padding:"11px",borderRadius:14,border:"none",marginBottom:4,background:storyReading?`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`:`linear-gradient(135deg,${COLORS.accent4},#7B61FF)`,color:"white",fontSize:"0.95rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>
           {storyReading?"⏹ Stop Reading":"🔊 Read This Story Aloud"}
         </button>
@@ -502,69 +633,97 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
-  const HeroCard = ({ story, rank, accent }) => (
-    <div onClick={()=>onRead(story)} style={{background:"white",borderRadius:18,padding:"14px 16px",cursor:"pointer",border:`2px solid ${accent}30`,boxShadow:`0 5px 20px ${accent}20`,position:"relative",transition:"transform 0.2s"}}
-    onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
-      <div style={{position:"absolute",top:-10,left:14,background:accent,color:"white",borderRadius:20,padding:"2px 10px",fontSize:"0.72rem",fontWeight:"bold"}}>#{rank}</div>
-      {story.doodleUrl&&<img src={story.doodleUrl} alt="" style={{width:"100%",height:85,objectFit:"cover",borderRadius:10,marginBottom:8,border:"3px solid white"}}/>}
-      <div style={{fontSize:"0.66rem",color:COLORS.muted,marginBottom:2}}>{story.ageEmoji} {story.ageLabel}</div>
-      <h4 style={{margin:"0 0 5px",fontSize:"0.88rem",color:COLORS.text,lineHeight:1.3}}>{story.title}</h4>
-      <div style={{display:"flex",gap:7}}>
-        <span style={{fontSize:"0.76rem",color:COLORS.accent5,fontWeight:"bold"}}>❤️ {story.loves||0}</span>
-        <span style={{fontSize:"0.76rem",color:"#b8860b",fontWeight:"bold"}}>👍 {story.likes||0}</span>
-      </div>
-    </div>
-  );
+function HomeScreen({ onNavigate, topLoved, topLiked, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
+  const hasPopularStories = topLoved.length > 0 || topLiked.length > 0;
+  const welcomeRaw = "Welcome to Doodle Stories! 🎨 Pick your language and let's make magic!";
+  const welcomeText = welcomeRaw.length > 50 ? `${welcomeRaw.slice(0, 50)}…` : welcomeRaw;
+
+  useEffect(() => {
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
+    };
+  }, []);
 
   return (
-    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,fontFamily:"Georgia,serif",position:"relative",overflow:"hidden"}}>
+    <div
+      className="home-screen-root"
+      style={{
+        height: "100dvh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        background: `radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,
+        fontFamily: "Georgia,serif",
+        position: "relative",
+      }}
+    >
       <style>{`
-        @keyframes mascotBounce{from{transform:translateY(0)}to{transform:translateY(-5px)}}
-        @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        @keyframes dot{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
-        @keyframes twinkle{from{opacity:0.2}to{opacity:0.8}}
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-        @keyframes confettiFall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+        .home-screen-root,
+        .home-screen-root * { box-sizing: border-box; }
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+        .home-inner { gap: 6px; padding: 6px 16px 4px; }
+        .home-header-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .home-header-emoji { font-size: 2.2rem; line-height: 1; flex-shrink: 0; animation: float 3s infinite ease-in-out; }
+        .home-header-title { font-size: 1.5rem; color: ${COLORS.text}; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
+        .home-header-tagline { color: ${COLORS.muted}; font-size: 0.75rem; font-style: italic; margin: 0; line-height: 1.2; }
+        .home-action-grid { flex: 1; min-height: 0; display: flex; gap: 6px; align-items: stretch; }
+        .home-action-grid button { flex: 1; max-height: 150px; min-height: 0; overflow: hidden; }
+        .home-footer { font-size: 0.6rem; padding: 2px 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        @media (min-height: 900px) {
+          .home-inner { gap: 12px; }
+          .home-header-emoji { font-size: 2.5rem; }
+          .home-header-title { font-size: 1.6rem; }
+          .home-action-grid button { max-height: 200px; }
+        }
+        @media (max-width: 480px) {
+          .home-action-grid { flex-direction: column; }
+          .home-action-grid button { max-height: 110px; }
+        }
       `}</style>
-      <div style={{position:"fixed",top:-80,right:-80,width:300,height:300,borderRadius:"50%",background:"rgba(255,107,107,0.12)",zIndex:0}}/>
-      <div style={{position:"fixed",bottom:-60,left:-60,width:250,height:250,borderRadius:"50%",background:"rgba(77,150,255,0.10)",zIndex:0}}/>
-      <div style={{position:"relative",zIndex:1,maxWidth:680,margin:"0 auto",padding:"56px 28px 72px"}}>
-        <header style={{textAlign:"center",marginBottom:52}}>
-          <div style={{fontSize:72,marginBottom:20,animation:"float 3s infinite ease-in-out"}}>🎨</div>
-          <h1 style={{fontSize:"clamp(2rem,6vw,3rem)",color:COLORS.text,margin:"0 0 18px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
-            Doodle <span style={{color:COLORS.accent1}}>Stories</span>
-          </h1>
-          <p style={{color:COLORS.muted,fontSize:"1.05rem",fontStyle:"italic",margin:"0 0 28px",lineHeight:1.65,maxWidth:460,marginLeft:"auto",marginRight:"auto"}}>
-            Draw it. Upload it. Turn it into a magical story.<br/>Share it as a bedtime story for the world. 🌙
-          </p>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:36}}>
-            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+      <div style={{position:"absolute",top:-80,right:-80,width:200,height:200,borderRadius:"50%",background:"rgba(255,107,107,0.10)",zIndex:0,pointerEvents:"none"}}/>
+      <div style={{position:"absolute",bottom:-60,left:-60,width:160,height:160,borderRadius:"50%",background:"rgba(77,150,255,0.08)",zIndex:0,pointerEvents:"none"}}/>
+
+      <div className="home-inner" style={{
+        position:"relative",zIndex:1,flex:1,display:"flex",flexDirection:"column",
+        maxWidth:680,width:"100%",margin:"0 auto",
+        minHeight:0,overflow:"hidden",boxSizing:"border-box",
+      }}>
+        <header style={{flex:"0 0 auto"}}>
+          <div className="home-header-row">
+            <div className="home-header-emoji" aria-hidden="true">🎨</div>
+            <div style={{textAlign:"left",minWidth:0}}>
+              <h1 className="home-header-title">
+                Doodle <span style={{color:COLORS.accent1}}>Stories</span>
+              </h1>
+              <p className="home-header-tagline">
+                Draw it. Upload it. Turn it into a magical story. 🌙
+              </p>
+            </div>
           </div>
-          <p style={{
-            color:COLORS.muted,fontSize:"0.82rem",lineHeight:1.5,
-            margin:"0 auto",maxWidth:420,
-            background:"rgba(255,255,255,0.55)",
-            border:`1px solid ${COLORS.border}`,borderRadius:14,padding:"10px 16px",
-          }}>
-            Welcome to Doodle Stories! 🎨 Pick your language and let&apos;s make magic!
-          </p>
         </header>
 
-        <section style={{maxWidth:420,width:"100%",margin:"0 auto 52px"}}>
-          <label htmlFor="home-story-language" style={{display:"block",textAlign:"center",color:COLORS.text,fontSize:"0.82rem",fontWeight:"bold",marginBottom:10}}>
-            🌍 Story Language
-          </label>
+        <div style={{flex:"0 0 auto",display:"flex",justifyContent:"center"}}>
+          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+        </div>
+
+        <section style={{flex:"0 0 auto",maxWidth:340,width:"100%",margin:"0 auto"}}>
           <select
             id="home-story-language"
             value={selectedLanguage}
             onChange={(e)=>onLanguageChange(e.target.value)}
+            aria-label="Story language"
             style={{
-              width:"100%",padding:"14px 16px",borderRadius:16,
+              width:"100%",padding:"5px 10px",borderRadius:10,
               border:`2px solid ${COLORS.accent1}`,background:COLORS.card,
-              color:COLORS.text,fontSize:"1rem",fontFamily:"Georgia,serif",
-              cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,107,0.12)",
-              appearance:"auto",textAlign:"center",
+              color:COLORS.text,fontSize:"0.8rem",fontFamily:"Georgia,serif",
+              cursor:"pointer",boxShadow:"0 2px 8px rgba(255,107,107,0.08)",
+              appearance:"auto",
             }}
           >
             {TTS_LANGUAGES.map((lang)=>(
@@ -573,29 +732,22 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
           </select>
         </section>
 
-        <section style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",
-          gap:20,
-          marginBottom:48,
-        }}>
+        <section className="home-action-grid">
           <button
             type="button"
             onClick={()=>onNavigate("create")}
             style={{
-              padding:"26px 22px",borderRadius:22,border:`1px solid rgba(255,107,107,0.2)`,
+              padding:"8px 12px",borderRadius:12,border:`1px solid rgba(255,107,107,0.2)`,
               background:COLORS.card,cursor:"pointer",textAlign:"left",
-              boxShadow:"0 8px 28px rgba(255,107,107,0.12)",
-              fontFamily:"Georgia,serif",transition:"transform 0.15s, box-shadow 0.15s",
+              boxShadow:"0 3px 12px rgba(255,107,107,0.08)",
+              fontFamily:"Georgia,serif",
             }}
-            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 32px rgba(255,107,107,0.18)";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 8px 28px rgba(255,107,107,0.12)";}}
           >
-            <div style={{fontSize:"1.75rem",marginBottom:12}}>🖼️</div>
-            <div style={{fontSize:"1.05rem",fontWeight:"bold",color:COLORS.text,marginBottom:8,lineHeight:1.3}}>
+            <div style={{fontSize:"1.05rem",marginBottom:3,lineHeight:1}}>🖼️</div>
+            <div style={{fontSize:"0.88rem",fontWeight:"bold",color:COLORS.text,marginBottom:2,lineHeight:1.15}}>
               Create a Story from My Doodle
             </div>
-            <div style={{fontSize:"0.84rem",color:COLORS.muted,lineHeight:1.45,fontWeight:"normal"}}>
+            <div style={{fontSize:"0.65rem",color:COLORS.muted,lineHeight:1.2,fontWeight:"normal"}}>
               Upload your drawing and watch it come to life
             </div>
           </button>
@@ -603,56 +755,59 @@ function HomeScreen({ onNavigate, topLoved, topLiked, onRead, selectedLanguage, 
             type="button"
             onClick={()=>onNavigate("library")}
             style={{
-              padding:"26px 22px",borderRadius:22,border:`1px solid rgba(45,27,110,0.18)`,
+              padding:"8px 12px",borderRadius:12,border:`1px solid rgba(45,27,110,0.18)`,
               background:COLORS.card,cursor:"pointer",textAlign:"left",
-              boxShadow:"0 8px 28px rgba(45,27,110,0.1)",
-              fontFamily:"Georgia,serif",transition:"transform 0.15s, box-shadow 0.15s",
+              boxShadow:"0 3px 12px rgba(45,27,110,0.06)",
+              fontFamily:"Georgia,serif",
             }}
-            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 32px rgba(45,27,110,0.16)";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 8px 28px rgba(45,27,110,0.1)";}}
           >
-            <div style={{fontSize:"1.75rem",marginBottom:12}}>🌙</div>
-            <div style={{fontSize:"1.05rem",fontWeight:"bold",color:COLORS.text,marginBottom:8,lineHeight:1.3}}>
+            <div style={{fontSize:"1.05rem",marginBottom:3,lineHeight:1}}>🌙</div>
+            <div style={{fontSize:"0.88rem",fontWeight:"bold",color:COLORS.text,marginBottom:2,lineHeight:1.15}}>
               Bedtime Story Library
             </div>
-            <div style={{fontSize:"0.84rem",color:COLORS.muted,lineHeight:1.45,fontWeight:"normal"}}>
+            <div style={{fontSize:"0.65rem",color:COLORS.muted,lineHeight:1.2,fontWeight:"normal"}}>
               Revisit your magical stories anytime
             </div>
           </button>
         </section>
 
-        {topLoved.length>0&&(
-          <div style={{marginBottom:32}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-              <span style={{fontSize:22}}>🏆</span>
-              <div><h2 style={{margin:0,fontSize:"1.1rem",color:COLORS.text}}>Most Loved Stories</h2><p style={{margin:0,fontSize:"0.75rem",color:COLORS.muted}}>Voted by kids everywhere</p></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-              {topLoved.slice(0,3).map((s,i)=><HeroCard key={s.id} story={s} rank={i+1} accent={COLORS.accent5}/>)}
-            </div>
+        {hasPopularStories&&(
+          <div style={{flex:"0 0 auto",textAlign:"center"}}>
+            <button
+              type="button"
+              onClick={()=>onNavigate("library")}
+              style={{
+                background:"rgba(255,255,255,0.6)",border:`1px solid ${COLORS.border}`,
+                borderRadius:14,padding:"2px 8px",cursor:"pointer",
+                fontSize:"0.6rem",color:COLORS.muted,fontFamily:"Georgia,serif",
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",
+              }}
+            >
+              🏆 Popular stories in Library →
+            </button>
           </div>
         )}
 
-        {topLiked.length>0&&(
-          <div style={{marginBottom:32}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-              <span style={{fontSize:22}}>⭐</span>
-              <div><h2 style={{margin:0,fontSize:"1.1rem",color:COLORS.text}}>Most Liked Stories</h2><p style={{margin:0,fontSize:"0.75rem",color:COLORS.muted}}>Popular picks</p></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-              {topLiked.slice(0,3).map((s,i)=><HeroCard key={s.id} story={s} rank={i+1} accent={COLORS.accent2}/>)}
-            </div>
-          </div>
-        )}
+        <p style={{
+          flex:"0 0 auto",
+          color:COLORS.muted,fontSize:"0.7rem",lineHeight:1.2,
+          margin:0,width:"100%",textAlign:"center",
+          background:"rgba(255,255,255,0.55)",
+          border:`1px solid ${COLORS.border}`,borderRadius:8,padding:"4px 12px",
+          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+        }}>
+          {welcomeText}
+        </p>
 
-        <div style={{textAlign:"center",marginTop:40,paddingTop:24,borderTop:`1px solid ${COLORS.border}`}}>
-          <p style={{color:COLORS.muted,fontSize:"0.78rem",margin:"0 0 10px"}}>Made with ❤️ for little storytellers everywhere</p>
-          <div style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap"}}>
-            <button onClick={()=>onNavigate("about")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>About Us</button>
-            <button onClick={()=>onNavigate("contact")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Contact Us</button>
-            <button onClick={()=>onNavigate("privacy")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Privacy Policy</button>
-            <button onClick={()=>onNavigate("terms")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif",textDecoration:"underline"}}>Terms of Service</button>
-          </div>
+        <div className="home-footer" style={{flex:"0 0 auto",textAlign:"center",color:COLORS.muted,fontFamily:"Georgia,serif"}}>
+          <span>Made with ❤️ · </span>
+          <button onClick={()=>onNavigate("about")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>About</button>
+          <span> · </span>
+          <button onClick={()=>onNavigate("contact")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Contact</button>
+          <span> · </span>
+          <button onClick={()=>onNavigate("privacy")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Privacy</button>
+          <span> · </span>
+          <button onClick={()=>onNavigate("terms")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Terms</button>
         </div>
       </div>
     </div>
@@ -823,7 +978,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
           {filtered.map((s,i)=>(
             <StoryCard
-              key={s.id} story={s} onRead={setReadingStory}
+              key={s.id} story={s} onRead={(story)=>setReadingStory(normalizeStoryEntry(story))}
               nightMode={nightMode} votes={votes} onVote={handleVote}
               highlight={tab==="loved" && i<3}
             />
@@ -998,6 +1153,16 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     } catch (err) {
       console.warn("Failed to persist doodle image:", err?.message);
     }
+    if (doodleUrl?.startsWith("blob:")) {
+      console.error("💾 Refusing to save blob URL as doodleUrl");
+      doodleUrl = null;
+    }
+    console.log(
+      "💾 Saving story doodleUrl:",
+      doodleUrl
+        ? `${doodleUrl.startsWith("data:") ? "data:" : doodleUrl.slice(0, 24)}... (${doodleUrl.length} chars)`
+        : "null (no image persisted)"
+    );
     const newEntry = {
       id: Date.now(),
       title: story.title,
@@ -1018,9 +1183,17 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       await saveLibrary(updated);
     } catch (e) {
       if (doodleUrl) {
-        console.warn("Storage quota hit — saving story without doodle image:", e?.message);
-        updated = [{ ...newEntry, doodleUrl: null }, ...currentLibrary];
-        await saveLibrary(updated);
+        console.warn("Storage quota hit — retrying with smaller doodle image:", e?.message);
+        try {
+          const smaller = await compressDoodleDataUrl(doodleUrl, 320, 0.7);
+          updated = [{ ...newEntry, doodleUrl: smaller }, ...currentLibrary];
+          console.log("💾 Retrying save with compressed doodle:", `data:... (${smaller.length} chars)`);
+          await saveLibrary(updated);
+        } catch (retryErr) {
+          console.warn("Storage quota hit — saving story without doodle image:", retryErr?.message);
+          updated = [{ ...newEntry, doodleUrl: null }, ...currentLibrary];
+          await saveLibrary(updated);
+        }
       } else {
         throw e;
       }
@@ -1945,7 +2118,7 @@ export default function App() {
   );
 
   if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
-  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} topLoved={topLoved} topLiked={topLiked} onRead={()=>navigate("library")} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} topLoved={topLoved} topLiked={topLiked} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
