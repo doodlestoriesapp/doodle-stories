@@ -633,11 +633,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, topLoved, topLiked, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
-  const hasPopularStories = topLoved.length > 0 || topLiked.length > 0;
-  const welcomeRaw = "Welcome to Doodle Stories! 🎨 Pick your language and let's make magic!";
-  const welcomeText = welcomeRaw.length > 50 ? `${welcomeRaw.slice(0, 50)}…` : welcomeRaw;
-
+function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
   useEffect(() => {
     const prevBody = document.body.style.overflow;
     const prevHtml = document.documentElement.style.overflow;
@@ -658,7 +654,7 @@ function HomeScreen({ onNavigate, topLoved, topLiked, selectedLanguage, onLangua
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        background: `radial-gradient(ellipse at 20% 20%,#FFE8D6 0%,#FFF9F0 40%,#E8F4FF 100%)`,
+        background: `radial-gradient(ellipse at 15% 10%, #FFE8D6 0%, #FFF9F0 45%, #E8F4FF 100%)`,
         fontFamily: "Georgia,serif",
         position: "relative",
       }}
@@ -666,148 +662,139 @@ function HomeScreen({ onNavigate, topLoved, topLiked, selectedLanguage, onLangua
       <style>{`
         .home-screen-root,
         .home-screen-root * { box-sizing: border-box; }
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-        .home-inner { gap: 6px; padding: 6px 16px 4px; }
-        .home-header-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .home-header-emoji { font-size: 2.2rem; line-height: 1; flex-shrink: 0; animation: float 3s infinite ease-in-out; }
-        .home-header-title { font-size: 1.5rem; color: ${COLORS.text}; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
-        .home-header-tagline { color: ${COLORS.muted}; font-size: 0.75rem; font-style: italic; margin: 0; line-height: 1.2; }
-        .home-action-grid { flex: 1; min-height: 0; display: flex; gap: 6px; align-items: stretch; }
-        .home-action-grid button { flex: 1; max-height: 150px; min-height: 0; overflow: hidden; }
-        .home-footer { font-size: 0.6rem; padding: 2px 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        @media (min-height: 900px) {
-          .home-inner { gap: 12px; }
-          .home-header-emoji { font-size: 2.5rem; }
-          .home-header-title { font-size: 1.6rem; }
-          .home-action-grid button { max-height: 200px; }
+        @keyframes homeFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+        @keyframes homeTwinkle { 0%,100%{opacity:0.35} 50%{opacity:0.85} }
+        .home-sparkle { position:absolute; font-size:0.65rem; pointer-events:none; animation:homeTwinkle 2.5s ease-in-out infinite; }
+        .home-inner {
+          flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between;
+          padding:14px 20px 10px; max-width:520px; width:100%; margin:0 auto;
+          position:relative; z-index:1;
         }
-        @media (max-width: 480px) {
-          .home-action-grid { flex-direction: column; }
-          .home-action-grid button { max-height: 110px; }
+        .home-topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-shrink:0; }
+        .home-brand { display:flex; align-items:center; gap:10px; min-width:0; }
+        .home-brand-emoji { font-size:2.2rem; line-height:1; flex-shrink:0; animation:homeFloat 3s ease-in-out infinite; }
+        .home-brand-title { font-size:1.45rem; color:${COLORS.text}; margin:0; line-height:1.15; letter-spacing:-0.02em; }
+        .home-brand-tagline { color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:2px 0 0; line-height:1.25; }
+        .home-lang { flex-shrink:0; margin-top:10px; }
+        .home-lang select {
+          width:100%; padding:6px 12px; border-radius:999px;
+          border:1.5px solid ${COLORS.border}; background:rgba(255,255,255,0.85);
+          color:${COLORS.muted}; font-size:0.78rem; font-family:Georgia,serif;
+          cursor:pointer; appearance:auto; box-shadow:none;
+        }
+        .home-hero {
+          flex:1; min-height:0; display:flex; flex-direction:column; gap:12px;
+          justify-content:center; padding:12px 0;
+        }
+        .home-card {
+          flex:1; min-height:0; display:flex; flex-direction:column;
+          align-items:center; justify-content:center; text-align:center;
+          border:none; border-radius:22px; padding:16px 18px; cursor:pointer;
+          font-family:Georgia,serif; transition:transform 0.18s ease, box-shadow 0.18s ease;
+          position:relative; overflow:hidden;
+        }
+        .home-card::before {
+          content:""; position:absolute; inset:0; opacity:0.12;
+          background:radial-gradient(circle at 80% 20%, white 0%, transparent 55%);
+          pointer-events:none;
+        }
+        .home-card:hover { transform:translateY(-2px) scale(1.01); }
+        .home-card-create {
+          background:linear-gradient(145deg, ${COLORS.accent1} 0%, #FF8E53 100%);
+          color:white; box-shadow:0 10px 32px rgba(255,107,107,0.35);
+        }
+        .home-card-create:hover { box-shadow:0 14px 40px rgba(255,107,107,0.42); }
+        .home-card-library {
+          background:linear-gradient(145deg, ${COLORS.night2} 0%, ${COLORS.night3} 100%);
+          color:white; box-shadow:0 10px 32px rgba(45,27,110,0.32);
+        }
+        .home-card-library:hover { box-shadow:0 14px 40px rgba(45,27,110,0.4); }
+        .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin-bottom:8px; position:relative; z-index:1; }
+        .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 5px; position:relative; z-index:1; }
+        .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
+        .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+        .home-welcome {
+          text-align:center; color:${COLORS.muted}; font-size:0.68rem; line-height:1.2;
+          margin:0; padding:0; background:none; border:none;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .home-footer {
+          text-align:center; color:${COLORS.muted}; font-size:0.58rem;
+          line-height:1.2; padding:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .home-footer button {
+          background:none; border:none; cursor:pointer; color:${COLORS.muted};
+          font-size:inherit; font-family:Georgia,serif; text-decoration:underline; padding:0;
+        }
+        @media (min-width: 560px) {
+          .home-hero { flex-direction:row; gap:14px; }
+        }
+        @media (max-height: 680px) {
+          .home-inner { padding:10px 16px 8px; }
+          .home-brand-emoji { font-size:1.9rem; }
+          .home-brand-title { font-size:1.3rem; }
+          .home-hero { gap:10px; padding:8px 0; }
+          .home-card { border-radius:18px; padding:12px 14px; }
+          .home-card-emoji { margin-bottom:5px; }
         }
       `}</style>
-      <div style={{position:"absolute",top:-80,right:-80,width:200,height:200,borderRadius:"50%",background:"rgba(255,107,107,0.10)",zIndex:0,pointerEvents:"none"}}/>
-      <div style={{position:"absolute",bottom:-60,left:-60,width:160,height:160,borderRadius:"50%",background:"rgba(77,150,255,0.08)",zIndex:0,pointerEvents:"none"}}/>
 
-      <div className="home-inner" style={{
-        position:"relative",zIndex:1,flex:1,display:"flex",flexDirection:"column",
-        maxWidth:680,width:"100%",margin:"0 auto",
-        minHeight:0,overflow:"hidden",boxSizing:"border-box",
-      }}>
-        <header style={{flex:"0 0 auto"}}>
-          <div className="home-header-row">
-            <div className="home-header-emoji" aria-hidden="true">🎨</div>
-            <div style={{textAlign:"left",minWidth:0}}>
-              <h1 className="home-header-title">
-                Doodle <span style={{color:COLORS.accent1}}>Stories</span>
-              </h1>
-              <p className="home-header-tagline">
-                Draw it. Upload it. Turn it into a magical story. 🌙
-              </p>
+      <span className="home-sparkle" style={{ top:"12%", left:"8%", animationDelay:"0s" }}>✨</span>
+      <span className="home-sparkle" style={{ top:"18%", right:"10%", animationDelay:"0.8s" }}>⭐</span>
+      <span className="home-sparkle" style={{ bottom:"22%", left:"6%", animationDelay:"1.4s" }}>🌟</span>
+      <div style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
+      <div style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
+
+      <div className="home-inner">
+        <div>
+          <div className="home-topbar">
+            <div className="home-brand">
+              <div className="home-brand-emoji" aria-hidden="true">🎨</div>
+              <div style={{ minWidth:0 }}>
+                <h1 className="home-brand-title">
+                  Doodle <span style={{ color:COLORS.accent1 }}>Stories</span>
+                </h1>
+                <p className="home-brand-tagline">Draw it. Upload it. Watch the magic happen. 🌙</p>
+              </div>
             </div>
+            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
           </div>
-        </header>
-
-        <div style={{flex:"0 0 auto",display:"flex",justifyContent:"center"}}>
-          <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+          <div className="home-lang">
+            <select
+              id="home-story-language"
+              value={selectedLanguage}
+              onChange={(e)=>onLanguageChange(e.target.value)}
+              aria-label="Story language"
+            >
+              {TTS_LANGUAGES.map((lang)=>(
+                <option key={lang} value={lang}>🌍 {lang}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <section style={{flex:"0 0 auto",maxWidth:340,width:"100%",margin:"0 auto"}}>
-          <select
-            id="home-story-language"
-            value={selectedLanguage}
-            onChange={(e)=>onLanguageChange(e.target.value)}
-            aria-label="Story language"
-            style={{
-              width:"100%",padding:"5px 10px",borderRadius:10,
-              border:`2px solid ${COLORS.accent1}`,background:COLORS.card,
-              color:COLORS.text,fontSize:"0.8rem",fontFamily:"Georgia,serif",
-              cursor:"pointer",boxShadow:"0 2px 8px rgba(255,107,107,0.08)",
-              appearance:"auto",
-            }}
-          >
-            {TTS_LANGUAGES.map((lang)=>(
-              <option key={lang} value={lang}>{lang}</option>
-            ))}
-          </select>
-        </section>
-
-        <section className="home-action-grid">
-          <button
-            type="button"
-            onClick={()=>onNavigate("create")}
-            style={{
-              padding:"8px 12px",borderRadius:12,border:`1px solid rgba(255,107,107,0.2)`,
-              background:COLORS.card,cursor:"pointer",textAlign:"left",
-              boxShadow:"0 3px 12px rgba(255,107,107,0.08)",
-              fontFamily:"Georgia,serif",
-            }}
-          >
-            <div style={{fontSize:"1.05rem",marginBottom:3,lineHeight:1}}>🖼️</div>
-            <div style={{fontSize:"0.88rem",fontWeight:"bold",color:COLORS.text,marginBottom:2,lineHeight:1.15}}>
-              Create a Story from My Doodle
-            </div>
-            <div style={{fontSize:"0.65rem",color:COLORS.muted,lineHeight:1.2,fontWeight:"normal"}}>
-              Upload your drawing and watch it come to life
-            </div>
+        <div className="home-hero">
+          <button type="button" className="home-card home-card-create" onClick={()=>onNavigate("create")}>
+            <div className="home-card-emoji">🖼️</div>
+            <p className="home-card-title">Create a Story from My Doodle</p>
+            <p className="home-card-desc">Upload your drawing and watch it come to life</p>
           </button>
-          <button
-            type="button"
-            onClick={()=>onNavigate("library")}
-            style={{
-              padding:"8px 12px",borderRadius:12,border:`1px solid rgba(45,27,110,0.18)`,
-              background:COLORS.card,cursor:"pointer",textAlign:"left",
-              boxShadow:"0 3px 12px rgba(45,27,110,0.06)",
-              fontFamily:"Georgia,serif",
-            }}
-          >
-            <div style={{fontSize:"1.05rem",marginBottom:3,lineHeight:1}}>🌙</div>
-            <div style={{fontSize:"0.88rem",fontWeight:"bold",color:COLORS.text,marginBottom:2,lineHeight:1.15}}>
-              Bedtime Story Library
-            </div>
-            <div style={{fontSize:"0.65rem",color:COLORS.muted,lineHeight:1.2,fontWeight:"normal"}}>
-              Revisit your magical stories anytime
-            </div>
+          <button type="button" className="home-card home-card-library" onClick={()=>onNavigate("library")}>
+            <div className="home-card-emoji">🌙</div>
+            <p className="home-card-title">Bedtime Story Library</p>
+            <p className="home-card-desc">Revisit your magical stories anytime</p>
           </button>
-        </section>
+        </div>
 
-        {hasPopularStories&&(
-          <div style={{flex:"0 0 auto",textAlign:"center"}}>
-            <button
-              type="button"
-              onClick={()=>onNavigate("library")}
-              style={{
-                background:"rgba(255,255,255,0.6)",border:`1px solid ${COLORS.border}`,
-                borderRadius:14,padding:"2px 8px",cursor:"pointer",
-                fontSize:"0.6rem",color:COLORS.muted,fontFamily:"Georgia,serif",
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",
-              }}
-            >
-              🏆 Popular stories in Library →
-            </button>
+        <div className="home-bottom">
+          <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
+          <div className="home-footer">
+            Made with ❤️ ·{" "}
+            <button type="button" onClick={()=>onNavigate("about")}>About</button> ·{" "}
+            <button type="button" onClick={()=>onNavigate("contact")}>Contact</button> ·{" "}
+            <button type="button" onClick={()=>onNavigate("privacy")}>Privacy</button> ·{" "}
+            <button type="button" onClick={()=>onNavigate("terms")}>Terms</button>
           </div>
-        )}
-
-        <p style={{
-          flex:"0 0 auto",
-          color:COLORS.muted,fontSize:"0.7rem",lineHeight:1.2,
-          margin:0,width:"100%",textAlign:"center",
-          background:"rgba(255,255,255,0.55)",
-          border:`1px solid ${COLORS.border}`,borderRadius:8,padding:"4px 12px",
-          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-        }}>
-          {welcomeText}
-        </p>
-
-        <div className="home-footer" style={{flex:"0 0 auto",textAlign:"center",color:COLORS.muted,fontFamily:"Georgia,serif"}}>
-          <span>Made with ❤️ · </span>
-          <button onClick={()=>onNavigate("about")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>About</button>
-          <span> · </span>
-          <button onClick={()=>onNavigate("contact")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Contact</button>
-          <span> · </span>
-          <button onClick={()=>onNavigate("privacy")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Privacy</button>
-          <span> · </span>
-          <button onClick={()=>onNavigate("terms")} style={{background:"none",border:"none",cursor:"pointer",color:COLORS.muted,fontSize:"inherit",fontFamily:"inherit",textDecoration:"underline",padding:0}}>Terms</button>
         </div>
       </div>
     </div>
@@ -2099,9 +2086,6 @@ export default function App() {
     await saveLibrary(updated);
   };
 
-  const topLoved = [...library].sort((a,b)=>(b.loves||0)-(a.loves||0)).filter(s=>(s.loves||0)>0);
-  const topLiked = [...library].sort((a,b)=>(b.likes||0)-(a.likes||0)).filter(s=>(s.likes||0)>0);
-
   const navigate = (next) => {
     if (next === "home" && window.location.pathname === "/success") {
       window.history.replaceState(null, "", "/");
@@ -2118,7 +2102,7 @@ export default function App() {
   );
 
   if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
-  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} topLoved={topLoved} topLiked={topLiked} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
