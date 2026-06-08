@@ -688,10 +688,14 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         .home-card {
           flex:1; min-height:0; display:flex; flex-direction:column;
-          align-items:center; justify-content:center; text-align:center;
+          align-items:stretch; justify-content:center; text-align:center;
           border:none; border-radius:22px; padding:16px 18px; cursor:pointer;
           font-family:Georgia,serif; transition:transform 0.18s ease, box-shadow 0.18s ease;
           position:relative; overflow:hidden;
+        }
+        .home-card-inner {
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+          flex:1; width:100%; min-height:0; position:relative; z-index:1;
         }
         .home-card::before {
           content:""; position:absolute; inset:0; opacity:0.12;
@@ -757,7 +761,9 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
                 <p className="home-brand-tagline">Draw it. Upload it. Watch the magic happen. 🌙</p>
               </div>
             </div>
-            <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+            <div style={{ marginRight: 8, flexShrink: 0 }}>
+              <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+            </div>
           </div>
           <div className="home-lang">
             <select
@@ -775,14 +781,18 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
 
         <div className="home-hero">
           <button type="button" className="home-card home-card-create" onClick={()=>onNavigate("create")}>
-            <div className="home-card-emoji">🖼️</div>
-            <p className="home-card-title">Create a Story from My Doodle</p>
-            <p className="home-card-desc">Upload your drawing and watch it come to life</p>
+            <div className="home-card-inner">
+              <div className="home-card-emoji">🖼️</div>
+              <p className="home-card-title">Create a Story</p>
+              <p className="home-card-desc">Upload your drawing and watch it come to life</p>
+            </div>
           </button>
           <button type="button" className="home-card home-card-library" onClick={()=>onNavigate("library")}>
-            <div className="home-card-emoji">🌙</div>
-            <p className="home-card-title">Bedtime Story Library</p>
-            <p className="home-card-desc">Revisit your magical stories anytime</p>
+            <div className="home-card-inner">
+              <div className="home-card-emoji">🌙</div>
+              <p className="home-card-title">Bedtime Story Library</p>
+              <p className="home-card-desc">Revisit your magical stories anytime</p>
+            </div>
           </button>
         </div>
 
