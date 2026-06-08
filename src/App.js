@@ -733,6 +733,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         @media (min-width: 560px) {
           .home-hero { flex-direction:row; gap:14px; }
         }
+        @media (max-width: 480px) {
+          .home-hero { flex:0 0 auto; gap:10px; padding:8px 0; justify-content:flex-start; }
+          .home-card { flex:0 0 auto; max-height:180px; width:100%; }
+        }
         @media (max-height: 680px) {
           .home-inner { padding:10px 16px 8px; }
           .home-brand-emoji { font-size:1.9rem; }
@@ -784,7 +788,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             <div className="home-card-inner">
               <div className="home-card-emoji">🖼️</div>
               <p className="home-card-title">Create a Story</p>
-              <p className="home-card-desc">Upload your drawing and watch it come to life</p>
+              <p className="home-card-desc">Watch your drawing come to life</p>
             </div>
           </button>
           <button type="button" className="home-card home-card-library" onClick={()=>onNavigate("library")}>
