@@ -734,6 +734,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
+          .home-screen-root { padding-top: 16px; }
           .home-hero { flex:0 0 auto; gap:10px; padding:8px 0; justify-content:flex-start; }
           .home-card { flex:0 0 auto; max-height:180px; width:100%; }
         }
