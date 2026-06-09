@@ -744,7 +744,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-brand-text { flex:none; min-width:0; overflow:visible; text-align:center; }
           .home-brand-emoji {
             font-size:4rem; line-height:1; display:flex; align-items:center;
-            margin-top:4px; padding-top:0;
+            margin-top:-8px; padding-top:0;
           }
           .home-brand-title { font-size:2.2rem; }
           .home-brand-tagline {
