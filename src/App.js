@@ -738,7 +738,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-brand {
             flex:none; margin:0 auto; text-align:center;
-            justify-content:center; align-items:flex-start;
+            justify-content:center; align-items:flex-start; gap:12px;
             min-width:0; max-width:none; overflow:visible;
           }
           .home-brand-text { flex:none; min-width:0; overflow:visible; text-align:center; }
