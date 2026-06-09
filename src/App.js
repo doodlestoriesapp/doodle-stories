@@ -753,7 +753,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-brand-tagline {
             color:#666; font-size:1rem;
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
-            text-align:center; width:100%; align-self:stretch; margin:0;
+            text-align:right; width:100%; align-self:stretch; margin:0;
           }
           .home-top-section { display:flex; flex-direction:column; gap:0; }
           .home-welcome {
