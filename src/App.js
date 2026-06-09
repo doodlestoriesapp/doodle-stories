@@ -725,21 +725,25 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-library:hover { box-shadow:0 14px 40px rgba(45,27,110,0.4); }
         .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin:0 0 6px; position:relative; z-index:1; }
         .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 4px; position:relative; z-index:1; }
+        .home-screen-root { position:relative; }
+        .home-premium-float { display:none; }
         @media (min-width: 481px) {
           .home-premium-float {
-            display:block; position:absolute; top:16px; right:24px; z-index:10;
+            display:block !important; position:absolute; top:16px; right:24px; z-index:20;
           }
           .home-premium-inline { display:none !important; }
           .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; justify-content:flex-start; }
           .home-brand { flex:1 1 auto; min-width:0; max-width:none; overflow:visible; }
           .home-brand-text { flex:1 1 auto; min-width:0; overflow:visible; width:100%; }
+          .home-brand-emoji { font-size:3rem; }
+          .home-brand-title { font-size:2.2rem; }
           .home-brand-tagline {
-            color:#666; font-size:0.9rem;
+            color:#666; font-size:1rem;
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
           }
           .home-welcome {
             margin:0 auto;
-            padding:20px 0 8px;
+            padding:32px 0 8px;
             width:fit-content;
             max-width:100%;
             color:#555;
@@ -759,9 +763,12 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             white-space:nowrap;
           }
           .home-footer {
+            display:flex; flex-direction:column; align-items:center; gap:6px;
             font-size:0.9rem !important; color:#333 !important; padding:16px 0 !important; line-height:1.35;
+            white-space:normal; overflow:visible; text-overflow:unset;
           }
-          .home-footer-prefix { color:#666 !important; }
+          .home-footer-prefix { color:#666 !important; font-size:0.85rem !important; }
+          .home-footer-links { font-weight:600; color:#222; }
           .home-footer button {
             color:#222 !important; font-weight:600 !important; text-decoration:none;
           }
@@ -802,7 +809,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         .home-footer-sep { font-weight:bold; }
         .home-footer-prefix { color:inherit; }
-        .home-premium-float { display:none; }
         @media (min-width: 560px) {
           .home-inner { max-width:560px; }
           .home-hero { flex-direction:row; gap:14px; }
@@ -811,7 +817,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-screen-root { padding-top:16px; }
           .home-premium-inline { display:none; }
           .home-premium-float {
-            display:block; position:absolute; top:12px; right:12px; z-index:10;
+            display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-lang { margin-top:0; }
@@ -896,14 +902,16 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
 
         <div className="home-bottom">
           <div className="home-footer">
-            <span className="home-footer-prefix">Made with ❤️</span> <span className="home-footer-sep">·</span>{" "}
-            <button type="button" onClick={()=>onNavigate("about")}>About</button>
-            <span className="home-footer-sep"> · </span>
-            <button type="button" onClick={()=>onNavigate("contact")}>Contact</button>
-            <span className="home-footer-sep"> · </span>
-            <button type="button" onClick={()=>onNavigate("privacy")}>Privacy</button>
-            <span className="home-footer-sep"> · </span>
-            <button type="button" onClick={()=>onNavigate("terms")}>Terms</button>
+            <div className="home-footer-prefix">Made with ❤️</div>
+            <div className="home-footer-links">
+              <button type="button" onClick={()=>onNavigate("about")}>About</button>
+              <span className="home-footer-sep"> · </span>
+              <button type="button" onClick={()=>onNavigate("contact")}>Contact</button>
+              <span className="home-footer-sep"> · </span>
+              <button type="button" onClick={()=>onNavigate("privacy")}>Privacy</button>
+              <span className="home-footer-sep"> · </span>
+              <button type="button" onClick={()=>onNavigate("terms")}>Terms</button>
+            </div>
           </div>
         </div>
       </div>
