@@ -673,7 +673,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-brand-emoji { font-size:2.2rem; line-height:1; flex-shrink:0; animation:homeFloat 3s ease-in-out infinite; }
         .home-brand-title { font-size:1.45rem; color:${COLORS.text}; margin:0; line-height:1.15; letter-spacing:-0.02em; }
         .home-brand-tagline { color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:2px 0 0; line-height:1.25; }
-        .home-lang { flex-shrink:0; margin-top:10px; }
+        .home-lang { flex-shrink:0; margin-top:0; }
         .home-lang-label {
           display:block; font-size:0.75rem; color:#555; margin-bottom:4px;
         }
@@ -688,15 +688,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           justify-content:center; padding:12px 0;
         }
         .home-card {
-          flex:1; min-height:0; display:flex; flex-direction:column;
-          align-items:center; justify-content:center; text-align:center;
-          border:none; border-radius:22px; padding:16px 18px; cursor:pointer;
+          flex:1; min-height:0;
+          display:flex; flex-direction:column; justify-content:center; align-items:center;
+          height:100%; width:100%;
+          text-align:center;
+          border:none; border-radius:22px; padding:14px 20px; cursor:pointer;
           font-family:Georgia,serif; transition:transform 0.18s ease, box-shadow 0.18s ease;
           position:relative; overflow:hidden;
         }
         .home-card-inner {
           display:flex; flex-direction:column; align-items:center; justify-content:center;
-          flex:1; width:100%; height:100%; min-height:0; align-self:stretch;
+          width:100%; margin:0; padding:0;
           position:relative; z-index:1;
         }
         .home-card-inner p { margin:0; }
@@ -716,17 +718,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           color:white; box-shadow:0 10px 32px rgba(45,27,110,0.32);
         }
         .home-card-library:hover { box-shadow:0 14px 40px rgba(45,27,110,0.4); }
-        .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin-bottom:8px; position:relative; z-index:1; }
-        .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 5px; position:relative; z-index:1; }
+        .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin:0 0 6px; position:relative; z-index:1; }
+        .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 4px; position:relative; z-index:1; }
         @media (min-width: 481px) {
-          .home-card-title { font-size:1.3rem; white-space:nowrap; }
+          .home-card { padding:14px 22px; }
+          .home-card-title { font-size:1.1rem; line-height:1.2; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
         .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
         .home-welcome {
-          text-align:center; color:${COLORS.muted}; font-size:0.68rem; line-height:1.2;
-          margin:0; padding:0; background:none; border:none;
-          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          text-align:center; color:#888; font-size:0.75rem; line-height:1.3;
+          margin:0; padding:4px 0 8px; background:none; border:none;
         }
         .home-footer {
           text-align:center; color:${COLORS.muted}; font-size:0.58rem;
@@ -749,7 +751,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-lang { margin-top:0; }
-          .home-lang-label { margin-top:24px; margin-bottom:4px; }
+          .home-lang-label { margin-top:0; margin-bottom:4px; }
           .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:stretch; }
           .home-card { flex:1; min-height:0; width:100%; }
           .home-footer {
@@ -758,7 +760,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-footer button {
             color:#444; padding:2px 5px;
           }
-          .home-welcome { display:none; }
         }
         @media (max-height: 680px) {
           .home-inner { padding:10px 16px 8px; }
@@ -794,6 +795,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
               <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
             </div>
           </div>
+          <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
           <div className="home-lang">
             <label htmlFor="home-story-language" className="home-lang-label">
               🌍 Select your language
@@ -829,7 +831,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         </div>
 
         <div className="home-bottom">
-          <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
           <div className="home-footer">
             Made with ❤️ <span className="home-footer-sep">·</span>{" "}
             <button type="button" onClick={()=>onNavigate("about")}>About</button>
