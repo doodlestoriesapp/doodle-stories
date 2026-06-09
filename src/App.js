@@ -761,10 +761,20 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             color:#333; text-decoration:none;
           }
           .home-footer button:hover { text-decoration:underline; }
+          .home-inner { justify-content:flex-start; }
+          .home-bottom { margin-top:auto; }
           .home-hero {
             flex:0 0 auto; height:380px; min-height:380px; max-height:380px;
+            margin-top:16px; padding:0; justify-content:stretch;
           }
-          .home-card { padding:14px 22px; height:100%; }
+          .home-card {
+            display:flex; flex-direction:column; justify-content:center; align-items:center;
+            height:100%; padding:14px 22px;
+          }
+          .home-card-inner {
+            display:flex; flex-direction:column; justify-content:center; align-items:center;
+            width:100%; height:100%; margin:0; padding:0; margin-top:0; padding-top:0;
+          }
           .home-card-title { font-size:1.1rem; line-height:1.2; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
