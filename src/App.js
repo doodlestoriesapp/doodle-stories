@@ -663,8 +663,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-screen-root,
         .home-screen-root * { box-sizing: border-box; }
         @keyframes homeFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-        @keyframes homeTwinkle { 0%,100%{opacity:0.35} 50%{opacity:0.85} }
-        .home-sparkle { position:absolute; font-size:0.65rem; pointer-events:none; animation:homeTwinkle 2.5s ease-in-out infinite; }
         .home-inner {
           flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between;
           padding:14px 20px 10px; max-width:520px; width:100%; margin:0 auto;
@@ -755,6 +753,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-footer button {
             color:#444; padding:2px 5px;
           }
+          .home-welcome { display:none; }
         }
         @media (max-height: 680px) {
           .home-inner { padding:10px 16px 8px; }
@@ -766,7 +765,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
       `}</style>
 
-      <span className="home-sparkle" style={{ top:"12%", left:"8%", animationDelay:"0s" }}>✨</span>
+
       <div style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
       <div style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
 
