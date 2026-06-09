@@ -729,12 +729,18 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-premium-float { display:none; }
         @media (min-width: 481px) {
           .home-premium-float {
-            display:block !important; position:absolute; top:16px; right:24px; z-index:20;
+            display:block !important; position:absolute; top:16px; right:calc(50% - 280px); z-index:20;
           }
           .home-premium-inline { display:none !important; }
-          .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; justify-content:flex-start; }
-          .home-brand { flex:1 1 auto; min-width:0; max-width:none; overflow:visible; }
-          .home-brand-text { flex:1 1 auto; min-width:0; overflow:visible; width:100%; }
+          .home-topbar {
+            margin-top:48px; align-items:center; width:100%; overflow:visible;
+            justify-content:center;
+          }
+          .home-brand {
+            flex:none; margin:0 auto; text-align:center;
+            justify-content:center; min-width:0; max-width:none; overflow:visible;
+          }
+          .home-brand-text { flex:none; min-width:0; overflow:visible; text-align:center; }
           .home-brand-emoji { font-size:3rem; }
           .home-brand-title { font-size:2.2rem; }
           .home-brand-tagline {
@@ -743,7 +749,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-welcome {
             margin:0 auto;
-            padding:32px 0 8px;
+            padding:40px 0 8px;
             width:fit-content;
             max-width:100%;
             color:#555;
