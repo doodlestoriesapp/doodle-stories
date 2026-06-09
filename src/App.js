@@ -721,7 +721,12 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin:0 0 6px; position:relative; z-index:1; }
         .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 4px; position:relative; z-index:1; }
         @media (min-width: 481px) {
-          .home-card { padding:14px 22px; }
+          .home-topbar { margin-top:20px; }
+          .home-welcome { margin-top:12px; }
+          .home-hero {
+            flex:0 0 auto; height:380px; min-height:380px; max-height:380px;
+          }
+          .home-card { padding:14px 22px; height:100%; }
           .home-card-title { font-size:1.1rem; line-height:1.2; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
