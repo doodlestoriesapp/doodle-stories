@@ -729,7 +729,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-premium-float { display:none; }
         @media (min-width: 481px) {
           .home-premium-float {
-            display:block !important; position:absolute; top:16px; right:calc(50% - 280px); z-index:20;
+            display:block !important; position:absolute; top:16px; right:calc(50% - 260px); z-index:20;
           }
           .home-premium-inline { display:none !important; }
           .home-topbar {
@@ -749,11 +749,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-welcome {
             margin:0 auto;
-            padding:40px 0 8px;
+            padding:56px 0 8px;
             width:fit-content;
             max-width:100%;
             color:#555;
-            font-size:0.85rem;
+            font-size:1rem;
             background:transparent;
             border:none;
             min-height:0;
@@ -763,7 +763,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             border-radius:0;
             flex:none;
           }
-          .home-lang-label { color:#444; font-size:0.85rem; font-weight:500; }
+          .home-lang-label { color:#444; font-size:1rem; font-weight:500; }
           .home-card-desc {
             font-size:0.9rem; opacity:1; max-width:none;
             white-space:nowrap;
