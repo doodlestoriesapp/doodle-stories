@@ -689,15 +689,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         .home-card {
           flex:1; min-height:0; display:flex; flex-direction:column;
-          align-items:stretch; justify-content:center; text-align:center;
+          align-items:center; justify-content:center; text-align:center;
           border:none; border-radius:22px; padding:16px 18px; cursor:pointer;
           font-family:Georgia,serif; transition:transform 0.18s ease, box-shadow 0.18s ease;
           position:relative; overflow:hidden;
         }
         .home-card-inner {
           display:flex; flex-direction:column; align-items:center; justify-content:center;
-          flex:1; width:100%; min-height:0; position:relative; z-index:1;
+          flex:1; width:100%; height:100%; min-height:0; align-self:stretch;
+          position:relative; z-index:1;
         }
+        .home-card-inner p { margin:0; }
         .home-card::before {
           content:""; position:absolute; inset:0; opacity:0.12;
           background:radial-gradient(circle at 80% 20%, white 0%, transparent 55%);
@@ -716,6 +718,9 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-library:hover { box-shadow:0 14px 40px rgba(45,27,110,0.4); }
         .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin-bottom:8px; position:relative; z-index:1; }
         .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 5px; position:relative; z-index:1; }
+        @media (min-width: 481px) {
+          .home-card-title { font-size:1.3rem; white-space:nowrap; }
+        }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
         .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
         .home-welcome {
