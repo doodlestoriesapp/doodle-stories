@@ -747,9 +747,12 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             color:#666; font-size:1rem;
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
           }
+          .home-top-section { display:flex; flex-direction:column; gap:0; }
           .home-welcome {
-            margin:24px auto 0;
-            padding:16px 0 8px;
+            margin:32px auto 0 !important;
+            margin-top:32px !important;
+            padding:0 0 8px !important;
+            padding-top:0 !important;
             width:fit-content;
             max-width:100%;
             color:#444;
