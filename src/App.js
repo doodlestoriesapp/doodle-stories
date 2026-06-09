@@ -729,7 +729,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-premium-float { display:none; }
         @media (min-width: 481px) {
           .home-premium-float {
-            display:block !important; position:absolute; top:16px; right:40px; z-index:20;
+            display:block !important; position:absolute; top:16px; right:24px; z-index:20;
           }
           .home-premium-inline { display:none !important; }
           .home-topbar {
@@ -748,8 +748,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
           }
           .home-welcome {
-            margin:0 auto;
-            padding:56px 0 8px;
+            margin:24px auto 0;
+            padding:16px 0 8px;
             width:fit-content;
             max-width:100%;
             color:#444;
