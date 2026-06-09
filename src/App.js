@@ -755,10 +755,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             white-space:nowrap;
           }
           .home-footer {
-            font-size:0.85rem; color:#444; padding:12px 0; line-height:1.35;
+            font-size:0.85rem; color:#666; padding:12px 0; line-height:1.35;
           }
           .home-footer button {
-            color:#333; text-decoration:none;
+            color:#333; font-weight:500; text-decoration:none;
           }
           .home-footer button:hover { text-decoration:underline; }
           .home-inner { justify-content:flex-start; }
@@ -769,13 +769,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-card {
             display:flex; flex-direction:column; justify-content:center; align-items:center;
-            height:100%; padding:14px 22px;
+            height:100%; padding:20px 22px; gap:0;
           }
           .home-card-inner {
             display:flex; flex-direction:column; justify-content:center; align-items:center;
-            width:100%; height:100%; margin:0; padding:0; margin-top:0; padding-top:0;
+            flex:none; align-self:center;
+            width:100%; margin:0; padding:0;
+            margin-top:0; padding-top:0; margin-bottom:0; padding-bottom:0;
           }
-          .home-card-title { font-size:1.1rem; line-height:1.2; }
+          .home-card-emoji { margin:0 0 6px; }
+          .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; }
+          .home-card-desc { margin:0; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
         .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
@@ -793,6 +797,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           font-size:inherit; font-family:Georgia,serif; text-decoration:underline; padding:0;
         }
         .home-footer-sep { font-weight:bold; }
+        .home-footer-prefix { color:inherit; }
         .home-premium-float { display:none; }
         @media (min-width: 560px) {
           .home-inner { max-width:560px; }
@@ -887,7 +892,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
 
         <div className="home-bottom">
           <div className="home-footer">
-            Made with ❤️ <span className="home-footer-sep">·</span>{" "}
+            <span className="home-footer-prefix">Made with ❤️</span> <span className="home-footer-sep">·</span>{" "}
             <button type="button" onClick={()=>onNavigate("about")}>About</button>
             <span className="home-footer-sep"> · </span>
             <button type="button" onClick={()=>onNavigate("contact")}>Contact</button>
