@@ -676,6 +676,9 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-brand-title { font-size:1.45rem; color:${COLORS.text}; margin:0; line-height:1.15; letter-spacing:-0.02em; }
         .home-brand-tagline { color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:2px 0 0; line-height:1.25; }
         .home-lang { flex-shrink:0; margin-top:10px; }
+        .home-lang-label {
+          display:block; font-size:0.75rem; color:#555; margin-bottom:4px;
+        }
         .home-lang select {
           width:100%; padding:6px 12px; border-radius:999px;
           border:1.5px solid ${COLORS.border}; background:rgba(255,255,255,0.85);
@@ -730,13 +733,26 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           background:none; border:none; cursor:pointer; color:${COLORS.muted};
           font-size:inherit; font-family:Georgia,serif; text-decoration:underline; padding:0;
         }
+        .home-footer-sep { font-weight:bold; }
+        .home-premium-float { display:none; }
         @media (min-width: 560px) {
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
-          .home-screen-root { padding-top: 16px; }
+          .home-screen-root { padding-top:16px; }
+          .home-premium-inline { display:none; }
+          .home-premium-float {
+            display:block; position:absolute; top:12px; right:12px; z-index:10;
+          }
+          .home-topbar { margin-top:8px; justify-content:center; }
           .home-hero { flex:0 0 auto; gap:10px; padding:8px 0; justify-content:flex-start; }
           .home-card { flex:0 0 auto; max-height:180px; width:100%; }
+          .home-footer {
+            font-size:0.75rem; color:#444; padding:4px 0; line-height:1.35;
+          }
+          .home-footer button {
+            color:#444; padding:2px 5px;
+          }
         }
         @media (max-height: 680px) {
           .home-inner { padding:10px 16px 8px; }
@@ -749,10 +765,13 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
       `}</style>
 
       <span className="home-sparkle" style={{ top:"12%", left:"8%", animationDelay:"0s" }}>✨</span>
-      <span className="home-sparkle" style={{ top:"18%", right:"10%", animationDelay:"0.8s" }}>⭐</span>
       <span className="home-sparkle" style={{ bottom:"22%", left:"6%", animationDelay:"1.4s" }}>🌟</span>
       <div style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
       <div style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
+
+      <div className="home-premium-float">
+        <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
+      </div>
 
       <div className="home-inner">
         <div>
@@ -766,11 +785,14 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
                 <p className="home-brand-tagline">Draw it. Upload it. Watch the magic happen. 🌙</p>
               </div>
             </div>
-            <div style={{ marginRight: 8, flexShrink: 0 }}>
+            <div className="home-premium-inline" style={{ marginRight: 8, flexShrink: 0 }}>
               <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
             </div>
           </div>
           <div className="home-lang">
+            <label htmlFor="home-story-language" className="home-lang-label">
+              🌍 Select your language
+            </label>
             <select
               id="home-story-language"
               value={selectedLanguage}
@@ -778,7 +800,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
               aria-label="Story language"
             >
               {TTS_LANGUAGES.map((lang)=>(
-                <option key={lang} value={lang}>🌍 {lang}</option>
+                <option key={lang} value={lang}>{lang}</option>
               ))}
             </select>
           </div>
@@ -804,10 +826,13 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         <div className="home-bottom">
           <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
           <div className="home-footer">
-            Made with ❤️ ·{" "}
-            <button type="button" onClick={()=>onNavigate("about")}>About</button> ·{" "}
-            <button type="button" onClick={()=>onNavigate("contact")}>Contact</button> ·{" "}
-            <button type="button" onClick={()=>onNavigate("privacy")}>Privacy</button> ·{" "}
+            Made with ❤️ <span className="home-footer-sep">·</span>{" "}
+            <button type="button" onClick={()=>onNavigate("about")}>About</button>
+            <span className="home-footer-sep"> · </span>
+            <button type="button" onClick={()=>onNavigate("contact")}>Contact</button>
+            <span className="home-footer-sep"> · </span>
+            <button type="button" onClick={()=>onNavigate("privacy")}>Privacy</button>
+            <span className="home-footer-sep"> · </span>
             <button type="button" onClick={()=>onNavigate("terms")}>Terms</button>
           </div>
         </div>
