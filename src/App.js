@@ -669,14 +669,14 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           position:relative; z-index:1;
         }
         .home-topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-shrink:0; }
-        .home-brand { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; flex:1; overflow:visible; }
-        .home-brand-row { display:flex; flex-direction:row; align-items:center; gap:8px; }
+        .home-brand { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; flex:1; overflow:visible; width:100%; }
+        .home-brand-row { display:flex; flex-direction:row; align-items:center; gap:8px; align-self:center; }
         .home-brand-text { min-width:0; flex:1; overflow:visible; }
         .home-brand-emoji { font-size:2.2rem; line-height:1; flex-shrink:0; animation:homeFloat 3s ease-in-out infinite; }
         .home-brand-title { font-size:1.45rem; color:${COLORS.text}; margin:0; line-height:1.15; letter-spacing:-0.02em; }
         .home-brand-tagline {
           color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:0; line-height:1.25;
-          white-space:normal; overflow:visible; text-align:center; width:100%;
+          white-space:normal; overflow:visible; text-align:center; width:100%; align-self:stretch;
         }
         .home-top-section { flex-shrink:0; background:none; border:none; padding:0; margin:0; }
         .home-lang { flex-shrink:0; margin-top:0; }
@@ -753,7 +753,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-brand-tagline {
             color:#666; font-size:1rem;
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
-            text-align:center; width:100%; margin:0;
+            text-align:center; width:100%; align-self:stretch; margin:0;
           }
           .home-top-section { display:flex; flex-direction:column; gap:0; }
           .home-welcome {
