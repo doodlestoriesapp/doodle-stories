@@ -738,13 +738,13 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-brand {
             flex:none; margin:0 auto; text-align:center;
-            justify-content:center; align-items:center;
+            justify-content:center; align-items:flex-start;
             min-width:0; max-width:none; overflow:visible;
           }
           .home-brand-text { flex:none; min-width:0; overflow:visible; text-align:center; }
           .home-brand-emoji {
-            font-size:4rem; line-height:1; display:flex; align-items:center; align-self:center;
-            margin-top:0; padding-top:0;
+            font-size:4rem; line-height:1; display:flex; align-items:center;
+            margin-top:4px; padding-top:0;
           }
           .home-brand-title { font-size:2.2rem; }
           .home-brand-tagline {
@@ -790,8 +790,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-inner { justify-content:flex-start; }
           .home-bottom { margin-top:auto; }
           .home-hero {
-            flex:0 0 auto; height:320px; min-height:320px; max-height:320px;
-            margin-top:16px; padding:0; justify-content:stretch;
+            flex:0 0 auto; height:280px; min-height:280px; max-height:280px;
+            margin-top:24px; padding:0; justify-content:stretch;
           }
           .home-card {
             display:flex; flex-direction:column; justify-content:center; align-items:center;
