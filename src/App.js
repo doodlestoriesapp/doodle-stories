@@ -729,12 +729,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; }
           .home-brand { flex:1 1 auto; min-width:0; max-width:none; overflow:visible; }
           .home-brand-text { flex:1 1 auto; min-width:0; overflow:visible; width:100%; }
-          .home-brand-tagline { white-space:normal; overflow:visible; text-overflow:clip; max-width:100%; }
+          .home-brand-tagline {
+            color:#666; font-size:0.9rem;
+            white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
+          }
           .home-welcome {
             margin:12px auto 0;
             padding:4px 0 8px;
             width:fit-content;
             max-width:100%;
+            color:#555;
+            font-size:0.85rem;
             background:transparent;
             border:none;
             min-height:0;
@@ -744,6 +749,18 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             border-radius:0;
             flex:none;
           }
+          .home-lang-label { color:#444; font-size:0.85rem; font-weight:500; }
+          .home-card-desc {
+            font-size:0.9rem; opacity:1; max-width:none;
+            white-space:nowrap;
+          }
+          .home-footer {
+            font-size:0.85rem; color:#444; padding:12px 0; line-height:1.35;
+          }
+          .home-footer button {
+            color:#333; text-decoration:none;
+          }
+          .home-footer button:hover { text-decoration:underline; }
           .home-hero {
             flex:0 0 auto; height:380px; min-height:380px; max-height:380px;
           }
@@ -768,6 +785,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-footer-sep { font-weight:bold; }
         .home-premium-float { display:none; }
         @media (min-width: 560px) {
+          .home-inner { max-width:560px; }
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
