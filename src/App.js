@@ -764,7 +764,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-inner { justify-content:flex-start; }
           .home-bottom { margin-top:auto; }
           .home-hero {
-            flex:0 0 auto; height:380px; min-height:380px; max-height:380px;
+            flex:0 0 auto; height:320px; min-height:320px; max-height:320px;
             margin-top:16px; padding:0; justify-content:stretch;
           }
           .home-card {
@@ -775,7 +775,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             display:flex; flex-direction:column; justify-content:center; align-items:center;
             flex:none; align-self:center;
             width:100%; margin:0; padding:0;
-            margin-top:0; padding-top:0; margin-bottom:0; padding-bottom:0;
+            margin-top:0; padding-top:0; margin-bottom:0; padding-bottom:20px;
           }
           .home-card-emoji { margin:0 0 6px; }
           .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; }
