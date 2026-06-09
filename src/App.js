@@ -745,8 +745,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             display:block; position:absolute; top:12px; right:12px; z-index:10;
           }
           .home-topbar { margin-top:8px; justify-content:center; }
-          .home-hero { flex:0 0 auto; gap:10px; padding:8px 0; justify-content:flex-start; }
-          .home-card { flex:0 0 auto; max-height:180px; width:100%; }
+          .home-lang { margin-top:0; }
+          .home-lang-label { margin-top:24px; margin-bottom:4px; }
+          .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:stretch; }
+          .home-card { flex:1; min-height:0; width:100%; }
           .home-footer {
             font-size:0.75rem; color:#444; padding:4px 0; line-height:1.35;
           }
@@ -765,7 +767,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
       `}</style>
 
       <span className="home-sparkle" style={{ top:"12%", left:"8%", animationDelay:"0s" }}>✨</span>
-      <span className="home-sparkle" style={{ bottom:"22%", left:"6%", animationDelay:"1.4s" }}>🌟</span>
       <div style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
       <div style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
 
