@@ -726,7 +726,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin:0 0 6px; position:relative; z-index:1; }
         .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 4px; position:relative; z-index:1; }
         @media (min-width: 481px) {
-          .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; }
+          .home-premium-float {
+            display:block; position:absolute; top:16px; right:24px; z-index:10;
+          }
+          .home-premium-inline { display:none !important; }
+          .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; justify-content:flex-start; }
           .home-brand { flex:1 1 auto; min-width:0; max-width:none; overflow:visible; }
           .home-brand-text { flex:1 1 auto; min-width:0; overflow:visible; width:100%; }
           .home-brand-tagline {
@@ -734,8 +738,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
           }
           .home-welcome {
-            margin:12px auto 0;
-            padding:4px 0 8px;
+            margin:0 auto;
+            padding:20px 0 8px;
             width:fit-content;
             max-width:100%;
             color:#555;
@@ -755,10 +759,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             white-space:nowrap;
           }
           .home-footer {
-            font-size:0.85rem; color:#666; padding:12px 0; line-height:1.35;
+            font-size:0.9rem !important; color:#333 !important; padding:16px 0 !important; line-height:1.35;
           }
+          .home-footer-prefix { color:#666 !important; }
           .home-footer button {
-            color:#333; font-weight:500; text-decoration:none;
+            color:#222 !important; font-weight:600 !important; text-decoration:none;
           }
           .home-footer button:hover { text-decoration:underline; }
           .home-inner { justify-content:flex-start; }
@@ -775,7 +780,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             display:flex; flex-direction:column; justify-content:center; align-items:center;
             flex:none; align-self:center;
             width:100%; margin:0; padding:0;
-            margin-top:0; padding-top:0; margin-bottom:0; padding-bottom:20px;
           }
           .home-card-emoji { margin:0 0 6px; }
           .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; }
