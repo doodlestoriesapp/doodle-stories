@@ -669,10 +669,15 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           position:relative; z-index:1;
         }
         .home-topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-shrink:0; }
-        .home-brand { display:flex; align-items:center; gap:10px; min-width:0; }
+        .home-brand { display:flex; align-items:center; gap:10px; min-width:0; flex:1; overflow:visible; }
+        .home-brand-text { min-width:0; flex:1; overflow:visible; }
         .home-brand-emoji { font-size:2.2rem; line-height:1; flex-shrink:0; animation:homeFloat 3s ease-in-out infinite; }
         .home-brand-title { font-size:1.45rem; color:${COLORS.text}; margin:0; line-height:1.15; letter-spacing:-0.02em; }
-        .home-brand-tagline { color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:2px 0 0; line-height:1.25; }
+        .home-brand-tagline {
+          color:${COLORS.muted}; font-size:0.74rem; font-style:italic; margin:2px 0 0; line-height:1.25;
+          white-space:normal; overflow:visible;
+        }
+        .home-top-section { flex-shrink:0; background:none; border:none; padding:0; margin:0; }
         .home-lang { flex-shrink:0; margin-top:0; }
         .home-lang-label {
           display:block; font-size:0.75rem; color:#555; margin-bottom:4px;
@@ -721,8 +726,24 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-emoji { font-size:clamp(2rem, 6vw, 2.75rem); line-height:1; margin:0 0 6px; position:relative; z-index:1; }
         .home-card-title { font-size:clamp(0.95rem, 3.2vw, 1.12rem); font-weight:bold; line-height:1.25; margin:0 0 4px; position:relative; z-index:1; }
         @media (min-width: 481px) {
-          .home-topbar { margin-top:20px; }
-          .home-welcome { margin-top:12px; }
+          .home-topbar { margin-top:20px; align-items:flex-start; width:100%; overflow:visible; }
+          .home-brand { flex:1 1 auto; min-width:0; max-width:none; overflow:visible; }
+          .home-brand-text { flex:1 1 auto; min-width:0; overflow:visible; width:100%; }
+          .home-brand-tagline { white-space:normal; overflow:visible; text-overflow:clip; max-width:100%; }
+          .home-welcome {
+            margin:12px auto 0;
+            padding:4px 0 8px;
+            width:fit-content;
+            max-width:100%;
+            background:transparent;
+            border:none;
+            min-height:0;
+            height:auto;
+            line-height:1.3;
+            box-shadow:none;
+            border-radius:0;
+            flex:none;
+          }
           .home-hero {
             flex:0 0 auto; height:380px; min-height:380px; max-height:380px;
           }
@@ -732,8 +753,9 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
         .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
         .home-welcome {
-          text-align:center; color:#888; font-size:0.75rem; line-height:1.3;
-          margin:0; padding:4px 0 8px; background:none; border:none;
+          display:block; text-align:center; color:#888; font-size:0.75rem; line-height:1.3;
+          margin:0; padding:4px 0 8px; background:transparent; border:none;
+          min-height:0; height:auto; box-shadow:none; border-radius:0;
         }
         .home-footer {
           text-align:center; color:${COLORS.muted}; font-size:0.58rem;
@@ -785,11 +807,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
       </div>
 
       <div className="home-inner">
-        <div>
+        <div className="home-top-section">
           <div className="home-topbar">
             <div className="home-brand">
               <div className="home-brand-emoji" aria-hidden="true">🎨</div>
-              <div style={{ minWidth:0 }}>
+              <div className="home-brand-text">
                 <h1 className="home-brand-title">
                   Doodle <span style={{ color:COLORS.accent1 }}>Stories</span>
                 </h1>
