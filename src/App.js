@@ -708,11 +708,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           position:relative; z-index:1;
         }
         .home-card-inner p { margin:0; }
-        .home-card::before {
-          content:""; position:absolute; inset:0; opacity:0.12;
-          background:radial-gradient(circle at 80% 20%, white 0%, transparent 55%);
-          pointer-events:none;
-        }
         .home-card:hover { transform:translateY(-2px) scale(1.01); }
         .home-card-create {
           background:linear-gradient(145deg, ${COLORS.accent1} 0%, #FF8E53 100%);
@@ -732,7 +727,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-premium-float {
             display:block !important; position:absolute; top:16px; right:24px; z-index:20;
           }
-          .home-premium-inline { display:none !important; }
           .home-topbar {
             margin-top:48px; align-items:center; width:100%; overflow:visible;
             justify-content:center;
@@ -781,8 +775,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-lang { margin:0 auto; display:block; }
           .home-card-desc {
-            font-size:0.9rem; opacity:1; max-width:none;
-            white-space:nowrap;
+            font-size:0.9rem; opacity:1; max-width:100%;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
           }
           .home-footer {
             display:flex; flex-direction:column; align-items:center; gap:6px;
@@ -800,6 +794,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero {
             flex:0 0 auto; height:280px; min-height:280px; max-height:280px;
             margin:24px auto 0; padding:0; justify-content:center;
+            width:100%; overflow:hidden;
           }
           .home-card {
             display:flex; flex-direction:column; justify-content:center; align-items:center;
@@ -811,7 +806,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             width:100%; margin:0; padding:0;
           }
           .home-card-emoji { margin:0 0 6px; }
-          .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; white-space:nowrap; }
+          .home-card-title {
+            font-size:1.1rem; line-height:1.2; margin:0 0 4px;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+          }
           .home-card-desc { margin:0; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
@@ -836,14 +834,13 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         @media (max-width: 480px) {
           .home-screen-root { padding-top:16px; }
-          .home-premium-inline { display:none; }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-lang { margin-top:0; }
           .home-lang-label { margin-top:0; margin-bottom:4px; }
-          .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:stretch; }
+          .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:stretch; width:100%; overflow:hidden; }
           .home-card { flex:1; min-height:0; width:100%; }
           .home-footer {
             font-size:0.75rem; color:#444; padding:4px 0; line-height:1.35;
@@ -881,9 +878,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
                 </h1>
               </div>
               <p className="home-brand-tagline">Draw it. Upload it. Watch the magic happen. 🌙</p>
-            </div>
-            <div className="home-premium-inline" style={{ marginRight: 8, flexShrink: 0 }}>
-              <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
             </div>
           </div>
           <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
