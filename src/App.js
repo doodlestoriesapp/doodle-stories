@@ -744,7 +744,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         .home-footer button:hover { text-decoration:underline; }
         .home-footer-sep { font-weight:bold; }
-        .home-screen-root { position:relative; }
+        .home-screen-root { position:relative; height:auto; min-height:unset; overflow:visible; }
         .home-premium-float { display:none; }
         @media (min-width: 481px) {
           .home-screen-root { min-height:100dvh; height:100dvh; overflow:hidden; }
@@ -795,10 +795,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
-          .home-screen-root {
-            height:auto; min-height:0; overflow:visible;
-            padding-top:16px;
-          }
+          .home-screen-root { padding-top:16px; }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
