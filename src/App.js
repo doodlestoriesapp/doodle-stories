@@ -796,14 +796,19 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         @media (max-width: 480px) {
           .home-screen-root {
+            display:flex; flex-direction:column;
             min-height:100dvh; height:auto; overflow:hidden;
             padding-top:16px;
           }
+          .home-blob { display:none; }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
-          .home-inner { flex:none; padding:60px 20px 24px; }
-          .home-bottom { margin-top:0; }
+          .home-inner { flex:1; min-height:0; padding:60px 20px 24px; }
+          .home-bottom { margin-top:auto; }
+          .home-hero {
+            margin-top:20px; align-items:center; align-self:center; width:100%;
+          }
           .home-brand { margin-top:16px; }
           .home-card { flex:0 0 auto; height:auto; max-height:150px !important; }
         }
@@ -820,8 +825,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
       `}</style>
 
 
-      <div style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
-      <div style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
+      <div className="home-blob" style={{ position:"absolute", top:-60, right:-60, width:180, height:180, borderRadius:"50%", background:"rgba(255,217,61,0.14)", zIndex:0, pointerEvents:"none" }}/>
+      <div className="home-blob" style={{ position:"absolute", bottom:-40, left:-40, width:140, height:140, borderRadius:"50%", background:"rgba(77,150,255,0.10)", zIndex:0, pointerEvents:"none" }}/>
 
       <div className="home-premium-float">
         <GoPremiumButton isPremium={isPremium} setShowPaywall={setShowPaywall} variant="outline" />
