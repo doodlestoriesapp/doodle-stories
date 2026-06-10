@@ -753,16 +753,16 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-brand-tagline {
             color:#666; font-size:1rem;
             white-space:normal; overflow:visible; text-overflow:clip; max-width:100%;
-            text-align:right; width:100%; align-self:stretch; margin:0;
+            margin:0;
           }
           .home-top-section { display:flex; flex-direction:column; gap:0; }
           .home-welcome {
             margin:32px auto 0 !important;
-            margin-top:32px !important;
             padding:0 0 8px !important;
             padding-top:0 !important;
-            width:fit-content;
+            width:100% !important;
             max-width:100%;
+            text-align:center;
             color:#555 !important;
             font-size:0.95rem !important;
             font-weight:400;
@@ -775,7 +775,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             border-radius:0;
             flex:none;
           }
-          .home-lang-label { color:#444; font-size:1rem; font-weight:500; }
+          .home-lang-label {
+            color:#444; font-size:1rem; font-weight:500;
+            text-align:center; display:block;
+          }
+          .home-lang { margin:0 auto; display:block; }
           .home-card-desc {
             font-size:0.9rem; opacity:1; max-width:none;
             white-space:nowrap;
@@ -795,7 +799,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-bottom { margin-top:auto; }
           .home-hero {
             flex:0 0 auto; height:280px; min-height:280px; max-height:280px;
-            margin-top:24px; padding:0; justify-content:stretch;
+            margin:24px auto 0; padding:0; justify-content:center;
           }
           .home-card {
             display:flex; flex-direction:column; justify-content:center; align-items:center;
