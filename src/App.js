@@ -841,8 +841,8 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
           .home-inner {
-            flex:1; display:flex; flex-direction:column; justify-content:center;
-            gap:8px; min-height:0;
+            flex:1; display:flex; flex-direction:column; justify-content:flex-start;
+            gap:8px; min-height:0; padding-top:60px;
           }
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-brand { margin-top:16px; }
