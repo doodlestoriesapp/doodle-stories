@@ -795,7 +795,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
-          .home-screen-root { padding-top:16px; }
+          .home-screen-root {
+            min-height:100dvh; height:auto; overflow:hidden;
+            padding-top:16px;
+          }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
