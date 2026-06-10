@@ -797,7 +797,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         @media (max-width: 480px) {
           .home-screen-root {
             display:flex; flex-direction:column;
-            min-height:100dvh; height:auto; overflow:hidden;
+            min-height:100dvh; height:auto; overflow:visible;
             padding-top:16px;
           }
           .home-blob { display:none; }
@@ -805,9 +805,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
           .home-inner { flex:1; min-height:0; padding:60px 20px 24px; }
-          .home-bottom { margin-top:auto; }
+          .home-bottom { margin-top:0; overflow:visible; }
           .home-hero {
+            flex:1; max-height:320px; min-height:0;
             margin-top:20px; align-items:center; width:100%;
+            justify-content:center;
           }
           .home-brand { margin-top:16px; }
           .home-brand-title { font-size:2rem; }
