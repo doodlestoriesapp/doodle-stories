@@ -833,12 +833,17 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
-          .home-screen-root { padding-top:16px; }
+          .home-screen-root {
+            display:flex; flex-direction:column; justify-content:space-between;
+            min-height:100dvh; padding-top:16px;
+          }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
-          .home-inner { justify-content:flex-start; gap:8px; }
-          .home-bottom { margin-top:auto; }
+          .home-inner {
+            flex:1; display:flex; flex-direction:column; justify-content:center;
+            gap:8px; min-height:0;
+          }
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-brand { margin-top:16px; }
           .home-lang { margin-top:0; }
