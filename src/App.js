@@ -837,17 +837,23 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
+          .home-inner { justify-content:flex-start; gap:8px; }
+          .home-bottom { margin-top:auto; }
           .home-topbar { margin-top:8px; justify-content:center; }
+          .home-brand { margin-top:16px; }
           .home-lang { margin-top:0; }
           .home-lang-label { margin-top:0; margin-bottom:4px; }
           .home-welcome {
             font-size:0.78rem !important; white-space:nowrap !important;
             overflow:hidden; text-overflow:ellipsis; width:100%;
+            margin:0 !important; padding:0 0 4px !important;
           }
-          .home-top-section { gap:0; }
+          .home-top-section { gap:0; margin:0; padding:0; }
           .home-hero {
-            flex:0 0 auto; min-height:0; gap:10px; margin-top:8px !important;
-            padding:0 0 8px !important; justify-content:flex-start; width:100%; overflow:hidden;
+            flex:0 0 auto; min-height:0; gap:10px;
+            margin-top:8px !important; padding-top:0 !important;
+            padding-bottom:8px !important; justify-content:flex-start;
+            width:100%; overflow:hidden;
           }
           .home-card {
             flex:0 0 auto; height:auto; max-height:150px !important; min-height:0; width:100%;
@@ -864,7 +870,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-inner { padding:10px 16px 8px; }
           .home-brand-emoji { font-size:1.9rem; }
           .home-brand-title { font-size:1.3rem; }
-          .home-hero { gap:10px; padding:8px 0; }
+          .home-hero { gap:10px; }
           .home-card { border-radius:18px; padding:12px 14px; }
           .home-card-emoji { margin-bottom:5px; }
         }
