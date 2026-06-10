@@ -637,8 +637,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
   useEffect(() => {
     const prevBody = document.body.style.overflow;
     const prevHtml = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    const lockScroll = () => window.matchMedia("(min-width: 481px)").matches;
+    if (lockScroll()) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    }
     return () => {
       document.body.style.overflow = prevBody;
       document.documentElement.style.overflow = prevHtml;
@@ -649,14 +652,11 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
     <div
       className="home-screen-root"
       style={{
-        height: "100dvh",
-        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
         background: `radial-gradient(ellipse at 15% 10%, #FFE8D6 0%, #FFF9F0 45%, #E8F4FF 100%)`,
         fontFamily: "Georgia,serif",
-        position: "relative",
       }}
     >
       <style>{`
@@ -744,9 +744,10 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         }
         .home-footer button:hover { text-decoration:underline; }
         .home-footer-sep { font-weight:bold; }
-        .home-screen-root { position:relative; min-height:100dvh; }
+        .home-screen-root { position:relative; }
         .home-premium-float { display:none; }
         @media (min-width: 481px) {
+          .home-screen-root { min-height:100dvh; height:100dvh; overflow:hidden; }
           .home-premium-float {
             display:block !important; position:absolute; top:16px; right:24px; z-index:20;
           }
@@ -794,11 +795,15 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
-          .home-screen-root { padding-top:16px; }
+          .home-screen-root {
+            height:auto; min-height:0; overflow:visible;
+            padding-top:16px;
+          }
           .home-premium-float {
             display:block !important; position:absolute; top:12px; right:12px; z-index:20;
           }
-          .home-inner { padding-top:60px; }
+          .home-inner { flex:none; padding:60px 20px 24px; }
+          .home-bottom { margin-top:0; }
           .home-brand { margin-top:16px; }
           .home-card { flex:0 0 auto; height:auto; max-height:150px !important; }
         }
