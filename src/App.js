@@ -807,19 +807,23 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-inner { flex:1; min-height:0; padding:60px 20px 24px; }
           .home-bottom { margin-top:auto; }
           .home-hero {
-            margin-top:20px; align-items:center; align-self:center; width:100%;
+            margin-top:20px; align-items:center; width:100%;
           }
           .home-brand { margin-top:16px; }
+          .home-brand-title { font-size:2rem; }
+          .home-brand-tagline {
+            display:block; text-align:center; width:100%;
+          }
           .home-card { flex:0 0 auto; height:auto; max-height:150px !important; }
         }
         @media (max-height: 680px) {
-          .home-brand-emoji { font-size:1.9rem; }
-          .home-brand-title { font-size:1.3rem; }
           .home-hero { gap:10px; }
           .home-card { border-radius:18px; padding:12px 14px; }
           .home-card-emoji { margin-bottom:5px; }
         }
         @media (max-height: 680px) and (min-width: 481px) {
+          .home-brand-emoji { font-size:1.9rem; }
+          .home-brand-title { font-size:1.3rem; }
           .home-inner { padding:10px 16px 8px; }
         }
       `}</style>
