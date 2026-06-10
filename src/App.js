@@ -840,8 +840,12 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           .home-topbar { margin-top:8px; justify-content:center; }
           .home-lang { margin-top:0; }
           .home-lang-label { margin-top:0; margin-bottom:4px; }
-          .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:stretch; width:100%; overflow:hidden; }
-          .home-card { flex:1; min-height:0; width:100%; }
+          .home-welcome { font-size:0.85rem !important; }
+          .home-hero { flex:1; min-height:0; gap:10px; padding:8px 0; justify-content:center; width:100%; overflow:hidden; }
+          .home-card {
+            flex:0 0 auto; max-height:200px; min-height:0; width:100%;
+            display:flex; flex-direction:column; justify-content:center; align-items:center;
+          }
           .home-footer {
             font-size:0.75rem; color:#444; padding:4px 0; line-height:1.35;
           }
