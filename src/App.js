@@ -795,7 +795,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             color:#222 !important; font-weight:600 !important; text-decoration:none;
           }
           .home-footer button:hover { text-decoration:underline; }
-          .home-inner { justify-content:flex-start; }
+          .home-inner { justify-content:flex-start; max-width:620px; }
           .home-bottom { margin-top:auto; }
           .home-hero {
             flex:0 0 auto; height:280px; min-height:280px; max-height:280px;
@@ -811,7 +811,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             width:100%; margin:0; padding:0;
           }
           .home-card-emoji { margin:0 0 6px; }
-          .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; }
+          .home-card-title { font-size:1.1rem; line-height:1.2; margin:0 0 4px; white-space:nowrap; }
           .home-card-desc { margin:0; }
         }
         .home-card-desc { font-size:0.76rem; line-height:1.35; opacity:0.92; margin:0; max-width:260px; position:relative; z-index:1; }
@@ -832,7 +832,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-footer-sep { font-weight:bold; }
         .home-footer-prefix { color:inherit; }
         @media (min-width: 560px) {
-          .home-inner { max-width:560px; }
           .home-hero { flex-direction:row; gap:14px; }
         }
         @media (max-width: 480px) {
