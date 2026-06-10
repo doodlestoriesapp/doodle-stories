@@ -872,12 +872,14 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
         }
         @media (max-height: 680px) {
-          .home-inner { padding:10px 16px 8px; }
           .home-brand-emoji { font-size:1.9rem; }
           .home-brand-title { font-size:1.3rem; }
           .home-hero { gap:10px; }
           .home-card { border-radius:18px; padding:12px 14px; }
           .home-card-emoji { margin-bottom:5px; }
+        }
+        @media (max-height: 680px) and (min-width: 481px) {
+          .home-inner { padding:10px 16px 8px; }
         }
       `}</style>
 
