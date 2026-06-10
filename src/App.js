@@ -844,12 +844,13 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
             font-size:0.78rem !important; white-space:nowrap !important;
             overflow:hidden; text-overflow:ellipsis; width:100%;
           }
+          .home-top-section { gap:0; }
           .home-hero {
-            flex:1; min-height:0; gap:10px; margin-top:12px; padding:8px 0;
-            justify-content:center; width:100%; overflow:hidden;
+            flex:0 0 auto; min-height:0; gap:10px; margin-top:8px !important;
+            padding:0 0 8px !important; justify-content:flex-start; width:100%; overflow:hidden;
           }
           .home-card {
-            flex:0 0 auto; height:160px; max-height:160px; min-height:0; width:100%;
+            flex:0 0 auto; height:auto; max-height:150px !important; min-height:0; width:100%;
             display:flex; flex-direction:column; justify-content:center; align-items:center;
           }
           .home-footer {
