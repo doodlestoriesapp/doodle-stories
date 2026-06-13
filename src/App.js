@@ -729,7 +729,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           margin-top:56px !important; margin-bottom:0; padding:0 0 8px; width:100%;
           background:transparent; border:none; min-height:0; height:auto;
           box-shadow:none; border-radius:0;
-          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          white-space:normal; overflow:visible; text-overflow:clip;
         }
         .home-footer {
           display:flex; flex-direction:column; align-items:center; gap:6px;
