@@ -726,7 +726,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
         .home-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:6px; margin-top:auto; }
         .home-welcome {
           display:block; text-align:center; color:#555; font-size:0.78rem; line-height:1.3;
-          margin:24px 0 0; padding:0 0 8px; width:100%;
+          margin-top:56px !important; margin-bottom:0; padding:0 0 8px; width:100%;
           background:transparent; border:none; min-height:0; height:auto;
           box-shadow:none; border-radius:0;
           white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -775,7 +775,6 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
           }
           .home-top-section { display:flex; flex-direction:column; gap:0; }
           .home-welcome {
-            margin:32px 0 0 !important;
             font-size:0.95rem !important;
           }
           .home-lang-label { font-size:1rem; }
