@@ -1200,7 +1200,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     spokenKeys.current.delete("loading"); setStep(3);
     try {
       const res=await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/generate-story`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:1000,
+        model:"claude-sonnet-4-6", max_tokens:1000,
         language:selectedLanguage,
         system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Start the story with an engaging, specific opening line — NOT "Once upon a time". Jump straight into the action or introduce the character in a memorable way. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
         messages:[{role:"user",content:[
