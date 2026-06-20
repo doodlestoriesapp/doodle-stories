@@ -633,7 +633,7 @@ function SaveModal({ story, onSave }) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium, setShowPaywall }) {
+function HomeScreen({ onNavigate, isPremium, setShowPaywall }) {
   useEffect(() => {
     const prevBody = document.body.style.overflow;
     const prevHtml = document.documentElement.style.overflow;
@@ -850,22 +850,7 @@ function HomeScreen({ onNavigate, selectedLanguage, onLanguageChange, isPremium,
               <p className="home-brand-tagline">Draw it. Upload it. Watch the magic happen. 🌙</p>
             </div>
           </div>
-          <p className="home-welcome">✨ Welcome! Pick a language above, then choose your adventure.</p>
-          <div className="home-lang">
-            <label htmlFor="home-story-language" className="home-lang-label">
-              🌍 Select your language
-            </label>
-            <select
-              id="home-story-language"
-              value={selectedLanguage}
-              onChange={(e)=>onLanguageChange(e.target.value)}
-              aria-label="Story language"
-            >
-              {TTS_LANGUAGES.map((lang)=>(
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-          </div>
+          <p className="home-welcome">✨ Welcome! Choose your adventure below.</p>
         </div>
 
         <div className="home-hero">
@@ -1087,7 +1072,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, setShowPaywall, onStoryGenerated, isPremium }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, onLanguageChange, setShowPaywall, onStoryGenerated, isPremium }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -1758,6 +1743,22 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
                 </button>
               ))}
             </div>
+            <div style={{marginBottom:14}}>
+              <label htmlFor="story-language" style={{display:"block",textAlign:"center",fontSize:"0.92rem",color:COLORS.text,fontWeight:"bold",marginBottom:8}}>
+                🌍 What language should the story be in?
+              </label>
+              <select
+                id="story-language"
+                value={selectedLanguage}
+                onChange={(e)=>onLanguageChange(e.target.value)}
+                aria-label="Story language"
+                style={{width:"100%",padding:"11px 14px",borderRadius:13,border:`2px solid ${COLORS.border}`,background:"white",color:COLORS.text,fontSize:"0.9rem",fontFamily:"Georgia,serif",cursor:"pointer",boxSizing:"border-box"}}
+              >
+                {TTS_LANGUAGES.map((lang)=>(
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
+            </div>
             <div style={{display:"flex",gap:8}}>
               <button onClick={reset} style={{flex:1,padding:"11px",borderRadius:13,border:`2px solid ${COLORS.border}`,background:"transparent",cursor:"pointer",color:COLORS.muted,fontSize:"0.86rem"}}>← New Doodle</button>
               <button onClick={generateStory} disabled={!ageGroup}
@@ -2205,9 +2206,9 @@ export default function App() {
   );
 
   if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
-  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="privacy") return wrap(<PrivacyPolicyScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
