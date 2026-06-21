@@ -17,7 +17,7 @@ const COLORS = {
   border: "#F0E6D3",
 };
 
-export default function PaywallModal({ isOpen, onClose }) {
+export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState(null);
 
@@ -84,8 +84,9 @@ export default function PaywallModal({ isOpen, onClose }) {
             color: COLORS.text,
             lineHeight: 1.25,
           }}
-        >
-          You&apos;ve used all 10 free stories this month!
+        {reason === "upsell"
+            ? "Unlock unlimited Doodle Stories!"
+            : "You\u2019ve used all 10 free stories this month!"}
         </h2>
 
         <p
@@ -96,7 +97,10 @@ export default function PaywallModal({ isOpen, onClose }) {
             lineHeight: 1.55,
           }}
         >
-          Upgrade to Family Plan for unlimited stories, all voices, and more.
+          {reason === "upsell"
+            ? "Go Family Plan for unlimited stories, every voice, and all 30 languages."
+            : "Upgrade to Family Plan for unlimited stories, all voices, and more."}
+        
         </p>
 
         <div
