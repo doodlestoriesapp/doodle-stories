@@ -84,11 +84,11 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
             color: COLORS.text,
             lineHeight: 1.25,
           }}
-        {reason === "upsell"
+        >
+          {reason === "upsell"
             ? "Unlock unlimited Doodle Stories!"
             : "You\u2019ve used all 10 free stories this month!"}
         </h2>
-
         <p
           style={{
             margin: "0 0 24px",
