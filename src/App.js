@@ -1203,7 +1203,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
       const raw=data.content?.find(b=>b.type==="text")?.text||"";
       console.log("📖 Raw story response:", raw.slice(0,300));
-      const cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
+      let cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
+      // Model sometimes appends text after the closing brace — extract just the JSON object
+      const firstBrace=cleaned.indexOf("{");
+      const lastBrace=cleaned.lastIndexOf("}");
+      if(firstBrace!==-1&&lastBrace!==-1&&lastBrace>firstBrace){
+        cleaned=cleaned.slice(firstBrace,lastBrace+1);
+      }
       const parsed=JSON.parse(cleaned);
       spokenKeys.current.delete("story");
       setStory(parsed);
@@ -1211,7 +1217,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       onStoryGenerated?.();
     } catch(err) {
       console.error("❌ Story generation error:", err);
-      setError(err?.message||"Oops! The story magic fizzled. Try again!");
+      const isParseError = err instanceof SyntaxError;
+      setError(
+        isParseError
+          ? "✨ The story magic fizzled for a second — tap \"Make My Story!\" to try again!"
+          : (err?.message || "Oops! The story magic fizzled. Try again!")
+      );
       setStep(2);
     } finally {
       setLoading(false);
