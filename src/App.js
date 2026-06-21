@@ -41,7 +41,7 @@ function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "fill
   return (
     <button
       type="button"
-      onClick={() => setShowPaywall(true)}
+      onClick={() => setShowPaywall("upsell")}
       style={{
         padding: isOutline ? "5px 14px" : "6px 11px",
         borderRadius: 12,
@@ -1072,7 +1072,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
 }
 
 // ── CREATE ───────────────────────────────────────────────────────
-function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, onLanguageChange, setShowPaywall, onStoryGenerated, isPremium }) {
+function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLanguage, onLanguageChange, setShowPaywall, onStoryGenerated, isPremium, storyCount }) {
   const [mode, setMode] = useState(null);
   const [image, setImage] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -1181,6 +1181,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
 
   const generateStory=async()=>{
     if(!imageBase64||!ageGroup) return;
+    if(!isPremium&&storyCount>=10){
+      setShowPaywall("limit");
+      return;
+    }
     setLoading(true); setError(null);
     spokenKeys.current.delete("loading"); setStep(3);
     try {
@@ -1196,7 +1200,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
       const data=await res.json();
       console.log("🌐 API status:", res.status, "| data:", JSON.stringify(data).slice(0,300));
       if(res.status===403&&data.error==="STORY_LIMIT_REACHED"){
-        setShowPaywall(true);
+        setShowPaywall("limit");
         setStep(2);
         return;
       }
@@ -2175,7 +2179,7 @@ export default function App() {
   const onStoryGenerated = () => {
     setStoryCount((prev) => {
       const next = Math.min(prev + 1, 10);
-      if (next >= 10) setShowPaywall(true);
+      if (next >= 10) setShowPaywall("limit");
       return next;
     });
     fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
@@ -2211,7 +2215,7 @@ export default function App() {
   const wrap = (screen) => (
     <>
       <TtsErrorToast visible={ttsError} />
-      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
+      <PaywallModal isOpen={!!showPaywall} reason={showPaywall} onClose={() => setShowPaywall(false)} />
       {screen}
     </>
   );
@@ -2219,7 +2223,7 @@ export default function App() {
   if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
   if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium}/>);
+  if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium} storyCount={storyCount}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="privacy") return wrap(<PrivacyPolicyScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
