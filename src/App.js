@@ -1181,7 +1181,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
 
   const generateStory=async()=>{
     if(!imageBase64||!ageGroup) return;
-    if(!isPremium&&storyCount>=10){
+    if(!isPremium&&storyCount>=1){
       setShowPaywall("limit");
       return;
     }
