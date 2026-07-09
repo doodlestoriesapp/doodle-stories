@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { apiPost } from "./api";
 import { VOICE_LINES } from "./constants";
 
 const PREFETCH_PROMPT =
-  "Read aloud in an upbeat, playful, enthusiastic tone — like a friendly character speaking to young children.";
+  "Read aloud in an upbeat, playful, enthusiastic tone - like a friendly character speaking to young children.";
 const STORY_PROMPT = "Read aloud in a warm, engaging storytelling voice for children.";
 
 const _audioCache = new Map();
@@ -54,7 +54,6 @@ async function prefetchVoiceLines() {
   }
 }
 
-/** Prefetch first story chunks + read-aloud intro when story text is ready */
 export function prefetchStoryTTS(fullText) {
   const paras = fullText
     .split(/\n\n/)
@@ -83,6 +82,7 @@ async function playUri(uri, soundRef) {
 export function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
   const soundRef = useRef(null);
+  const cancelRef = useRef(false);
 
   useEffect(() => {
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
@@ -93,6 +93,7 @@ export function useSpeech() {
   }, []);
 
   const stop = useCallback(async () => {
+    cancelRef.current = true;
     try {
       await soundRef.current?.stopAsync();
       await soundRef.current?.unloadAsync();
@@ -124,6 +125,7 @@ export function useSpeech() {
     async (text) => {
       if (!text) return;
       await stop();
+      cancelRef.current = false;
       setSpeaking(true);
 
       const paras = text
@@ -136,15 +138,13 @@ export function useSpeech() {
         return;
       }
 
-      soundRef.current = {}; // sentinel
-
       const pending = paras.map(() => null);
       pending[0] = fetchTTS(paras[0], STORY_PROMPT);
       if (paras[1]) pending[1] = fetchTTS(paras[1], STORY_PROMPT);
 
       try {
         for (let i = 0; i < paras.length; i++) {
-          if (!soundRef.current) break;
+          if (cancelRef.current) break;
           if (paras[i + 2] && !pending[i + 2]) {
             pending[i + 2] = fetchTTS(paras[i + 2], STORY_PROMPT);
           }
@@ -154,7 +154,7 @@ export function useSpeech() {
           } catch {
             break;
           }
-          if (!uri || !soundRef.current) break;
+          if (!uri || cancelRef.current) break;
           setSpeaking(true);
           await playUri(uri, soundRef);
         }

@@ -292,10 +292,14 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     setStep(3);
     try {
       const data = await apiPost("/api/generate-story", {
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1000,
         system:
-          'You are a magical children\'s storyteller. Create a delightful story from a child\'s drawing. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, raw JSON only.',
+          `You are a magical children's storyteller. Create a delightful story from a child's drawing. Respond in EXACTLY this format and nothing else. Do NOT use JSON. Do NOT put quotes around the values.
+TITLE: put the story title here on one line
+STORY:
+put the full story here, as many paragraphs as you like
+TAGS: put three to five comma-separated tags here`,
         messages: [
           {
             role: "user",
@@ -310,8 +314,20 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
         ],
       });
       const raw = data.content?.find((b) => b.type === "text")?.text || "";
-      const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
-      const parsed = JSON.parse(cleaned);
+      console.log("STORY RAW:", raw.slice(0, 300));
+
+      // Parse the plain-text TITLE / STORY / TAGS format
+      const titleMatch = raw.match(/TITLE:\s*(.+)/i);
+      const storyMatch = raw.match(/STORY:\s*([\s\S]*?)(?:\nTAGS:|$)/i);
+      const tagsMatch = raw.match(/TAGS:\s*(.+)/i);
+
+      const title = titleMatch ? titleMatch[1].trim() : "My Doodle Story";
+      const story = storyMatch ? storyMatch[1].trim() : raw.trim();
+      const tags = tagsMatch
+        ? tagsMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
+        : [];
+
+      const parsed = { title, story, tags };
       spokenKeys.current.delete("story");
       setStory(parsed);
       prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
