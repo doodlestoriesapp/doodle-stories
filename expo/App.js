@@ -16,7 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { AGE_GROUPS, COLORS, VOICE_LINES } from "./src/constants";
+import { AGE_GROUPS, COLORS,LANGUAGES, VOICE_LINES } from "./src/constants";
 import { apiPost } from "./src/api";
 import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
 import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
@@ -229,6 +229,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [imageBase64, setImageBase64] = useState(null);
   const [imageMediaType, setImageMediaType] = useState("image/jpeg");
   const [ageGroup, setAgeGroup] = useState(null);
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
+  const [showLangModal, setShowLangModal] = useState(false);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -294,6 +296,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       const data = await apiPost("/api/generate-story", {
         model: "claude-sonnet-4-6",
         max_tokens: 1000,
+        language: selectedLanguage,
         system:
           `You are a magical children's storyteller. Create a delightful story from a child's drawing. Respond in EXACTLY this format and nothing else. Do NOT use JSON. Do NOT put quotes around the values.
 TITLE: put the story title here on one line
@@ -418,6 +421,9 @@ TAGS: put three to five comma-separated tags here`,
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Btn label="← New Doodle" onPress={reset} style={styles.mb8} />
+          <Pressable onPress={() => setShowLangModal(true)} style={styles.langBtn}>
+            <Text style={styles.langBtnText}>🌍 Story Language: {selectedLanguage}</Text>
+          </Pressable>
           <Btn label="✨ Make My Story!" primary disabled={!ageGroup} onPress={generateStory} />
         </View>
       )}
@@ -468,6 +474,28 @@ TAGS: put three to five comma-separated tags here`,
             <Btn label="Keep it just for us" onPress={() => handleSave(false)} />
           </View>
         </View>
+      </Modal>
+      <Modal visible={showLangModal} transparent animationType="slide">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowLangModal(false)}>
+          <View style={styles.langModalCard}>
+            <Text style={styles.modalTitle}>Choose Story Language</Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {LANGUAGES.map((lang) => (
+                <Pressable
+                  key={lang}
+                  onPress={() => {
+                    setSelectedLanguage(lang);
+                    setShowLangModal(false);
+                  }}
+                  style={[styles.langRow, selectedLanguage === lang && styles.langRowOn]}
+                >
+                  <Text style={styles.langRowText}>{lang}</Text>
+                  {selectedLanguage === lang ? <Text>✓</Text> : null}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
       </Modal>
     </Screen>
   );
@@ -725,4 +753,33 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
   },
   socialText: { fontSize: 16, fontWeight: "600", color: COLORS.text },
+  langBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: COLORS.accent4,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  langBtnText: { fontSize: 15, fontWeight: "600", color: COLORS.accent4 },
+  langModalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  langRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  langRowOn: { backgroundColor: "rgba(77,150,255,0.10)" },
+  langRowText: { fontSize: 16, color: COLORS.text },
 });

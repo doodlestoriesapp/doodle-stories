@@ -8,7 +8,7 @@ export const AGE_GROUPS = [
 export const VOICE_LINES = {
   1: "Woohoo! Welcome to Doodle Stories! You can upload your drawing OR draw one right here! Let's make some magic!",
   2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
-  ageSelected: "Let's go make a story by tapping the big orange Make My Story button!",
+  ageSelected: "Great choice! Pick your story's language if you'd like, then tap the big orange Make My Story button!",
   loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
   story: "Your magical story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
   library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
@@ -32,3 +32,11 @@ export const COLORS = {
   muted: "#8A8A8A",
   border: "#F0E6D3",
 };
+
+export const LANGUAGES = [
+  "English", "Spanish", "French", "German", "Italian", "Portuguese",
+  "Dutch", "Russian", "Mandarin Chinese", "Japanese", "Korean", "Arabic",
+  "Hindi", "Turkish", "Polish", "Swedish", "Norwegian", "Danish",
+  "Finnish", "Ukrainian", "Greek", "Czech", "Romanian", "Hungarian",
+  "Thai", "Vietnamese", "Indonesian", "Malay", "Tagalog", "Hebrew",
+];
