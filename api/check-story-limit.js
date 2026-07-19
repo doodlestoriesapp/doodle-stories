@@ -53,7 +53,8 @@ export default async function handler(req, res) {
   try {
     const redis = getRedis();
     const ip = getClientIp(req);
-    const key = `stories:${ip}:${getYearMonth()}`;
+    const ym = getYearMonth();
+    const key = `stories:${hashIp(ip, ym)}:${ym}`;
 
     if (req.method === "GET") {
       const raw = await redis.get(key);
