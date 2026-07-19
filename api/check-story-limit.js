@@ -62,9 +62,10 @@ export default async function handler(req, res) {
     }
 
     const count = await redis.incr(key);
-    await redis.expire(key, KEY_TTL_SECONDS);
+    if (count === 1) await redis.expire(key, KEY_TTL_SECONDS);
     return res.status(200).json(buildResponse(count));
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("check-story-limit error:", err?.message ?? err);
 
     if (req.method === "GET") {
