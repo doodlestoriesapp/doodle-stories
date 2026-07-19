@@ -1,8 +1,17 @@
 import { Redis } from "@upstash/redis";
+import crypto from "node:crypto";
 
 const STORY_LIMIT = 10;
 const KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
 
+function hashIp(ip, yearMonth) {
+  const salt = process.env.IP_HASH_SALT || "";
+  return crypto
+    .createHash("sha256")
+    .update(`${salt}:${yearMonth}:${ip}`)
+    .digest("hex")
+    .slice(0, 32);
+}
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) {
