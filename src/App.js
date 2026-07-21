@@ -624,8 +624,8 @@ function SaveModal({ story, onSave }) {
               so you can read and listen to it again anytime. It stays on this device — nothing is shared.
         </p>
         <div style={{display:"flex",gap:10,flexDirection:"column"}}>
-          <button onClick={()=>onSave(true)} style={{padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif"}}>✨ Yes, share it!</button>
-          <button onClick={()=>onSave(false)} style={{padding:"13px",borderRadius:16,border:`2px solid ${COLORS.border}`,background:"transparent",color:COLORS.muted,fontSize:"1rem",cursor:"pointer"}}>Keep it just for us</button>
+          <button onClick={()=>onSave(true)} style={{padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif"}}>✨ Yes, save it!</button>
+          <button onClick={()=>onSave(false)} style={{padding:"13px",borderRadius:16,border:`2px solid ${COLORS.border}`,background:"transparent",color:COLORS.muted,fontSize:"1rem",cursor:"pointer"}}> Not now </button>
         </div>
       </div>
     </div>
