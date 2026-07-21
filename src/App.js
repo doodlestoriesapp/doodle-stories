@@ -618,10 +618,10 @@ function SaveModal({ story, onSave }) {
     <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:"white",borderRadius:28,padding:"30px 34px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.25)",textAlign:"center"}}>
         <div style={{fontSize:46,marginBottom:10}}>🌙</div>
-        <h2 style={{margin:"0 0 10px",color:COLORS.text,fontSize:"1.25rem"}}>Share with the Library?</h2>
+        <h2 style={{margin:"0 0 10px",color:COLORS.text,fontSize:"1.25rem"}}>Save this story?</h2>
         <p style={{color:COLORS.muted,fontSize:"0.9rem",lineHeight:1.6,margin:"0 0 22px"}}>
-          Would you like to share <strong style={{color:COLORS.text}}>"{story.title}"</strong> in the Bedtime Story Library?
-          Other kids can like and love it — posted <strong>anonymously</strong>, no names shared.
+          Save <strong style={{color:COLORS.text}}>"{story.title}"</strong> to your Bedtime Story Library
+              so you can read and listen to it again anytime. It stays on this device — nothing is shared.
         </p>
         <div style={{display:"flex",gap:10,flexDirection:"column"}}>
           <button onClick={()=>onSave(true)} style={{padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif"}}>✨ Yes, share it!</button>
