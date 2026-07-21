@@ -2142,9 +2142,11 @@ function TtsErrorToast({ visible }) {
 }
 
 function getInitialView() {
-  if (typeof window !== "undefined" && window.location.pathname === "/success") {
-    return "success";
-  }
+  if (typeof window === "undefined") return "home";
+  const path = window.location.pathname;
+  if (path === "/success") return "success";
+  if (path === "/privacy") return "privacy";
+  if (path === "/terms") return "terms";
   return "home";
 }
 
@@ -2206,8 +2208,10 @@ export default function App() {
   };
 
   const navigate = (next) => {
-    if (next === "home" && window.location.pathname === "/success") {
-      window.history.replaceState(null, "", "/");
+    const paths = { privacy: "/privacy", terms: "/terms" };
+    const target = paths[next] || "/";
+    if (window.location.pathname !== target) {
+      window.history.pushState(null, "", target);
     }
     setView(next);
   };
