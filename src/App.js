@@ -1979,7 +1979,7 @@ function AboutScreen({ onNavigate, isPremium, setShowPaywall }) {
         <div style={{background:"white",borderRadius:20,padding:"24px 28px",marginBottom:20,border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
           <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 14px"}}>Our Story 🌟</h2>
           <p style={{color:COLORS.text,lineHeight:1.85,fontSize:"0.95rem",margin:"0 0 12px"}}>Doodle Stories was born from a simple belief — that every child's imagination deserves to be celebrated. Kids draw extraordinary things: dragons made of spaghetti, houses that float on clouds, cats who run bakeries. But too often those drawings stay folded in a backpack or stuck to a fridge.</p>
-          <p style={{color:COLORS.text,lineHeight:1.85,fontSize:"0.95rem",margin:0}}>We built Doodle Stories to change that. Upload or draw a doodle, pick an age group, and watch as AI transforms that drawing into a personalized story — narrated, shareable, and saved forever in our Bedtime Story Library for kids everywhere to enjoy.</p>
+          <p style={{color:COLORS.text,lineHeight:1.85,fontSize:"0.95rem",margin:0}}>We built Doodle Stories to change that. Upload or draw a doodle, pick an age group, and watch as AI transforms that drawing into a personalized story — narrated, shareable, and saved right on your device so you can revisit it any night you like.</p>
         </div>
         <div style={{background:"white",borderRadius:20,padding:"24px 28px",marginBottom:20,border:`1px solid ${COLORS.border}`,boxShadow:"0 6px 24px rgba(0,0,0,0.06)"}}>
           <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 16px"}}>What We Believe 💛</h2>
