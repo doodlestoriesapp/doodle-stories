@@ -1986,7 +1986,7 @@ function AboutScreen({ onNavigate, isPremium, setShowPaywall }) {
           {[
             ["🎨","Every child is a storyteller","Their imagination just needs a little magic to come alive."],
             ["🌍","Stories connect us","A child's drawing in Houston can inspire a bedtime story in London."],
-            ["🔒","Kids deserve safe spaces","No accounts required. No personal data collected. Just creativity."],
+            ["🔒","["🔒","Kids deserve safe spaces","DoodleStories offers that space — no accounts required, no ads, just creativity and loads of wonderful stories."],
             ["✨","Creativity is a superpower","We celebrate every doodle — wobbly lines and all."],
           ].map(([icon,title,desc])=>(
             <div key={title} style={{display:"flex",gap:14,marginBottom:16,alignItems:"flex-start"}}>
