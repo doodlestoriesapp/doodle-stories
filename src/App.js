@@ -1608,15 +1608,19 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     }
   };
 
-  const downloadAllCards = async () => {
-    for (let i = 0; i < shareCards.length; i++) {
+const downloadAllCards = async () => {
+    // Phone galleries and the Instagram picker sort by newest first, so the
+    // last file saved appears at the top. Downloading in reverse means
+    // card-01 ends up newest, and the cards line up correctly when tapped
+    // in the order they appear.
+    for (let i = shareCards.length - 1; i >= 0; i--) {
       const a = document.createElement("a");
       a.href = shareCards[i];
       a.download = `card-${String(i + 1).padStart(2, "0")}-of-${shareCards.length}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      if (i < shareCards.length - 1) {
+      if (i > 0) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
