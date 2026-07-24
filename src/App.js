@@ -1906,8 +1906,8 @@ const downloadAllCards = async () => {
                 <p style={{margin:0,fontSize:"0.74rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.65}}>
                   <strong>📱 How to post on Instagram:</strong><br/>
                   1. Tap Download Cards — they save one by one<br/>
-                  2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
-                  3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
+                  2. Instagram → + → Post → select <strong>card-01 only</strong><br/>
+                  3. Tap the <strong>gallery / add-more icon</strong> and add 02, then 03<br/>
                   4. Share as carousel ✨
                 </p>
               </div>
