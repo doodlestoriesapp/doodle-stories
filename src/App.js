@@ -1124,6 +1124,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     if(VOICE_LINES[key]) speak(VOICE_LINES[key],keyMap[key]);
   };
 
+  // Moderation now runs on the server inside /api/generate-story, so the
+  // image is simply accepted here and checked when the story is made.
   const handleFile=useCallback((file)=>{
     if(!file||!file.type.startsWith("image/")) return;
     const objectUrl = URL.createObjectURL(file);
@@ -1131,22 +1133,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     const mediaType = allowedTypes.includes(file.type) ? file.type : "image/png";
     setImageMediaType(mediaType);
     const reader=new FileReader();
-    reader.onload=async(e)=>{
+    reader.onload=(e)=>{
       const base64 = e.target.result.split(",")[1];
-      try {
-        const modRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/moderate-image`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64, mediaType }),
-        });
-        const modData = await modRes.json();
-        if (!modData.safe) {
-          setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
-          return;
-        }
-      } catch (err) {
-        console.warn("Moderation check failed, failing open:", err?.message);
-      }
+      setError(null);
       setImage(objectUrl);
       setImageBase64(base64);
       spokenKeys.current.delete("2");
@@ -1155,23 +1144,11 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     reader.readAsDataURL(file);
   },[]);
 
-  const handleCanvasUse=async(dataURL,base64)=>{
-    try {
-      const modRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/moderate-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64, mediaType: "image/png" }),
-      });
-      const modData = await modRes.json();
-      if (!modData.safe) {
-        setError("⚠️ This drawing isn't suitable for our kids' app. Please try a different one!");
-        return;
-      }
-    } catch (err) {
-      console.warn("Moderation check failed, failing open:", err?.message);
-    }
+  const handleCanvasUse=(dataURL,base64)=>{
+    setError(null);
     setImage(dataURL);
     setImageBase64(base64);
+    setImageMediaType("image/png");
     spokenKeys.current.delete("2");
     setMode(null);
     setStep(2);
@@ -1188,45 +1165,49 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     setLoading(true); setError(null);
     spokenKeys.current.delete("loading"); setStep(3);
     try {
-      const res=await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/generate-story`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        model:"claude-sonnet-4-6", max_tokens:1000,
-        language:selectedLanguage,
-        system:`You are a magical children's storyteller. Create a delightful story from a child's drawing. The story should feel personal, as if the drawing came to life. Start the story with an engaging, specific opening line — NOT "Once upon a time". Jump straight into the action or introduce the character in a memorable way. Also generate 3-5 topic tags. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, no backticks, raw JSON only.`,
-        messages:[{role:"user",content:[
-          {type:"image",source:{type:"base64",media_type:imageMediaType,data:imageBase64}},
-          {type:"text",text:`Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`}
-        ]}],
-      })});
-      const data=await res.json();
+      const res=await fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/generate-story`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          imageBase64,
+          mediaType: imageMediaType,
+          ageLabel: ageGroup.label,
+          language: selectedLanguage,
+        }),
+      });
+      const data=await res.json().catch(()=>({}));
       console.log("🌐 API status:", res.status, "| data:", JSON.stringify(data).slice(0,300));
+
       if(res.status===403&&data.error==="STORY_LIMIT_REACHED"){
         setShowPaywall("limit");
         setStep(2);
         return;
       }
-      if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
-      const raw=data.content?.find(b=>b.type==="text")?.text||"";
-      console.log("📖 Raw story response:", raw.slice(0,300));
-      let cleaned=raw.replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```\s*$/,"").trim();
-      // Model sometimes appends text after the closing brace — extract just the JSON object
-      const firstBrace=cleaned.indexOf("{");
-      const lastBrace=cleaned.lastIndexOf("}");
-      if(firstBrace!==-1&&lastBrace!==-1&&lastBrace>firstBrace){
-        cleaned=cleaned.slice(firstBrace,lastBrace+1);
+      if(res.status===422){
+        setError("⚠️ This picture isn't quite right for our kids' app. Please try a different drawing!");
+        setStep(1);
+        return;
       }
-      const parsed=JSON.parse(cleaned);
+      if(res.status===503){
+        setError("✨ Our picture checker is having a little nap. Please try again in a moment!");
+        setStep(2);
+        return;
+      }
+      if(res.status===413){
+        setError("📸 That picture is a bit too big! Try a smaller photo.");
+        setStep(1);
+        return;
+      }
+      if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
+
+      const parsed={ title:data.title, story:data.story, tags:data.tags||[] };
       spokenKeys.current.delete("story");
       setStory(parsed);
       prefetchStoryTTS(`${parsed.title}. ${parsed.story}`, selectedLanguage);
       onStoryGenerated?.();
     } catch(err) {
       console.error("❌ Story generation error:", err);
-      const isParseError = err instanceof SyntaxError;
-      setError(
-        isParseError
-          ? "✨ The story magic fizzled for a second — tap \"Make My Story!\" to try again!"
-          : (err?.message || "Oops! The story magic fizzled. Try again!")
-      );
+      setError("✨ The story magic fizzled for a second — tap \"Make My Story!\" to try again!");
       setStep(2);
     } finally {
       setLoading(false);
@@ -1477,8 +1458,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
         ctx.shadowColor = "rgba(0,0,0,0.15)";
         ctx.shadowBlur  = 8;
         ctx.fillStyle   = "rgba(255,255,255,0.95)";
-        ctx.beginPath();
-        ctx.roundRect(imgPad + 18, imgY + 18, 220, 56, 28);
+        drawRounded(ctx, imgPad + 18, imgY + 18, 220, 56, 28);
         ctx.fill();
         ctx.restore();
         ctx.font      = "bold 28px Georgia, serif";
@@ -1732,6 +1712,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
                 <p style={{color:COLORS.muted,margin:0,fontSize:"0.78rem",lineHeight:1.4}}>Create your doodle right in the app</p>
               </div>
             </div>
+            {error&&<p style={{textAlign:"center",color:COLORS.accent1,fontSize:"0.86rem",marginBottom:12,padding:"10px",background:"rgba(255,107,107,0.06)",borderRadius:10}}>{error}</p>}
             <p style={{textAlign:"center",color:"#ccc",fontSize:"0.74rem",margin:0}}>Any drawing turns into a magical story ✨</p>
           </div>
         )}
@@ -1897,7 +1878,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
             {/* Actions */}
             <div style={{padding:"12px 16px 18px",display:"flex",flexDirection:"column",gap:8}}>
 
-              {/* Download ZIP */}
+              {/* Download all cards */}
               <button
                 onClick={downloadAllCards}
                 style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"0.9rem",fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",boxShadow:"0 5px 16px rgba(255,107,107,0.3)"}}>
@@ -1920,7 +1901,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
               <div style={{background:"rgba(77,150,255,0.07)",borderRadius:11,padding:"10px 13px",textAlign:"left"}}>
                 <p style={{margin:0,fontSize:"0.74rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.65}}>
                   <strong>📱 How to post on Instagram:</strong><br/>
-                  1. Download ZIP → unzip → open the folder<br/>
+                  1. Tap Download Cards — they save one by one<br/>
                   2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
                   3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
                   4. Share as carousel ✨
@@ -2169,7 +2150,7 @@ export default function App() {
   },[]);
 
   useEffect(()=>{
-    fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
+    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`)
       .then((res)=>res.json())
       .then((data)=>{
         setStoryCount(data.count ?? 0);
@@ -2184,7 +2165,7 @@ export default function App() {
       if (next >= 10) setShowPaywall("limit");
       return next;
     });
-    fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ""}/api/check-story-limit`)
+    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`)
       .then((res)=>res.json())
       .then((data)=>{
         setStoryCount(data.count ?? 0);
