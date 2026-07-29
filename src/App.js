@@ -1301,6 +1301,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     }
     onStoryAdded(updated);
     console.log("✅ onStoryAdded called with", updated.length, "entries.");
+    // Confirm to the child, out loud, that the story is safely saved. Spoken
+    // AFTER saving so it isn't cut off by the stopAllSpeech() at the top.
+    if (voiceEnabled) speak(VOICE_LINES.saved, "saved");
   };
 
   const [sharing, setSharing] = useState(false);
