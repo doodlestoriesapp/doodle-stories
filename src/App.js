@@ -66,7 +66,37 @@ function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "fill
 }
 
 // ── Storage (localStorage on web; Expo app uses AsyncStorage in expo/) ──
-const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes" };
+const STORAGE_KEYS = { library: "doodle-library", votes: "doodle-votes", deviceToken: "doodle-device-token" };
+
+/**
+ * A random per-device id used to link a Stripe payment to this browser.
+ * It contains no personal data — just a random string — so it does not create
+ * an "account" in any meaningful sense. Minted once on first use and reused
+ * thereafter. Sent to the API in the x-device-token header.
+ */
+function getDeviceToken() {
+  try {
+    let token = localStorage.getItem(STORAGE_KEYS.deviceToken);
+    if (!token) {
+      token =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      localStorage.setItem(STORAGE_KEYS.deviceToken, token);
+    }
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/** Headers to send on every API call, including the device token when present. */
+function apiHeaders(extra = {}) {
+  const headers = { "Content-Type": "application/json", ...extra };
+  const token = getDeviceToken();
+  if (token) headers["x-device-token"] = token;
+  return headers;
+}
 
 function resolveDoodleUrl(story) {
   if (!story || typeof story !== "object") return null;
@@ -1167,7 +1197,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     try {
       const res=await fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/generate-story`,{
         method:"POST",
-        headers:{"Content-Type":"application/json"},
+        headers:apiHeaders(),
         body:JSON.stringify({
           imageBase64,
           mediaType: imageMediaType,
@@ -1608,19 +1638,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary, selectedLangua
     }
   };
 
-const downloadAllCards = async () => {
-    // Phone galleries and the Instagram picker sort by newest first, so the
-    // last file saved appears at the top. Downloading in reverse means
-    // card-01 ends up newest, and the cards line up correctly when tapped
-    // in the order they appear.
-    for (let i = shareCards.length - 1; i >= 0; i--) {
+  const downloadAllCards = async () => {
+    for (let i = 0; i < shareCards.length; i++) {
       const a = document.createElement("a");
       a.href = shareCards[i];
       a.download = `card-${String(i + 1).padStart(2, "0")}-of-${shareCards.length}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      if (i > 0) {
+      if (i < shareCards.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
@@ -1906,8 +1932,8 @@ const downloadAllCards = async () => {
                 <p style={{margin:0,fontSize:"0.74rem",color:COLORS.text,fontFamily:"Georgia,serif",lineHeight:1.65}}>
                   <strong>📱 How to post on Instagram:</strong><br/>
                   1. Tap Download Cards — they save one by one<br/>
-                  2. Instagram → + → Post → select <strong>card-01 only</strong><br/>
-                  3. Tap the <strong>gallery / add-more icon</strong> and add 02, then 03<br/>
+                  2. Instagram → + → Post → tap <strong>multi-image icon</strong><br/>
+                  3. Tap <strong>card-01 first</strong>, then 02, 03... in order<br/>
                   4. Share as carousel ✨
                 </p>
               </div>
@@ -2154,7 +2180,7 @@ export default function App() {
   },[]);
 
   useEffect(()=>{
-    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`)
+    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`, { headers: apiHeaders() })
       .then((res)=>res.json())
       .then((data)=>{
         setStoryCount(data.count ?? 0);
@@ -2169,7 +2195,7 @@ export default function App() {
       if (next >= 10) setShowPaywall("limit");
       return next;
     });
-    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`)
+    fetch(`${process.env.REACT_APP_API_BASE_URL || ""}/api/check-story-limit`, { headers: apiHeaders() })
       .then((res)=>res.json())
       .then((data)=>{
         setStoryCount(data.count ?? 0);
