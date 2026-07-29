@@ -5,6 +5,7 @@ export const VOICE_LINES = {
   ageSelected: "Perfect! Now pick the language you'd like your story in, then tap the big orange Make My Story button!",
   loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
   story: "Your magical story is ready! Save it to your bedtime stories so you can listen again anytime!",
+  saved: "Yay! Your story is tucked away in your bedtime stories now. You can come back and listen to it any time you like!",
   library: "Welcome to your bedtime stories! Every one came from your very own drawing! Pick one and snuggle up!",
   readAloud: "Here comes your magical story!",
 };
