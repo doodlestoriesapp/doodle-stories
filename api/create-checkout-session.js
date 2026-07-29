@@ -1,14 +1,44 @@
+// api/create-checkout-session.js
+//
+// Starts a Stripe checkout. Two important changes from before:
+//   1. The device token from the browser is attached as client_reference_id,
+//      so when payment completes the webhook knows WHICH device to make premium.
+//   2. Only our two real price IDs are accepted, so nobody can start a checkout
+//      for an arbitrary price on the account.
+
 import Stripe from "stripe";
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+// The only two prices the app is allowed to sell. Reject anything else.
+const ALLOWED_PRICE_IDS = new Set([
+  "price_1TfRHlPQ9TnCZr87tO1waQAy", // monthly
+  "price_1TfRHjPQ9TnCZr87yn9DvCCK", // annual
+]);
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+const ALLOWED_ORIGINS = new Set([
+  "https://doodlestories.app",
+  "https://www.doodlestories.app",
+]);
+
+// Where Stripe sends people afterwards. Always the canonical www host.
+const SITE_URL = "https://www.doodlestories.app";
+
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
   }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-device-token");
+}
 
+function validToken(token) {
+  return typeof token === "string" && /^[a-zA-Z0-9-]{10,64}$/.test(token);
+}
+
+export default async function handler(req, res) {
+  applyCors(req, res);
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -22,46 +52,40 @@ export default async function handler(req, res) {
   try {
     let body = req.body;
     if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch {
-        body = {};
-      }
+      try { body = JSON.parse(body); } catch { body = {}; }
+    }
+    const { priceId } = body || {};
+
+    if (!priceId || !ALLOWED_PRICE_IDS.has(priceId)) {
+      return res.status(400).json({ error: "Invalid plan selected" });
     }
 
-    const { priceId, userEmail } = body || {};
-
-    if (!priceId || typeof priceId !== "string") {
-      return res.status(400).json({ error: "priceId is required" });
-    }
+    // The device token comes in a header the browser sets.
+    const deviceToken = req.headers["x-device-token"];
 
     const stripe = new Stripe(secretKey);
 
     const sessionParams = {
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url:
-        "https://www.doodlestories.app/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://www.doodlestories.app",
+      success_url: `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: SITE_URL,
       allow_promotion_codes: true,
       billing_address_collection: "auto",
     };
 
-    if (userEmail && typeof userEmail === "string") {
-      sessionParams.customer_email = userEmail;
+    // Attach the token so the webhook can make the right device premium.
+    if (validToken(deviceToken)) {
+      sessionParams.client_reference_id = deviceToken;
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
-
     if (!session.url) {
       return res.status(500).json({ error: "Failed to create checkout session URL" });
     }
-
     return res.status(200).json({ url: session.url });
   } catch (err) {
     console.error("create-checkout-session error:", err?.message ?? err);
-    return res.status(500).json({
-      error: err?.message ?? "Failed to create checkout session",
-    });
+    return res.status(500).json({ error: "Failed to create checkout session" });
   }
 }
