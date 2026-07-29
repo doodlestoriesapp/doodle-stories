@@ -275,14 +275,15 @@ export default async function handler(req, res) {
     redis = getRedis();
 
     // ── Premium check ───────────────────────────────────────────
-    // Reads the device token the app will start sending once checkout is
-    // wired up. Until then this is simply never found, and everyone is
-    // treated as free tier.
+    // The app sends a random "device token" in the x-device-token header.
+    // If it has an active premium record (written by the Stripe webhook),
+    // the story limit doesn't apply.
     const deviceToken = req.headers["x-device-token"];
     let isPremium = false;
     if (typeof deviceToken === "string" && /^[a-zA-Z0-9-]{10,64}$/.test(deviceToken)) {
       const record = await redis.get(`premium:${deviceToken}`);
-      isPremium = record === "active" || record?.status === "active";
+      const status = typeof record === "string" ? record : record?.status;
+      isPremium = status === "active" || status === "trialing" || status === "past_due";
     }
 
     // ── Count the story BEFORE generating it ────────────────────
