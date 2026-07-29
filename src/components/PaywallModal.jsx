@@ -5,6 +5,17 @@ const ANNUAL_PRICE_ID = "price_1TfRHjPQ9TnCZr87yn9DvCCK";
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
 
+// The same per-device token App.js mints. Read it here so checkout can tell
+// Stripe which device is paying. We only read it (never create it) — if it's
+// somehow missing, checkout still works, the payment just isn't pre-linked.
+function getDeviceToken() {
+  try {
+    return localStorage.getItem("doodle-device-token");
+  } catch {
+    return null;
+  }
+}
+
 const COLORS = {
   bg: "#FFF9F0",
   card: "#FFFFFF",
@@ -40,9 +51,12 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
     setError(null);
     setLoadingPlan(planKey);
     try {
+      const deviceToken = getDeviceToken();
+      const headers = { "Content-Type": "application/json" };
+      if (deviceToken) headers["x-device-token"] = deviceToken;
       const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ priceId }),
       });
       const data = await res.json().catch(() => ({}));
