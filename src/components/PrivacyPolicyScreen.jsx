@@ -111,7 +111,7 @@ const SECTIONS = [
     bullets: [
       "Anthropic — AI story generation and the image safety check, from uploaded drawings and prompts.",
       "OpenAI — text-to-speech narration for read-aloud stories.",
-      "Upstash — stores the hashed monthly story counter for the website's free tier.",
+      "Upstash — stores the hashed monthly story counter for the free tier.",
       "Stripe — secure payment processing for website subscriptions.",
       "FormSubmit — delivery of messages sent through the app's Contact form.",
       "Vercel — hosts the DoodleStories website and the servers that pass content between the app and the services above.",
