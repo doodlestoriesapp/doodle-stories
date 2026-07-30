@@ -65,7 +65,6 @@ const SECTIONS = [
   {
     title: "4. What We Collect — Website Only",
     bullets: [
-      "Monthly story counts — so that the free tier is limited to ten stories a month, our website keeps a simple counter of how many stories have been made. The counter is stored under an irreversible cryptographic hash derived from your network (IP) address, not the address itself, and the hash changes every month. We cannot reverse it, we cannot use it to recognize anyone, and it is never used for advertising or tracking across other apps or websites. Each counter is deleted automatically after 35 days.",
       "Payment information — subscription payments are handled entirely by Stripe. We never see or store your full card details.",
       "Cookies — the DoodleStories website sets no cookies.",
       "Analytics — we use no website analytics. We do not measure or record how individual visitors move around the site.",
