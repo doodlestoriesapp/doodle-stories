@@ -33,8 +33,7 @@ function GoPremiumButton({ isPremium, setShowPaywall }) {
   );
 }
 
-const LAST_UPDATED = "July 21, 2026";
-
+const LAST_UPDATED = "July 30, 2026";
 const SECTIONS = [
   {
     title: "1. Introduction",
