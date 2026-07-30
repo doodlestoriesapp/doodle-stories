@@ -76,7 +76,6 @@ const SECTIONS = [
     bullets: [
       "Photo library access — if you choose to upload an existing drawing, Android asks permission to access photos. The app receives only the single image you select. We never browse, scan, or upload your photo library, and you can decline — the in-app drawing canvas works without it.",
       "Contact form — if you write to us through the app's Contact form, the name, email address, reason, and message you enter are delivered to our inbox through a form-delivery service (FormSubmit). This form is intended for parents and other adults. We use what you send solely to reply, and never add it to a marketing list.",
-      "No usage counting — the mobile app does not use the monthly counter described above, so no hashed network address is recorded when you use the app.",
     ],
   },
   {
