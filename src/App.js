@@ -549,12 +549,21 @@ function ReactionButtons({ story, votes, onVote, nightMode }) {
 }
 
 // ── Story Card ───────────────────────────────────────────────────
-function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
+function StoryCard({ story, onRead, nightMode, votes, onVote, onRequestDelete, highlight }) {
   const isTop=(story.loves||0)>=5||(story.likes||0)>=5;
   return (
     <div onClick={()=>onRead(story)} style={{background:highlight?(nightMode?"rgba(255,78,205,0.1)":"rgba(255,78,205,0.05)"):(nightMode?"rgba(255,255,255,0.07)":COLORS.card),border:`2px solid ${highlight?COLORS.accent5:(nightMode?"rgba(255,255,255,0.12)":COLORS.border)}`,borderRadius:20,padding:"16px 18px",cursor:"pointer",transition:"all 0.2s",boxShadow:highlight?`0 4px 20px rgba(255,78,205,0.2)`:(nightMode?"0 4px 20px rgba(0,0,0,0.3)":"0 4px 16px rgba(0,0,0,0.06)"),position:"relative"}}
     onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
       {isTop&&<div style={{position:"absolute",top:-10,right:12,fontSize:"1.1rem"}}>{(story.loves||0)>=5?"🏆":"⭐"}</div>}
+      {onRequestDelete&&(
+        <button
+          type="button"
+          title="Delete this story"
+          aria-label="Delete this story"
+          onClick={(e)=>{ e.stopPropagation(); onRequestDelete(story); }}
+          style={{position:"absolute",top:8,left:8,zIndex:2,width:30,height:30,borderRadius:"50%",border:"none",background:nightMode?"rgba(0,0,0,0.4)":"rgba(255,255,255,0.85)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.15)"}}
+        >🗑️</button>
+      )}
       <DoodleImage
         src={getStoryDoodleUrl(story)}
         nightMode={nightMode}
@@ -570,7 +579,7 @@ function StoryCard({ story, onRead, nightMode, votes, onVote, highlight }) {
 }
 
 // ── Reading Modal ────────────────────────────────────────────────
-function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
+function ReadingModal({ story, onClose, nightMode, votes, onVote, onRequestDelete }) {
   const { speakLong, stop } = useSpeech();
   const [storyReading, setStoryReading] = useState(false);
   const isStoppingRef = useRef(false);
@@ -637,6 +646,15 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
             </p>
           ))}
         </div>
+        {onRequestDelete&&(
+          <div style={{marginTop:20,paddingTop:16,borderTop:`1px solid ${nightMode?"rgba(255,255,255,0.1)":COLORS.border}`,textAlign:"center"}}>
+            <button
+              type="button"
+              onClick={()=>onRequestDelete(story)}
+              style={{background:"none",border:`1.5px solid ${nightMode?"rgba(255,255,255,0.2)":COLORS.border}`,borderRadius:12,padding:"8px 18px",cursor:"pointer",color:nightMode?"rgba(255,255,255,0.6)":COLORS.muted,fontSize:"0.82rem",fontFamily:"Georgia,serif"}}
+            >🗑️ Delete this story</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -656,6 +674,28 @@ function SaveModal({ story, onSave }) {
         <div style={{display:"flex",gap:10,flexDirection:"column"}}>
           <button onClick={()=>onSave(true)} style={{padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent3},#3BB54A)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(107,203,119,0.35)",fontFamily:"Georgia,serif"}}>✨ Yes, save it!</button>
           <button onClick={()=>onSave(false)} style={{padding:"13px",borderRadius:16,border:`2px solid ${COLORS.border}`,background:"transparent",color:COLORS.muted,fontSize:"1rem",cursor:"pointer"}}> Not now </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Delete Confirmation Modal ────────────────────────────────────
+// Deliberately clear that the action is permanent, without being scary for a
+// child who might have tapped the bin. "Never mind" is the easy default.
+function DeleteConfirmModal({ story, onConfirm, onCancel }) {
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:150,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"Georgia,serif"}} onClick={onCancel}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:28,padding:"30px 34px",maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.25)",textAlign:"center"}}>
+        <div style={{fontSize:46,marginBottom:10}}>🗑️</div>
+        <h2 style={{margin:"0 0 10px",color:COLORS.text,fontSize:"1.25rem"}}>Delete this story?</h2>
+        <p style={{color:COLORS.muted,fontSize:"0.9rem",lineHeight:1.6,margin:"0 0 22px"}}>
+          <strong style={{color:COLORS.text}}>"{story.title}"</strong> will be removed from your
+          bedtime stories for good. This can&apos;t be undone.
+        </p>
+        <div style={{display:"flex",gap:10,flexDirection:"column"}}>
+          <button onClick={onConfirm} style={{padding:"13px",borderRadius:16,border:"none",background:`linear-gradient(135deg,${COLORS.accent1},#FF8E53)`,color:"white",fontSize:"1rem",fontWeight:"bold",cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,107,0.35)",fontFamily:"Georgia,serif"}}>Yes, delete it</button>
+          <button onClick={onCancel} style={{padding:"13px",borderRadius:16,border:`2px solid ${COLORS.border}`,background:"transparent",color:COLORS.muted,fontSize:"1rem",cursor:"pointer",fontFamily:"Georgia,serif"}}>Never mind</button>
         </div>
       </div>
     </div>
@@ -920,13 +960,14 @@ function HomeScreen({ onNavigate, isPremium, setShowPaywall }) {
 }
 
 // ── LIBRARY ──────────────────────────────────────────────────────
-function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, setShowPaywall }) {
+function LibraryScreen({ onNavigate, library, votes, onVote, onDeleteStory, speak, isPremium, setShowPaywall }) {
   const [tab, setTab] = useState("all");
   const [filterAge, setFilterAge] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [readingStory, setReadingStory] = useState(null);
   const [nightMode, setNightMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // story awaiting delete confirmation
   const spokenLib = useRef(false);
   const libMascotTimerRef = useRef(null);
 
@@ -953,6 +994,20 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
     if (readingStory?.id===id) {
       setReadingStory(s => s ? { ...s, [type==="love"?"loves":"likes"]: (s[type==="love"?"loves":"likes"]||0)+1 } : s);
     }
+  };
+
+  // Step 1: a bin was tapped — open the confirmation modal.
+  const requestDelete = (story) => setPendingDelete(story);
+
+  // Step 2: confirmed — remove the story, close any open reader, and let the
+  // mascot gently confirm it's gone.
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setPendingDelete(null);
+    if (readingStory?.id === id) setReadingStory(null);
+    await onDeleteStory(id);
+    speak(VOICE_LINES.deleted, "deleted");
   };
 
   const sorted = tab==="loved"
@@ -1085,6 +1140,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
             <StoryCard
               key={s.id} story={s} onRead={(story)=>setReadingStory(normalizeStoryEntry(story))}
               nightMode={nightMode} votes={votes} onVote={handleVote}
+              onRequestDelete={requestDelete}
               highlight={tab==="loved" && i<3}
             />
           ))}
@@ -1096,7 +1152,8 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak, isPremium, s
           </button>
         </div>
       </div>
-      {readingStory&&<ReadingModal story={readingStory} onClose={()=>setReadingStory(null)} nightMode={nightMode} votes={votes} onVote={handleVote}/>}
+      {readingStory&&<ReadingModal story={readingStory} onClose={()=>setReadingStory(null)} nightMode={nightMode} votes={votes} onVote={handleVote} onRequestDelete={requestDelete}/>}
+      {pendingDelete&&<DeleteConfirmModal story={pendingDelete} onConfirm={confirmDelete} onCancel={()=>setPendingDelete(null)}/>}
     </div>
   );
 }
@@ -2221,6 +2278,21 @@ export default function App() {
     await saveLibrary(updated);
   };
 
+  // Permanently remove a story from the on-device library. This is the
+  // deletion right promised in the privacy policy and terms — because stories
+  // live only in localStorage, deleting here genuinely and completely removes
+  // it. Also clears any vote recorded against it so no orphan data remains.
+  const handleDeleteStory = async (id) => {
+    const updated = library.filter((s) => s.id !== id);
+    setLibrary(updated);
+    await saveLibrary(updated);
+    if (votes[id]) {
+      const { [id]: _removed, ...rest } = votes;
+      setVotes(rest);
+      await saveVotes(rest);
+    }
+  };
+
   const navigate = (next) => {
     const paths = { privacy: "/privacy", terms: "/terms" };
     const target = paths[next] || "/";
@@ -2240,7 +2312,7 @@ export default function App() {
 
   if (view==="success") return wrap(<SuccessScreen onNavigate={navigate} />);
   if (view==="home")    return wrap(<HomeScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
-  if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
+  if (view==="library") return wrap(<LibraryScreen onNavigate={navigate} library={library} votes={votes} onVote={handleVote} onDeleteStory={handleDeleteStory} speak={speak} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="create")  return wrap(<CreateScreen onNavigate={navigate} onStoryAdded={setLibrary} currentLibrary={library} selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} setShowPaywall={setShowPaywall} onStoryGenerated={onStoryGenerated} isPremium={isPremium} storyCount={storyCount}/>);
   if (view==="about")   return wrap(<AboutScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
   if (view==="contact") return wrap(<ContactScreen onNavigate={navigate} isPremium={isPremium} setShowPaywall={setShowPaywall}/>);
