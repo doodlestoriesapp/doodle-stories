@@ -56,6 +56,7 @@ const SECTIONS = [
     title: "3. What We Collect — Website and App",
     intro: "The following applies whether you use DoodleStories in a browser or in the mobile app.",
     bullets: [
+      "Monthly story count — so the free tier is limited to ten stories a month, we keep a simple counter of how many stories have been made. This works the same way on the website and in the mobile app. The counter is stored under an irreversible cryptographic hash derived from your network (IP) address, never the address itself, and the hash changes every month. We cannot reverse it, we cannot use it to recognize anyone, and it is never used for advertising or tracking across other apps or websites. Each counter is deleted automatically after 35 days.",
       "Drawings and photos — whether drawn in the app or uploaded, the image is sent to our servers for two purposes: an automated safety check confirming it is appropriate for a children's app, and story generation. The image is processed and discarded. We do not store it.",
       "Story settings — the age group and story language you select, used to shape the story's reading level and language. These are sent with the request and not stored.",
       "Story text — sent to our narration provider to generate the read-aloud audio. We do not store it.",
