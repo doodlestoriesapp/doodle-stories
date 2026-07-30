@@ -100,7 +100,7 @@ const SECTIONS = [
       "Drawings and uploaded photos — not stored. Processed to create your story, then discarded.",
       "Story text — not stored.",
       "Stories you save — kept on your device only, for as long as you choose. Deleted when you delete the story, clear your browser data, or uninstall the app.",
-      "Monthly story counter (website) — deleted automatically 35 days after it is created.",
+      "Monthly story counter — deleted automatically 35 days after it is created.",
       "Messages sent through the Contact form — kept in our email inbox for 12 months, then deleted.",
       "Server request logs — automatically deleted after 1 day by our hosting provider.",
     ],
