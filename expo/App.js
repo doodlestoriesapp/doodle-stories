@@ -266,16 +266,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       return;
     }
 
-    try {
-      const mod = await apiPost("/api/moderate-image", { imageBase64: base64, mediaType });
-      if (!mod.safe) {
-        setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
-        return;
-      }
-    } catch (err) {
-      console.warn("Moderation failed open:", err?.message);
-    }
-
     setError(null);
     setImageUri(asset.uri);
     setImageBase64(base64);
