@@ -282,37 +282,41 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     setStep(3);
     try {
       const data = await apiPost("/api/generate-story", {
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system:
-          'You are a magical children\'s storyteller. Create a delightful story from a child\'s drawing. Format ONLY as JSON: {"title":"...","story":"...","tags":["..."]} No markdown, raw JSON only.',
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: imageMediaType, data: imageBase64 } },
-              {
-                type: "text",
-                text: `Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`,
-              },
-            ],
-          },
-        ],
+        imageBase64,
+        mediaType: imageMediaType,
+        ageLabel: ageGroup.label,
+        language: "English",
       });
-      const raw = data.content?.find((b) => b.type === "text")?.text || "";
-      const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
-      const parsed = JSON.parse(cleaned);
       spokenKeys.current.delete("story");
-      setStory(parsed);
-      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
+      setStory(data);
+      prefetchStoryTTS(`${data.title}. ${data.story}`);
     } catch (err) {
-      setError(err?.message || "Oops! The story magic fizzled. Try again!");
+      const status = err?.status;
+      let message;
+      if (status === 422) {
+        message =
+          err?.body?.message ||
+          "This picture isn't quite right for our kids' app. Please try a different drawing! 🎨";
+      } else if (status === 403) {
+        message =
+          err?.body?.message ||
+          "You've reached your 10 free stories for this month. Come back next month for more! 🌙";
+      } else if (status === 503) {
+        message =
+          err?.body?.message ||
+          "We couldn't check that picture just now. Please try again in a moment! ✨";
+      } else if (status === 413) {
+        message = "That drawing's photo is a little too big. Please try a smaller one! 📸";
+      } else {
+        message = "Oops! The story magic fizzled. Please try again! ✨";
+      }
+      setError(message);
       setStep(2);
     } finally {
       setLoading(false);
     }
   };
-
+ 
   const handleSave = async (share) => {
     setShowSaveModal(false);
     if (!share || !story) return;
