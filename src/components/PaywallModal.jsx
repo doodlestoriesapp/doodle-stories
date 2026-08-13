@@ -1,9 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const MONTHLY_PRICE_ID = "price_1TfRHlPQ9TnCZr87tO1waQAy";
 const ANNUAL_PRICE_ID = "price_1TfRHjPQ9TnCZr87yn9DvCCK";
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
+
+// The same per-device token App.js mints. Read it here so checkout can tell
+// Stripe which device is paying. We only read it (never create it) — if it's
+// somehow missing, checkout still works, the payment just isn't pre-linked.
+function getDeviceToken() {
+  try {
+    return localStorage.getItem("doodle-device-token");
+  } catch {
+    return null;
+  }
+}
 
 const COLORS = {
   bg: "#FFF9F0",
@@ -21,15 +32,31 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState(null);
 
+  // Close on Escape and lock background scroll while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleUpgrade = async (priceId, planKey) => {
     setError(null);
     setLoadingPlan(planKey);
     try {
+      const deviceToken = getDeviceToken();
+      const headers = { "Content-Type": "application/json" };
+      if (deviceToken) headers["x-device-token"] = deviceToken;
       const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ priceId }),
       });
       const data = await res.json().catch(() => ({}));
@@ -98,9 +125,8 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
           }}
         >
           {reason === "upsell"
-            ? "Go Family Plan for unlimited stories, every voice, and all 30 languages."
-            : "Upgrade to Family Plan for unlimited stories, all voices, and more."}
-        
+            ? "Go Family Plan for unlimited stories every month \u2014 create as many magical bedtime stories as your family likes."
+            : "Upgrade to the Family Plan for unlimited stories every month, so the magic never has to stop."}
         </p>
 
         <div
@@ -245,6 +271,17 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
             </button>
           </div>
         </div>
+
+        <p
+          style={{
+            margin: "0 0 14px",
+            color: COLORS.muted,
+            fontSize: "0.76rem",
+            lineHeight: 1.5,
+          }}
+        >
+          Cancel anytime. Your free 10 stories refresh every month either way.
+        </p>
 
         {error && (
           <p

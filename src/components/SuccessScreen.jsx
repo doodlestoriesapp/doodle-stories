@@ -14,6 +14,7 @@ const COLORS = {
 
 export default function SuccessScreen({ onNavigate }) {
   const sessionId = useMemo(() => {
+    if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     return params.get("session_id");
   }, []);
@@ -124,7 +125,8 @@ export default function SuccessScreen({ onNavigate }) {
               maxWidth: 400,
             }}
           >
-            Unlimited stories, all voices, and more — all unlocked for your family.
+            Unlimited stories are now unlocked for your family — create as many
+            magical bedtime stories as you like, every month.
           </p>
 
           <div

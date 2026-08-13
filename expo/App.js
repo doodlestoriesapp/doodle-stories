@@ -268,16 +268,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       return;
     }
 
-    try {
-      const mod = await apiPost("/api/moderate-image", { imageBase64: base64, mediaType });
-      if (!mod.safe) {
-        setError("⚠️ This image isn't suitable for our kids' app. Please try a different drawing!");
-        return;
-      }
-    } catch (err) {
-      console.warn("Moderation failed open:", err?.message);
-    }
-
     setError(null);
     setImageUri(asset.uri);
     setImageBase64(base64);
@@ -294,54 +284,41 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     setStep(3);
     try {
       const data = await apiPost("/api/generate-story", {
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        language: selectedLanguage,
-        system:
-          `You are a magical children's storyteller. Create a delightful story from a child's drawing. Respond in EXACTLY this format and nothing else. Do NOT use JSON. Do NOT put quotes around the values.
-TITLE: put the story title here on one line
-STORY:
-put the full story here, as many paragraphs as you like
-TAGS: put three to five comma-separated tags here`,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: imageMediaType, data: imageBase64 } },
-              {
-                type: "text",
-                text: `Create a story for a ${ageGroup.range} year old. Style: ${ageGroup.prompt}. Make THEIR drawing the hero.`,
-              },
-            ],
-          },
-        ],
+        imageBase64,
+        mediaType: imageMediaType,
+        ageLabel: ageGroup.label,
+        language: "English",
       });
-      const raw = data.content?.find((b) => b.type === "text")?.text || "";
-      console.log("STORY RAW:", raw.slice(0, 300));
-
-      // Parse the plain-text TITLE / STORY / TAGS format
-      const titleMatch = raw.match(/TITLE:\s*(.+)/i);
-      const storyMatch = raw.match(/STORY:\s*([\s\S]*?)(?:\nTAGS:|$)/i);
-      const tagsMatch = raw.match(/TAGS:\s*(.+)/i);
-
-      const title = titleMatch ? titleMatch[1].trim() : "My Doodle Story";
-      const story = storyMatch ? storyMatch[1].trim() : raw.trim();
-      const tags = tagsMatch
-        ? tagsMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
-        : [];
-
-      const parsed = { title, story, tags };
       spokenKeys.current.delete("story");
-      setStory(parsed);
-      prefetchStoryTTS(`${parsed.title}. ${parsed.story}`);
+      setStory(data);
+      prefetchStoryTTS(`${data.title}. ${data.story}`);
     } catch (err) {
-      setError(err?.message || "Oops! The story magic fizzled. Try again!");
+      const status = err?.status;
+      let message;
+      if (status === 422) {
+        message =
+          err?.body?.message ||
+          "This picture isn't quite right for our kids' app. Please try a different drawing! 🎨";
+      } else if (status === 403) {
+        message =
+          err?.body?.message ||
+          "You've reached your 10 free stories for this month. Come back next month for more! 🌙";
+      } else if (status === 503) {
+        message =
+          err?.body?.message ||
+          "We couldn't check that picture just now. Please try again in a moment! ✨";
+      } else if (status === 413) {
+        message = "That drawing's photo is a little too big. Please try a smaller one! 📸";
+      } else {
+        message = "Oops! The story magic fizzled. Please try again! ✨";
+      }
+      setError(message);
       setStep(2);
     } finally {
       setLoading(false);
     }
   };
-
+ 
   const handleSave = async (share) => {
     setShowSaveModal(false);
     if (!share || !story) return;
