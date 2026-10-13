@@ -221,7 +221,7 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Best Value — Save 16%
+              Best Value — Save 17%
             </span>
             <p
               style={{
