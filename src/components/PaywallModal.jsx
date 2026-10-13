@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const MONTHLY_PRICE_ID = "price_1TfRHlPQ9TnCZr87tO1waQAy";
+const MONTHLY_PRICE_ID = "price_1UPtxMPQ9TnCZr87SmJjfIKe";
 const ANNUAL_PRICE_ID = "price_1TfRHjPQ9TnCZr87yn9DvCCK";
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
