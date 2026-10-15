@@ -10,10 +10,8 @@ export const VOICE_LINES = {
   2: "Ooooh what an AMAZING drawing! Now... how old is the little artist?",
   ageSelected: "Great choice! Pick your story's language if you'd like, then tap the big orange Make My Story button!",
   loading: "Hold on to your crayons! The story magic is happening right now! Your drawing is coming to LIFE!",
-  story: "Your magical story is ready! A parent can save it to the bedtime library for other kids to enjoy!",
-  library: "Welcome to the Bedtime Story Library! Every story here was made from a real kid's drawing! Pick one and snuggle up!",
-  loved: "Oh my goodness! That story just got a LOVE! The author must be SO proud!",
-  liked: "Wow, someone loved that story! What an amazing little author!",
+  story: "Your magical story is ready! Save it to your bedtime stories so you can listen again anytime!",
+  library: "Welcome to your bedtime stories! Every one came from your very own drawing! Pick one and snuggle up!",
   readAloud: "Ooooh get ready! I'm warming up my storytelling voice — your magical story is about to come alive! Just a few seconds!",
 };
 

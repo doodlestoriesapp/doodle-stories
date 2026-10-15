@@ -31,3 +31,7 @@ Thumbs.db
 # Editor
 .idea/
 .vscode/
+
+# Google service account keys - never commit
+doodlestories-billing-*.json
+Google cloud service account json key/

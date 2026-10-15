@@ -1,25 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { AGE_GROUPS, COLORS,LANGUAGES, VOICE_LINES } from "./src/constants";
+import { AGE_GROUPS, COLORS, LANGUAGES, VOICE_LINES } from "./src/constants";
 import { apiPost } from "./src/api";
 import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
 import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
+import DoodleCanvas from "./src/DoodleCanvas";
+
+const PRIVACY_URL = "https://doodlestories.app/privacy";
 
 function Btn({ label, onPress, primary, night, disabled, style }) {
   const inner = (
@@ -66,7 +57,7 @@ function Screen({ children, night }) {
   );
 }
 
-function HomeScreen({ onNavigate, topLoved, topLiked }) {
+function HomeScreen({ onNavigate, favorites }) {
   return (
     <Screen>
       <Text style={styles.heroEmoji}>🎨</Text>
@@ -74,21 +65,19 @@ function HomeScreen({ onNavigate, topLoved, topLiked }) {
         Doodle <Text style={{ color: COLORS.accent1 }}>Stories</Text>
       </Text>
       <Text style={styles.heroSub}>
-        Draw it. Upload it. Turn it into a magical story.{"\n"}Share it as a bedtime story for the world. 🌙
+        Draw it. Upload it. Turn it into a magical story.{"\n"}Save it and listen again at bedtime. 🌙
       </Text>
       <Btn label="🖼️ Create a Story from My Doodle" primary onPress={() => onNavigate("create")} style={styles.mb12} />
-      <Btn label="🌙 Bedtime Story Library" night onPress={() => onNavigate("library")} style={styles.mb24} />
+      <Btn label="🌙 My Bedtime Stories" night onPress={() => onNavigate("library")} style={styles.mb24} />
 
-      {topLoved.length > 0 && (
+      {favorites.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏆 Most Loved Stories</Text>
-          {topLoved.slice(0, 3).map((s, i) => (
+          <Text style={styles.sectionTitle}>❤️ Your Favorite Stories</Text>
+          {favorites.slice(0, 3).map((s) => (
             <Pressable key={s.id} style={styles.heroCard} onPress={() => onNavigate("library")}>
-              <Text style={styles.rank}>#{i + 1}</Text>
               {s.doodleUrl ? <Image source={{ uri: s.doodleUrl }} style={styles.heroImg} /> : null}
               <Text style={styles.cardMeta}>{s.ageEmoji} {s.ageLabel}</Text>
               <Text style={styles.cardTitle}>{s.title}</Text>
-              <Text style={styles.cardVotes}>❤️ {s.loves || 0}  👍 {s.likes || 0}</Text>
             </Pressable>
           ))}
         </View>
@@ -101,12 +90,15 @@ function HomeScreen({ onNavigate, topLoved, topLiked }) {
         <Pressable onPress={() => onNavigate("contact")}>
           <Text style={styles.link}>Contact Us</Text>
         </Pressable>
+        <Pressable onPress={() => Linking.openURL(PRIVACY_URL)}>
+          <Text style={styles.link}>Privacy</Text>
+        </Pressable>
       </View>
     </Screen>
   );
 }
 
-function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
+function ReadingModal({ story, onClose, nightMode, isFavorite, onToggleFavorite }) {
   const { speak, speakLong, stop, speaking } = useSpeech();
   const [readingLoading, setReadingLoading] = useState(false);
 
@@ -148,18 +140,12 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
           </ScrollView>
           <View style={styles.reactionRow}>
             <Pressable
-              disabled={!!votes[story.id]}
-              onPress={() => onVote(story.id, "like")}
-              style={styles.reactionBtn}
+              onPress={() => onToggleFavorite(story.id)}
+              style={[styles.favBtn, isFavorite && styles.favBtnOn]}
             >
-              <Text>👍 {story.likes || 0}</Text>
-            </Pressable>
-            <Pressable
-              disabled={!!votes[story.id]}
-              onPress={() => onVote(story.id, "love")}
-              style={styles.reactionBtn}
-            >
-              <Text>❤️ {story.loves || 0}</Text>
+              <Text style={styles.favText}>
+                {isFavorite ? "❤️ A favorite!" : "🤍 Add to favorites"}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -168,7 +154,7 @@ function ReadingModal({ story, onClose, nightMode, votes, onVote }) {
   );
 }
 
-function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
+function LibraryScreen({ onNavigate, library, favorites, onToggleFavorite, speak }) {
   const [readingStory, setReadingStory] = useState(null);
   const [nightMode, setNightMode] = useState(false);
   const spoken = useRef(false);
@@ -188,36 +174,35 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
           <Text style={styles.nightToggle}>{nightMode ? "☀️ Day" : "🌙 Night"}</Text>
         </Pressable>
       </View>
-      <Text style={[styles.heroTitle, nightMode && styles.textNight]}>Bedtime Story Library</Text>
-      <Text style={styles.heroSub}>Stories made from real kids' drawings</Text>
+      <Text style={[styles.heroTitle, nightMode && styles.textNight]}>My Bedtime Stories</Text>
+      <Text style={styles.heroSub}>Your saved stories, ready to hear again</Text>
 
       {library.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📭</Text>
-          <Text style={styles.emptyText}>No stories yet! Be the first!</Text>
-          <Btn label="🎨 Create the First Story!" primary onPress={() => onNavigate("create")} />
+          <Text style={styles.emptyText}>No saved stories yet!</Text>
+          <Btn label="🎨 Create Your First Story!" primary onPress={() => onNavigate("create")} />
         </View>
       ) : (
         library.map((s) => (
           <Pressable key={s.id} style={styles.storyCard} onPress={() => setReadingStory(s)}>
             {s.doodleUrl ? <Image source={{ uri: s.doodleUrl }} style={styles.cardImg} /> : null}
             <Text style={styles.cardMeta}>{s.ageEmoji} {s.ageLabel}</Text>
-            <Text style={styles.cardTitle}>{s.title}</Text>
+            <Text style={styles.cardTitle}>{s.title}{favorites[s.id] ? "  ❤️" : ""}</Text>
             <Text style={styles.cardPreview} numberOfLines={2}>{s.preview}</Text>
-            <Text style={styles.cardVotes}>❤️ {s.loves || 0}  👍 {s.likes || 0}</Text>
           </Pressable>
         ))
       )}
 
-      <Btn label="🎨 Add Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
+      <Btn label="🎨 Make Another Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
 
       {readingStory && (
         <ReadingModal
           story={readingStory}
           onClose={() => setReadingStory(null)}
           nightMode={nightMode}
-          votes={votes}
-          onVote={onVote}
+          isFavorite={!!favorites[readingStory.id]}
+          onToggleFavorite={onToggleFavorite}
         />
       )}
     </Screen>
@@ -227,6 +212,7 @@ function LibraryScreen({ onNavigate, library, votes, onVote, speak }) {
 function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [imageUri, setImageUri] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
+  const [drawing, setDrawing] = useState(false);
   const [imageMediaType, setImageMediaType] = useState("image/jpeg");
   const [ageGroup, setAgeGroup] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("English");
@@ -246,6 +232,18 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     const line = VOICE_LINES[key];
     if (line) setTimeout(() => speak(line), 500);
   }, [step, loading, story, speak]);
+
+  // Shared path for both uploaded and drawn images.
+  // Image moderation now happens on the server inside /api/generate-story
+  // (it fails closed and returns 422 for unsuitable pictures).
+  const acceptImage = async (base64, mediaType, uri) => {
+    setError(null);
+    setImageUri(uri);
+    setImageBase64(base64);
+    setImageMediaType(mediaType);
+    spokenKeys.current.delete("2");
+    setStep(2);
+  };
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -267,13 +265,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       setError("Could not read image. Try another photo.");
       return;
     }
+    await acceptImage(base64, mediaType, asset.uri);
+  };
 
-    setError(null);
-    setImageUri(asset.uri);
-    setImageBase64(base64);
-    setImageMediaType(mediaType);
-    spokenKeys.current.delete("2");
-    setStep(2);
+  const handleDoodleDone = async (base64, mediaType) => {
+    setDrawing(false);
+    await acceptImage(base64, mediaType, `data:${mediaType};base64,${base64}`);
   };
 
   const generateStory = async () => {
@@ -283,11 +280,13 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     spokenKeys.current.delete("loading");
     setStep(3);
     try {
+      // The server builds the prompt, checks the image and returns a clean
+      // { title, story, tags } — the app only sends these four fields.
       const data = await apiPost("/api/generate-story", {
         imageBase64,
         mediaType: imageMediaType,
         ageLabel: ageGroup.label,
-        language: "English",
+        language: selectedLanguage,
       });
       spokenKeys.current.delete("story");
       setStory(data);
@@ -318,10 +317,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       setLoading(false);
     }
   };
- 
-  const handleSave = async (share) => {
+
+  const handleSave = async (confirmed) => {
     setShowSaveModal(false);
-    if (!share || !story) return;
+    if (!confirmed || !story) return;
     const doodleUrl = imageUri || (imageBase64 ? `data:${imageMediaType};base64,${imageBase64}` : null);
     const newEntry = {
       id: Date.now(),
@@ -333,8 +332,6 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       ageEmoji: ageGroup.emoji,
       ageRange: ageGroup.range,
       doodleUrl,
-      likes: 0,
-      loves: 0,
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     };
     const updated = [newEntry, ...currentLibrary];
@@ -357,22 +354,27 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     setStory(null);
     setError(null);
     setStep(1);
+    setDrawing(false);
     spokenKeys.current.clear();
   };
+
+  if (drawing) {
+    return <DoodleCanvas onDone={handleDoodleDone} onCancel={() => setDrawing(false)} />;
+  }
 
   return (
     <Screen>
       <View style={styles.rowBetween}>
         <Btn label="← Home" onPress={() => onNavigate("home")} />
-        <Btn label="🌙 Library" night onPress={() => onNavigate("library")} />
+        <Btn label="🌙 My Stories" night onPress={() => onNavigate("library")} />
       </View>
       <Text style={styles.heroTitle}>Doodle Stories</Text>
 
       {step === 1 && (
         <View>
-          <Text style={styles.stepHint}>Upload a photo of your drawing to begin ✨</Text>
-          <Btn label="📸 Upload Drawing" primary onPress={pickImage} />
-          <Text style={styles.note}>Draw-in-app is on the web at doodlestories.app</Text>
+          <Text style={styles.stepHint}>Draw your own or upload a photo ✨</Text>
+          <Btn label="🎨 Draw My Doodle" primary onPress={() => { stop(); setDrawing(true); }} style={styles.mb12} />
+          <Btn label="📸 Upload Drawing" onPress={() => { stop(); pickImage(); }} />
         </View>
       )}
 
@@ -433,7 +435,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
             style={styles.mb8}
           />
           <Btn label="📲 Share This Story" onPress={shareStory} style={styles.mb8} />
-          <Btn label="🌙 Save to Bedtime Library" night onPress={() => setShowSaveModal(true)} style={styles.mb8} />
+          <Btn label="🌙 Save This Story" night onPress={() => setShowSaveModal(true)} style={styles.mb8} />
           <Btn label="🎨 New Doodle" onPress={reset} />
         </View>
       )}
@@ -443,12 +445,12 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
       <Modal visible={showSaveModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Share with the Library?</Text>
+            <Text style={styles.modalTitle}>Save this story?</Text>
             <Text style={styles.modalBody}>
-              Share "{story?.title}" anonymously so other kids can enjoy it?
+              Save "{story?.title}" so you can listen to it again anytime?
             </Text>
-            <Btn label="✨ Yes, share it!" primary onPress={() => handleSave(true)} style={styles.mb8} />
-            <Btn label="Keep it just for us" onPress={() => handleSave(false)} />
+            <Btn label="✨ Yes, save it!" primary onPress={() => handleSave(true)} style={styles.mb8} />
+            <Btn label="Not now" onPress={() => handleSave(false)} />
           </View>
         </View>
       </Modal>
@@ -491,13 +493,16 @@ function AboutScreen({ onNavigate }) {
       <Text style={styles.heroEmoji}>🎨</Text>
       <Text style={styles.heroTitle}>About Doodle Stories</Text>
       <Text style={styles.aboutPara}>
-        Doodle Stories turns children's drawings into personalized AI bedtime stories — narrated and shareable.
+        Doodle Stories turns children's drawings into personalized AI bedtime stories — narrated and saved on your device.
       </Text>
       {links.map((l) => (
         <Pressable key={l.label} onPress={() => Linking.openURL(l.url)} style={styles.socialBtn}>
           <Text style={styles.socialText}>{l.label}</Text>
         </Pressable>
       ))}
+      <Pressable onPress={() => Linking.openURL(PRIVACY_URL)} style={styles.socialBtn}>
+        <Text style={styles.socialText}>Privacy Policy</Text>
+      </Pressable>
       <Btn label="🎨 Create Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
     </Screen>
   );
@@ -566,36 +571,38 @@ function ContactScreen({ onNavigate }) {
 function AppRoot() {
   const [view, setView] = useState("home");
   const [library, setLibrary] = useState([]);
-  const [votes, setVotes] = useState({});
+  const [favorites, setFavorites] = useState({});
   const { speak } = useSpeech();
 
   useEffect(() => {
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v]) => {
       setLibrary(lib);
-      setVotes(v);
+      setFavorites(v || {});
     });
   }, []);
 
-  const handleVote = async (id, type) => {
-    if (votes[id]) return;
-    const newVotes = { ...votes, [id]: type };
-    setVotes(newVotes);
-    await saveVotes(newVotes);
-    const updated = library.map((s) =>
-      s.id === id ? { ...s, [type === "love" ? "loves" : "likes"]: (s[type === "love" ? "loves" : "likes"] || 0) + 1 } : s
-    );
-    setLibrary(updated);
-    await saveLibrary(updated);
+  // Tapping the heart toggles a story in or out of favorites.
+  const toggleFavorite = async (id) => {
+    const next = { ...favorites };
+    if (next[id]) delete next[id];
+    else next[id] = true;
+    setFavorites(next);
+    await saveVotes(next);
   };
 
-  const topLoved = [...library].sort((a, b) => (b.loves || 0) - (a.loves || 0)).filter((s) => (s.loves || 0) > 0);
-  const topLiked = [...library].sort((a, b) => (b.likes || 0) - (a.likes || 0)).filter((s) => (s.likes || 0) > 0);
+  const favoriteStories = library.filter((s) => favorites[s.id]);
 
   let screen = null;
-  if (view === "home") screen = <HomeScreen onNavigate={setView} topLoved={topLoved} topLiked={topLiked} />;
+  if (view === "home") screen = <HomeScreen onNavigate={setView} favorites={favoriteStories} />;
   if (view === "library")
     screen = (
-      <LibraryScreen onNavigate={setView} library={library} votes={votes} onVote={handleVote} speak={speak} />
+      <LibraryScreen
+        onNavigate={setView}
+        library={library}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        speak={speak}
+      />
     );
   if (view === "create")
     screen = <CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} />;
@@ -655,7 +662,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  rank: { fontWeight: "700", color: COLORS.accent1, marginBottom: 6 },
   heroImg: { width: "100%", height: 85, borderRadius: 10, marginBottom: 8 },
   storyCard: {
     backgroundColor: COLORS.card,
@@ -669,7 +675,6 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 11, color: COLORS.accent3, fontWeight: "700", textTransform: "uppercase" },
   cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.text, marginVertical: 4 },
   cardPreview: { fontSize: 13, color: COLORS.muted },
-  cardVotes: { fontSize: 13, marginTop: 6, color: COLORS.text },
   footerLinks: { flexDirection: "row", justifyContent: "center", gap: 24, marginTop: 24 },
   link: { color: COLORS.muted, textDecorationLine: "underline" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
@@ -709,8 +714,17 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
   modalBody: { color: COLORS.muted, marginBottom: 16, lineHeight: 22 },
   modalImg: { width: "100%", height: 160, borderRadius: 14, marginBottom: 12 },
-  reactionRow: { flexDirection: "row", justifyContent: "center", gap: 16, marginTop: 12 },
-  reactionBtn: { padding: 10, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
+  reactionRow: { flexDirection: "row", justifyContent: "center", marginTop: 14 },
+  favBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  favBtnOn: { borderColor: COLORS.accent1, backgroundColor: "rgba(255,107,107,0.08)" },
+  favText: { fontSize: 15, fontWeight: "600", color: COLORS.text },
   input: {
     borderWidth: 2,
     borderColor: COLORS.border,
