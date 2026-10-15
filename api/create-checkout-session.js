@@ -10,7 +10,7 @@ import Stripe from "stripe";
 
 // The only two prices the app is allowed to sell. Reject anything else.
 const ALLOWED_PRICE_IDS = new Set([
-  "price_1TfRHlPQ9TnCZr87tO1waQAy", // monthly
+  "price_1UPtxMPQ9TnCZr87SmJjfIKe", // monthly
   "price_1TfRHjPQ9TnCZr87yn9DvCCK", // annual
 ]);
 

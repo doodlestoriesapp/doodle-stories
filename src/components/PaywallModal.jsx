@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const MONTHLY_PRICE_ID = "price_1TfRHlPQ9TnCZr87tO1waQAy";
+const MONTHLY_PRICE_ID = "price_1UPtxMPQ9TnCZr87SmJjfIKe";
 const ANNUAL_PRICE_ID = "price_1TfRHjPQ9TnCZr87yn9DvCCK";
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
@@ -167,7 +167,7 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
                 color: COLORS.text,
               }}
             >
-              $4.99
+              $2.00
               <span style={{ fontSize: "0.82rem", fontWeight: "normal", color: COLORS.muted }}>
                 /month
               </span>
@@ -221,7 +221,7 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Best Value — Save 33%
+              Best Value — Save 17%
             </span>
             <p
               style={{
@@ -243,7 +243,7 @@ export default function PaywallModal({ isOpen, onClose, reason = "limit" }) {
                 color: COLORS.text,
               }}
             >
-              $39.99
+              $20.00
               <span style={{ fontSize: "0.82rem", fontWeight: "normal", color: COLORS.muted }}>
                 /year
               </span>
