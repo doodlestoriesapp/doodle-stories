@@ -1,0 +1,58 @@
+// src/purchases.js
+//
+// RevenueCat setup and helpers for Android (Google Play) subscriptions.
+//
+// RevenueCat's native module does not run in Expo Go, so everything here
+// is wrapped to fail quietly there — the rest of the app keeps working.
+// Real purchases need an EAS development build.
+
+import { Platform } from "react-native";
+import Purchases from "react-native-purchases";
+import { getDeviceId } from "./storage";
+
+// Public SDK key for the "doodlestories (Play Store)" app in RevenueCat
+// (RevenueCat → API keys → starts with goog_). This key is meant to ship
+// inside the app, so it's safe in code. NEVER put the sk_ secret key here.
+const ANDROID_API_KEY =
+  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || "goog_cGycphBzosMwkdlVrMhDVreEbhH";
+
+// Must match the entitlement identifier in RevenueCat exactly.
+export const ENTITLEMENT_ID = "doodlestories Premium";
+
+let configured = false;
+
+export function isPurchasesReady() {
+  return configured;
+}
+
+// Call once when the app starts.
+export async function initPurchases() {
+  if (configured) return true;
+  if (Platform.OS !== "android") return false; // iOS comes later
+  if (!ANDROID_API_KEY.startsWith("goog_")) {
+    console.warn("RevenueCat: Android API key is missing — purchases disabled.");
+    return false;
+  }
+  try {
+    // Use our own device ID as the RevenueCat user ID, so the server webhook
+    // and the story limit check both refer to the same install.
+    const appUserID = await getDeviceId();
+    Purchases.configure({ apiKey: ANDROID_API_KEY, appUserID });
+    configured = true;
+    return true;
+  } catch (err) {
+    console.warn("RevenueCat setup skipped:", err?.message);
+    return false;
+  }
+}
+
+// True if this install currently has an active subscription.
+export async function hasPremium() {
+  if (!configured) return false;
+  try {
+    const info = await Purchases.getCustomerInfo();
+    return !!info?.entitlements?.active?.[ENTITLEMENT_ID];
+  } catch {
+    return false;
+  }
+}

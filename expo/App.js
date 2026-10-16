@@ -9,6 +9,7 @@ import { apiPost } from "./src/api";
 import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
 import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
 import DoodleCanvas from "./src/DoodleCanvas";
+import { initPurchases } from "./src/purchases";
 
 const PRIVACY_URL = "https://doodlestories.app/privacy";
 
@@ -575,6 +576,8 @@ function AppRoot() {
   const { speak } = useSpeech();
 
   useEffect(() => {
+    // Set up RevenueCat once at launch (no-op in Expo Go / without a key).
+    initPurchases();
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v]) => {
       setLibrary(lib);
       setFavorites(v || {});
