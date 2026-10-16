@@ -46,6 +46,34 @@ export async function initPurchases() {
   }
 }
 
+// The plans from the "default" offering in RevenueCat ($rc_monthly, $rc_annual).
+// Returns [] if RevenueCat isn't available (e.g. in Expo Go).
+export async function getPackages() {
+  if (!configured) return [];
+  const offerings = await Purchases.getOfferings();
+  return offerings?.current?.availablePackages || [];
+}
+
+// Opens Google Play's purchase sheet for one plan.
+// Returns "purchased", "cancelled", or throws on a real error.
+export async function buyPackage(pkg) {
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    return customerInfo?.entitlements?.active?.[ENTITLEMENT_ID] ? "purchased" : "pending";
+  } catch (err) {
+    if (err?.userCancelled) return "cancelled";
+    throw err;
+  }
+}
+
+// Re-links an existing Google Play subscription to this install
+// (new phone, reinstall). Returns true if premium is now active.
+export async function restorePurchases() {
+  if (!configured) return false;
+  const info = await Purchases.restorePurchases();
+  return !!info?.entitlements?.active?.[ENTITLEMENT_ID];
+}
+
 // True if this install currently has an active subscription.
 export async function hasPremium() {
   if (!configured) return false;

@@ -10,6 +10,9 @@ import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
 import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
 import DoodleCanvas from "./src/DoodleCanvas";
 import { initPurchases } from "./src/purchases";
+import Paywall from "./src/Paywall";
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PRIVACY_URL = "https://doodlestories.app/privacy";
 
@@ -223,6 +226,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   const [error, setError] = useState(null);
   const [step, setStep] = useState(1);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const { speak, speakLong, stop, speaking } = useSpeech();
   const spokenKeys = useRef(new Set());
 
@@ -274,7 +278,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     await acceptImage(base64, mediaType, `data:${mediaType};base64,${base64}`);
   };
 
-  const generateStory = async () => {
+  // justSubscribed: right after a purchase, the server may need a few seconds
+  // to hear about it from RevenueCat, so a 403 is retried briefly instead of
+  // showing the paywall again.
+  const generateStory = async ({ justSubscribed = false } = {}) => {
     if (!imageBase64 || !ageGroup) return;
     setLoading(true);
     setError(null);
@@ -283,12 +290,26 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
     try {
       // The server builds the prompt, checks the image and returns a clean
       // { title, story, tags } — the app only sends these four fields.
-      const data = await apiPost("/api/generate-story", {
-        imageBase64,
-        mediaType: imageMediaType,
-        ageLabel: ageGroup.label,
-        language: selectedLanguage,
-      });
+      const request = () =>
+        apiPost("/api/generate-story", {
+          imageBase64,
+          mediaType: imageMediaType,
+          ageLabel: ageGroup.label,
+          language: selectedLanguage,
+        });
+      let data;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          data = await request();
+          break;
+        } catch (e) {
+          if (justSubscribed && e?.status === 403 && attempt < 4) {
+            await wait(3000);
+            continue;
+          }
+          throw e;
+        }
+      }
       spokenKeys.current.delete("story");
       setStory(data);
       prefetchStoryTTS(`${data.title}. ${data.story}`);
@@ -300,9 +321,10 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           err?.body?.message ||
           "This picture isn't quite right for our kids' app. Please try a different drawing! 🎨";
       } else if (status === 403) {
-        message =
-          err?.body?.message ||
-          "You've reached your 10 free stories for this month. Come back next month for more! 🌙";
+        message = justSubscribed
+          ? "Your subscription is still activating. Please tap Make My Story again in a minute! ✨"
+          : "You've used your 10 free stories this month. Ask a grown-up about unlimited stories! 🌙";
+        if (!justSubscribed) setShowPaywall(true);
       } else if (status === 503) {
         message =
           err?.body?.message ||
@@ -404,7 +426,7 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           <Pressable onPress={() => setShowLangModal(true)} style={styles.langBtn}>
             <Text style={styles.langBtnText}>🌍 Story Language: {selectedLanguage}</Text>
           </Pressable>
-          <Btn label="✨ Make My Story!" primary disabled={!ageGroup} onPress={generateStory} />
+          <Btn label="✨ Make My Story!" primary disabled={!ageGroup} onPress={() => generateStory()} />
         </View>
       )}
 
@@ -443,6 +465,15 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
       {step === 3 && !loading && error && <Text style={styles.error}>{error}</Text>}
 
+      <Paywall
+        visible={showPaywall}
+        reason="You've used this month's 10 free stories."
+        onClose={() => setShowPaywall(false)}
+        onPurchased={() => {
+          setShowPaywall(false);
+          generateStory({ justSubscribed: true });
+        }}
+      />
       <Modal visible={showSaveModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -482,6 +513,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 }
 
 function AboutScreen({ onNavigate }) {
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
   const links = [
     { label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
     { label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
@@ -504,7 +537,20 @@ function AboutScreen({ onNavigate }) {
       <Pressable onPress={() => Linking.openURL(PRIVACY_URL)} style={styles.socialBtn}>
         <Text style={styles.socialText}>Privacy Policy</Text>
       </Pressable>
+      <Pressable onPress={() => setShowPaywall(true)} style={styles.socialBtn}>
+        <Text style={styles.socialText}>
+          {subscribed ? "🌟 Unlimited stories active — thank you!" : "🌟 Unlimited Stories / Restore Purchases"}
+        </Text>
+      </Pressable>
       <Btn label="🎨 Create Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
+      <Paywall
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onPurchased={() => {
+          setShowPaywall(false);
+          setSubscribed(true);
+        }}
+      />
     </Screen>
   );
 }
