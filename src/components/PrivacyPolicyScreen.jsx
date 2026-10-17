@@ -33,7 +33,7 @@ function GoPremiumButton({ isPremium, setShowPaywall }) {
   );
 }
 
-const LAST_UPDATED = "July 30, 2026";
+const LAST_UPDATED = "October 17, 2026";
 const SECTIONS = [
   {
     title: "1. Introduction",
@@ -59,32 +59,44 @@ const SECTIONS = [
       "Drawings and photos — whether drawn in the app or uploaded, the image is sent to our servers for two purposes: an automated safety check confirming it is appropriate for a children's app, and story generation. The image is processed and discarded. We do not store it.",
       "Story settings — the age group and story language you select, used to shape the story's reading level and language. These are sent with the request and not stored.",
       "Story text — sent to our narration provider to generate the read-aloud audio. We do not store it.",
+      "A random install ID — the first time you use DoodleStories, your browser or the app creates a random code (for example, \"70266efa-1306-…\"). It is generated on your device, is not derived from your name, email, phone number, or any device or advertising identifier, and cannot be used to identify you. It is sent with each story request so our servers can tell whether that install has a subscription and should skip the free monthly limit. We only keep a record of it on our servers if a subscription is purchased (see \"Subscriptions\" below). Clearing your browser data or uninstalling the app deletes it from your device.",
     ],
   },
   {
-    title: "4. What We Collect — Website Only",
+    title: "4. Subscriptions",
+    intro: "DoodleStories offers an optional paid subscription for unlimited stories. Purchases are always made by a parent or other adult — in the mobile app, a grown-up check must be passed before any purchase screen appears.",
     bullets: [
-      "Payment information — subscription payments are handled entirely by Stripe. We never see or store your full card details.",
+      "On the website, subscriptions are processed by Stripe. In the Android app, they are processed by Google Play. We never see or store card numbers or other payment details.",
+      "In the mobile app, we use RevenueCat to manage subscriptions. RevenueCat receives the purchase record from Google Play — which plan was bought, when it started, renews, or ends, and the currency and country of the purchase — linked to the random install ID described above. RevenueCat does not receive your name or email address from us.",
+      "To unlock unlimited stories, our servers keep a small subscription record tied to the random install ID: whether the subscription is active, when it ends, and (for website purchases) the Stripe customer reference needed to process renewals and cancellations. This record contains no name, email address, or payment details.",
+      "Restoring a subscription on a new device links the existing purchase from your Google Play account to the new install's random ID.",
+    ],
+  },
+  {
+    title: "5. What We Collect — Website Only",
+    bullets: [
+      "Payment information — website subscription payments are handled entirely by Stripe. We never see or store your full card details.",
       "Cookies — the DoodleStories website sets no cookies.",
       "Analytics — we use no website analytics. We do not measure or record how individual visitors move around the site.",
       "Offline storage — the website can be installed and used offline. To make that work, your browser stores a copy of the site's files on your device. These are program files, not information about you, and they are removed when you clear your browser data.",
     ],
   },
   {
-    title: "5. What We Collect — Mobile App Only",
+    title: "6. What We Collect — Mobile App Only",
     bullets: [
       "Photo library access — if you choose to upload an existing drawing, Android asks permission to access photos. The app receives only the single image you select. We never browse, scan, or upload your photo library, and you can decline — the in-app drawing canvas works without it.",
       "Contact form — if you write to us through the app's Contact form, the name, email address, reason, and message you enter are delivered to our inbox through a form-delivery service (FormSubmit). This form is intended for parents and other adults. We use what you send solely to reply, and never add it to a marketing list.",
+      "In-app purchases — subscriptions bought in the app are processed by Google Play and managed by RevenueCat, as described under \"Subscriptions\" above.",
     ],
   },
   {
-    title: "6. Information Google Provides to Us",
+    title: "7. Information Google Provides to Us",
     paragraphs: [
       "Like every developer, we can see aggregate, anonymous statistics that Google provides through the Play Console — for example, how many people installed the app, and in which countries. This is collected by Google as the app store operator under its own privacy policy, and is provided to us in summary form only. It never identifies you or your child.",
     ],
   },
   {
-    title: "7. What Stays on Your Device",
+    title: "8. What Stays on Your Device",
     intro: "The following is stored only on your own device and is never transmitted to us:",
     bullets: [
       "Saved stories, including story text, the accompanying drawing, and the age group used.",
@@ -93,7 +105,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: "8. How Long We Keep Information",
+    title: "9. How Long We Keep Information",
     intro: "We keep as little as possible, for as short a time as possible.",
     bullets: [
       "Drawings and uploaded photos — not stored. Processed to create your story, then discarded.",
@@ -102,22 +114,26 @@ const SECTIONS = [
       "Monthly story counter — deleted automatically 35 days after it is created.",
       "Messages sent through the Contact form — kept in our email inbox for 12 months, then deleted.",
       "Server request logs — automatically deleted after 1 day by our hosting provider.",
+      "Subscription records on our servers — for in-app subscriptions, the record expires automatically when the paid period ends; a lapsed record is kept for up to 30 days and then deleted. Website subscription records are kept while the subscription exists and marked cancelled when it ends.",
+      "Purchase history held by RevenueCat, Google Play, and Stripe — kept by those providers under their own policies, as needed for billing, refunds, and legal requirements. Parents can ask us to delete the RevenueCat record linked to their install (see \"Parental Rights and Deletion\").",
     ],
   },
   {
-    title: "9. Service Providers",
+    title: "10. Service Providers",
     intro: "We share limited data with trusted providers who help us run DoodleStories. We do not sell your data, and we do not share it with advertisers or data brokers.",
     bullets: [
       "Anthropic — AI story generation and the image safety check, from uploaded drawings and prompts.",
       "OpenAI — text-to-speech narration for read-aloud stories.",
       "Upstash — stores the hashed monthly story counter for the free tier.",
       "Stripe — secure payment processing for website subscriptions.",
+      "Google Play — payment processing for subscriptions bought in the Android app.",
+      "RevenueCat — manages in-app subscriptions: receives purchase records from Google Play and tells the app and our servers whether a subscription is active.",
       "FormSubmit — delivery of messages sent through the app's Contact form.",
       "Vercel — hosts the DoodleStories website and the servers that pass content between the app and the services above.",
     ],
   },
   {
-    title: "10. What We Do Not Do",
+    title: "11. What We Do Not Do",
     bullets: [
       "We do not require or offer account creation.",
       "We do not collect names, email addresses, birthdays, or contact details from children.",
@@ -129,40 +145,40 @@ const SECTIONS = [
     ],
   },
   {
-    title: "11. Sharing a Story Yourself",
+    title: "12. Sharing a Story Yourself",
     paragraphs: [
       "DoodleStories includes a Share button that lets you send a story to another app you choose — messages, email, social media, and so on. This happens entirely on your device. We receive no copy and have no visibility into where it goes.",
     ],
   },
   {
-    title: "12. Parental Rights and Deletion",
+    title: "13. Parental Rights and Deletion",
     paragraphs: [
       "Parents and guardians may contact us to ask what information we hold, request deletion, or ask us to stop processing. We aim to respond within 5 business days.",
-      "Because DoodleStories uses no accounts, does not store drawings or stories, and does not attach identifiers to submitted content, we generally hold no information tied to an individual child.",
+      "Because DoodleStories uses no accounts and does not store drawings or stories, we generally hold no information tied to an individual child. If a subscription was purchased, we hold only the subscription record described above, linked to a random install ID rather than to any person. To have it deleted, contact us with the purchase receipt or order number from Google Play or Stripe so we can find it. Cancelling a subscription itself is done in Google Play or through the Stripe link in your receipt.",
       "You can delete everything DoodleStories has saved at any time, without contacting us: delete individual stories in the app, clear your browser data on the website, or uninstall the app to remove all locally stored content.",
       "If you believe we have collected personal information from a child under 13, please contact us and we will delete it.",
     ],
   },
   {
-    title: "13. Security",
+    title: "14. Security",
     paragraphs: [
-      "Content sent between the app or website and our servers is encrypted in transit using HTTPS. Access to our systems is limited to authorized personnel. No system can be guaranteed completely secure, but we deliberately design DoodleStories so there is very little to protect: no accounts, no contact details collected from children, no stored drawings or stories, and no raw network addresses on record.",
+      "Content sent between the app or website and our servers is encrypted in transit using HTTPS. Access to our systems is limited to authorized personnel. No system can be guaranteed completely secure, but we deliberately design DoodleStories so there is very little to protect: no accounts, no contact details collected from children, no stored drawings or stories, no payment details, and no raw network addresses on record.",
     ],
   },
   {
-    title: "14. Where Information Is Processed",
+    title: "15. Where Information Is Processed",
     paragraphs: [
       "DoodleStories is operated from the United States. Content is processed on servers in the United States and in other countries where our service providers operate. If you use DoodleStories from outside the United States, your content will be processed in the United States.",
     ],
   },
   {
-    title: "15. Changes to This Policy",
+    title: "16. Changes to This Policy",
     paragraphs: [
       "If we change how DoodleStories handles information, we will update this policy and revise the date shown above. Material changes will be reflected before they take effect.",
     ],
   },
   {
-    title: "16. Contact Us",
+    title: "17. Contact Us",
     paragraphs: [
       "If you have questions about this Privacy Policy or how we handle your family's data, please reach out to Luminara Labs LLC:",
     ],
