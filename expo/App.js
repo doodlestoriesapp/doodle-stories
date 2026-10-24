@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
@@ -122,6 +122,40 @@ function HomeScreen({ onNavigate, favorites, isPremium, onPremium }) {
   );
 }
 
+// Google Play requires AI apps to let people report a generated story
+// without leaving the app. Sends the story text (never the drawing) to our inbox.
+function reportStory(title, text) {
+  Alert.alert(
+    "Report this story?",
+    "If anything in this story seems wrong or not right for children, let us know. We'll send the story text (not the drawing) to the DoodleStories team so we can improve our safety filters.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Report",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                _subject: "DoodleStories: story reported",
+                source: "Android app",
+                title: title || "",
+                story: (text || "").slice(0, 3000),
+              }),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            Alert.alert("Thank you", "We've received your report and will review this story.");
+          } catch {
+            Alert.alert("Couldn't send the report", "Please try again, or email doodlestoriesapp@gmail.com.");
+          }
+        },
+      },
+    ]
+  );
+}
+
 function ReadingModal({ story, onClose, nightMode, isFavorite, onToggleFavorite }) {
   const { speak, speakLong, stop, speaking } = useSpeech();
   const [readingLoading, setReadingLoading] = useState(false);
@@ -172,6 +206,9 @@ function ReadingModal({ story, onClose, nightMode, isFavorite, onToggleFavorite 
               </Text>
             </Pressable>
           </View>
+          <Pressable onPress={() => reportStory(story.title, story.text)} style={styles.reportBtn}>
+            <Text style={styles.reportText}>🚩 Report this story</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -480,6 +517,9 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
           <Btn label="📲 Share This Story" onPress={shareStory} style={styles.mb8} />
           <Btn label="🌙 Save This Story" night onPress={() => setShowSaveModal(true)} style={styles.mb8} />
           <Btn label="🎨 New Doodle" onPress={reset} />
+          <Pressable onPress={() => reportStory(story.title, story.story)} style={styles.reportBtn}>
+            <Text style={styles.reportText}>🚩 Report this story</Text>
+          </Pressable>
         </View>
       )}
 
@@ -821,6 +861,8 @@ const styles = StyleSheet.create({
   pillTextActive: { color: "#2E7D3A" },
   footerLinks: { flexDirection: "row", justifyContent: "center", gap: 24, marginTop: 24 },
   link: { color: COLORS.muted, textDecorationLine: "underline" },
+  reportBtn: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 12, marginTop: 4 },
+  reportText: { color: COLORS.muted, fontSize: 13, textDecorationLine: "underline" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   nightToggle: { fontSize: 14, color: COLORS.accent4 },
   textNight: { color: "#fff" },

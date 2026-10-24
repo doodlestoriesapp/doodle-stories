@@ -51,7 +51,7 @@ function GoPremiumButton({ isPremium, setShowPaywall }) {
   );
 }
 
-const LAST_UPDATED = "October 17, 2026";
+const LAST_UPDATED = "October 24, 2026";
 const SECTIONS = [
   {
     title: "1. Introduction",
@@ -104,6 +104,7 @@ const SECTIONS = [
     bullets: [
       "Photo library access — if you choose to upload an existing drawing, Android asks permission to access photos. The app receives only the single image you select. We never browse, scan, or upload your photo library, and you can decline — the in-app drawing canvas works without it.",
       "Contact form — if you write to us through the app's Contact form, the name, email address, reason, and message you enter are delivered to our inbox through a form-delivery service (FormSubmit). This form is intended for parents and other adults. We use what you send solely to reply, and never add it to a marketing list.",
+      "Story reports — if you tap \"Report this story\" in the app, the story's title and text (never the drawing, and nothing that identifies you) are delivered to our inbox through FormSubmit, so we can review the story and improve our safety filters.",
       "In-app purchases — subscriptions bought in the app are processed by Google Play and managed by RevenueCat, as described under \"Subscriptions\" above.",
     ],
   },
@@ -130,7 +131,7 @@ const SECTIONS = [
       "Story text — not stored.",
       "Stories you save — kept on your device only, for as long as you choose. Deleted when you delete the story, clear your browser data, or uninstall the app.",
       "Monthly story counter — deleted automatically 35 days after it is created.",
-      "Messages sent through the Contact form — kept in our email inbox for 12 months, then deleted.",
+      "Messages sent through the Contact form, and story reports — kept in our email inbox for 12 months, then deleted.",
       "Server request logs — automatically deleted after 1 day by our hosting provider.",
       "Subscription records on our servers — for in-app subscriptions, the record expires automatically when the paid period ends; a lapsed record is kept for up to 30 days and then deleted. Website subscription records are kept while the subscription exists and marked cancelled when it ends.",
       "Purchase history held by RevenueCat, Google Play, and Stripe — kept by those providers under their own policies, as needed for billing, refunds, and legal requirements. Parents can ask us to delete the RevenueCat record linked to their install (see \"Parental Rights and Deletion\").",
@@ -146,7 +147,7 @@ const SECTIONS = [
       "Stripe — secure payment processing for website subscriptions.",
       "Google Play — payment processing for subscriptions bought in the Android app.",
       "RevenueCat — manages in-app subscriptions: receives purchase records from Google Play and tells the app and our servers whether a subscription is active.",
-      "FormSubmit — delivery of messages sent through the app's Contact form.",
+      "FormSubmit — delivery of messages sent through the app's Contact form, and of story reports.",
       "Vercel — hosts the DoodleStories website and the servers that pass content between the app and the services above.",
     ],
   },
