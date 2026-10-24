@@ -534,25 +534,78 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
 
 function AboutScreen({ onNavigate, isPremium, onPremium }) {
   const [showPaywall, setShowPaywall] = useState(false);
+  // Same wording as the About page on doodlestories.app — keep the two in sync.
   const links = [
-    { label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
-    { label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
-    { label: "YouTube", url: "https://youtube.com/@DoodleStoriesapp" },
-    { label: "Facebook", url: "https://facebook.com/doodlestoriesapp" },
+    { icon: "🎵", label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
+    { icon: "📸", label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
+    { icon: "▶️", label: "YouTube", url: "https://youtube.com/@DoodleStoriesapp" },
+    { icon: "📘", label: "Facebook", url: "https://facebook.com/doodlestoriesapp" },
+  ];
+  const beliefs = [
+    ["🎨", "Every child is a storyteller", "Their imagination just needs a little magic to come alive."],
+    ["🌍", "Stories bring families together", "A bedtime story made from your child's own drawing is one you'll remember."],
+    ["🔒", "Kids deserve safe spaces", "DoodleStories offers that space — no accounts required, no ads, just creativity and loads of wonderful stories."],
+    ["✨", "Creativity is a superpower", "We celebrate every doodle — wobbly lines and all."],
   ];
   return (
     <Screen>
       <Btn label="← Home" onPress={() => onNavigate("home")} style={styles.mb16} />
       <Text style={styles.heroEmoji}>🎨</Text>
-      <Text style={styles.heroTitle}>About Doodle Stories</Text>
-      <Text style={styles.aboutPara}>
-        Doodle Stories turns children's drawings into personalized AI bedtime stories — narrated and saved on your device.
+      <Text style={styles.heroTitle}>
+        About <Text style={{ color: COLORS.accent1 }}>Doodle Stories</Text>
       </Text>
-      {links.map((l) => (
-        <Pressable key={l.label} onPress={() => Linking.openURL(l.url)} style={styles.socialBtn}>
-          <Text style={styles.socialText}>{l.label}</Text>
-        </Pressable>
-      ))}
+      <Text style={styles.aboutTagline}>Where every drawing becomes a story worth telling</Text>
+
+      <LinearGradient colors={[COLORS.night2, COLORS.night3]} style={styles.missionCard}>
+        <Text style={styles.missionLabel}>✦ OUR MISSION</Text>
+        <Text style={styles.missionText}>
+          "To turn every child's drawing into a story worth telling — and a story worth sharing."
+        </Text>
+      </LinearGradient>
+
+      <View style={styles.aboutCard}>
+        <Text style={styles.aboutHeading}>Our Story 🌟</Text>
+        <Text style={styles.aboutPara}>
+          Doodle Stories was born from a simple belief — that every child's imagination deserves to be celebrated. Kids
+          draw extraordinary things: dragons made of spaghetti, houses that float on clouds, cats who run bakeries. But
+          too often those drawings stay folded in a backpack or stuck to a fridge.
+        </Text>
+        <Text style={[styles.aboutPara, { marginBottom: 0 }]}>
+          We built Doodle Stories to change that. Upload or draw a doodle, pick an age group, and watch as AI transforms
+          that drawing into a personalized story — narrated, shareable, and saved right on your device so you can revisit
+          it any night you like.
+        </Text>
+      </View>
+
+      <View style={styles.aboutCard}>
+        <Text style={styles.aboutHeading}>What We Believe 💛</Text>
+        {beliefs.map(([icon, title, desc]) => (
+          <View key={title} style={styles.beliefRow}>
+            <Text style={styles.beliefIcon}>{icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.beliefTitle}>{title}</Text>
+              <Text style={styles.beliefDesc}>{desc}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.aboutCard}>
+        <Text style={styles.aboutHeading}>Follow Our Journey 🚀</Text>
+        <Text style={styles.beliefDesc}>
+          We share kids' stories, new features, and behind-the-scenes moments on social media. Come say hi!
+        </Text>
+        <View style={styles.socialGrid}>
+          {links.map((l) => (
+            <Pressable key={l.label} onPress={() => Linking.openURL(l.url)} style={[styles.socialBtn, styles.socialHalf]}>
+              <Text style={styles.socialText}>
+                {l.icon} {l.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
       <Pressable onPress={() => Linking.openURL(PRIVACY_URL)} style={styles.socialBtn}>
         <Text style={styles.socialText}>Privacy Policy</Text>
       </Pressable>
@@ -826,6 +879,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   aboutPara: { fontSize: 16, lineHeight: 24, color: COLORS.text, marginBottom: 16 },
+  aboutTagline: { fontSize: 15, fontStyle: "italic", color: COLORS.muted, textAlign: "center", marginBottom: 20 },
+  missionCard: { borderRadius: 20, padding: 20, marginBottom: 16 },
+  missionLabel: { fontSize: 11, letterSpacing: 1.5, fontWeight: "700", color: COLORS.accent2, marginBottom: 8 },
+  missionText: { fontSize: 17, lineHeight: 26, fontStyle: "italic", color: "#FFFFFF" },
+  aboutCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  aboutHeading: { fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
+  beliefRow: { flexDirection: "row", gap: 12, marginBottom: 14, alignItems: "flex-start" },
+  beliefIcon: { fontSize: 24, marginTop: 2 },
+  beliefTitle: { fontSize: 15, fontWeight: "700", color: COLORS.text, marginBottom: 2 },
+  beliefDesc: { fontSize: 14, lineHeight: 21, color: COLORS.muted },
+  socialGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 12 },
+  socialHalf: { width: "48%" },
   socialBtn: {
     padding: 12,
     borderRadius: 12,

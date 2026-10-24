@@ -2074,7 +2074,7 @@ function AboutScreen({ onNavigate, isPremium, setShowPaywall }) {
           <h2 style={{color:COLORS.text,fontSize:"1.1rem",margin:"0 0 16px"}}>What We Believe 💛</h2>
           {[
             ["🎨","Every child is a storyteller","Their imagination just needs a little magic to come alive."],
-            ["🌍","Stories connect us","A child's drawing in Houston can inspire a bedtime story in London."],
+            ["🌍","Stories bring families together","A bedtime story made from your child's own drawing is one you'll remember."],
             ["🔒","Kids deserve safe spaces","DoodleStories offers that space — no accounts required, no ads, just creativity and loads of wonderful stories."],
             ["✨","Creativity is a superpower","We celebrate every doodle — wobbly lines and all."],
           ].map(([icon,title,desc])=>(
