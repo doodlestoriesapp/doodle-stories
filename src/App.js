@@ -36,7 +36,25 @@ const COLORS = {
 };
 
 function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "filled" }) {
-  if (isPremium) return null;
+  if (isPremium) {
+    return (
+      <span
+        style={{
+          padding: "6px 11px",
+          borderRadius: 12,
+          border: `1.5px solid ${nightMode ? "rgba(107,203,119,0.5)" : "#BFE3C4"}`,
+          background: nightMode ? "rgba(107,203,119,0.12)" : "#F0FAF1",
+          color: nightMode ? COLORS.accent3 : "#2E7D3A",
+          fontSize: "0.72rem",
+          fontWeight: "bold",
+          fontFamily: "Georgia,serif",
+          whiteSpace: "nowrap",
+        }}
+      >
+        ⭐ Unlimited active
+      </span>
+    );
+  }
   const isOutline = variant === "outline";
   return (
     <button
@@ -60,7 +78,7 @@ function GoPremiumButton({ isPremium, setShowPaywall, nightMode, variant = "fill
         boxShadow: isOutline ? "none" : "0 2px 8px rgba(255,217,61,0.22)",
       }}
     >
-      ⭐ Go Premium
+      ⭐ Go Unlimited
     </button>
   );
 }

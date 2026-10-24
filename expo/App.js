@@ -9,7 +9,7 @@ import { apiPost } from "./src/api";
 import { loadLibrary, loadVotes, saveLibrary, saveVotes } from "./src/storage";
 import { useSpeech, prefetchStoryTTS } from "./src/useSpeech";
 import DoodleCanvas from "./src/DoodleCanvas";
-import { initPurchases } from "./src/purchases";
+import { hasPremium, initPurchases, watchPremium } from "./src/purchases";
 import Paywall from "./src/Paywall";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,9 +61,21 @@ function Screen({ children, night }) {
   );
 }
 
-function HomeScreen({ onNavigate, favorites }) {
+function HomeScreen({ onNavigate, favorites, isPremium, onPremium }) {
+  const [showPaywall, setShowPaywall] = useState(false);
   return (
     <Screen>
+      <View style={styles.pillRow}>
+        {isPremium ? (
+          <View style={[styles.pill, styles.pillActive]}>
+            <Text style={[styles.pillText, styles.pillTextActive]}>⭐ Unlimited active</Text>
+          </View>
+        ) : (
+          <Pressable onPress={() => setShowPaywall(true)} style={styles.pill}>
+            <Text style={styles.pillText}>⭐ Go Unlimited</Text>
+          </Pressable>
+        )}
+      </View>
       <Text style={styles.heroEmoji}>🎨</Text>
       <Text style={styles.heroTitle}>
         Doodle <Text style={{ color: COLORS.accent1 }}>Stories</Text>
@@ -98,6 +110,14 @@ function HomeScreen({ onNavigate, favorites }) {
           <Text style={styles.link}>Privacy</Text>
         </Pressable>
       </View>
+      <Paywall
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onPurchased={() => {
+          setShowPaywall(false);
+          onPremium(true);
+        }}
+      />
     </Screen>
   );
 }
@@ -512,9 +532,8 @@ function CreateScreen({ onNavigate, onStoryAdded, currentLibrary }) {
   );
 }
 
-function AboutScreen({ onNavigate }) {
+function AboutScreen({ onNavigate, isPremium, onPremium }) {
   const [showPaywall, setShowPaywall] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
   const links = [
     { label: "TikTok", url: "https://tiktok.com/@doodlestoriesapp" },
     { label: "Instagram", url: "https://instagram.com/doodlestoriesapp" },
@@ -539,7 +558,7 @@ function AboutScreen({ onNavigate }) {
       </Pressable>
       <Pressable onPress={() => setShowPaywall(true)} style={styles.socialBtn}>
         <Text style={styles.socialText}>
-          {subscribed ? "🌟 Unlimited stories active — thank you!" : "🌟 Unlimited Stories / Restore Purchases"}
+          {isPremium ? "⭐ Unlimited active — thank you!" : "⭐ Go Unlimited / Restore purchases"}
         </Text>
       </Pressable>
       <Btn label="🎨 Create Your Story" primary onPress={() => onNavigate("create")} style={styles.mt16} />
@@ -548,7 +567,7 @@ function AboutScreen({ onNavigate }) {
         onClose={() => setShowPaywall(false)}
         onPurchased={() => {
           setShowPaywall(false);
-          setSubscribed(true);
+          onPremium(true);
         }}
       />
     </Screen>
@@ -619,15 +638,23 @@ function AppRoot() {
   const [view, setView] = useState("home");
   const [library, setLibrary] = useState([]);
   const [favorites, setFavorites] = useState({});
+  const [isPremium, setIsPremium] = useState(false);
   const { speak } = useSpeech();
 
   useEffect(() => {
-    // Set up RevenueCat once at launch (no-op in Expo Go / without a key).
-    initPurchases();
+    // Set up RevenueCat once at launch (no-op in Expo Go / without a key),
+    // then keep "Go Unlimited" / "Unlimited active" in sync with the subscription.
+    let stopWatching = () => {};
+    initPurchases().then(async (ready) => {
+      if (!ready) return;
+      setIsPremium(await hasPremium());
+      stopWatching = watchPremium(setIsPremium);
+    });
     Promise.all([loadLibrary(), loadVotes()]).then(([lib, v]) => {
       setLibrary(lib);
       setFavorites(v || {});
     });
+    return () => stopWatching();
   }, []);
 
   // Tapping the heart toggles a story in or out of favorites.
@@ -642,7 +669,10 @@ function AppRoot() {
   const favoriteStories = library.filter((s) => favorites[s.id]);
 
   let screen = null;
-  if (view === "home") screen = <HomeScreen onNavigate={setView} favorites={favoriteStories} />;
+  if (view === "home")
+    screen = (
+      <HomeScreen onNavigate={setView} favorites={favoriteStories} isPremium={isPremium} onPremium={setIsPremium} />
+    );
   if (view === "library")
     screen = (
       <LibraryScreen
@@ -655,7 +685,7 @@ function AppRoot() {
     );
   if (view === "create")
     screen = <CreateScreen onNavigate={setView} onStoryAdded={setLibrary} currentLibrary={library} />;
-  if (view === "about") screen = <AboutScreen onNavigate={setView} />;
+  if (view === "about") screen = <AboutScreen onNavigate={setView} isPremium={isPremium} onPremium={setIsPremium} />;
   if (view === "contact") screen = <ContactScreen onNavigate={setView} />;
 
   return (
@@ -724,6 +754,18 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 11, color: COLORS.accent3, fontWeight: "700", textTransform: "uppercase" },
   cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.text, marginVertical: 4 },
   cardPreview: { fontSize: 13, color: COLORS.muted },
+  pillRow: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 4 },
+  pill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#D4AF37",
+    backgroundColor: "#FFF8E1",
+  },
+  pillText: { fontSize: 13, fontWeight: "700", color: "#9A7200" },
+  pillActive: { borderColor: "#BFE3C4", backgroundColor: "#F0FAF1" },
+  pillTextActive: { color: "#2E7D3A" },
   footerLinks: { flexDirection: "row", justifyContent: "center", gap: 24, marginTop: 24 },
   link: { color: COLORS.muted, textDecorationLine: "underline" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },

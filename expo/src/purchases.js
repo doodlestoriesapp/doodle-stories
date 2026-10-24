@@ -84,3 +84,20 @@ export async function hasPremium() {
     return false;
   }
 }
+
+// Calls onChange(true/false) whenever the subscription changes
+// (purchase, renewal, expiry, restore). Returns a function to stop listening.
+export function watchPremium(onChange) {
+  if (!configured) return () => {};
+  const listener = (info) => onChange(!!info?.entitlements?.active?.[ENTITLEMENT_ID]);
+  try {
+    Purchases.addCustomerInfoUpdateListener(listener);
+  } catch {
+    return () => {};
+  }
+  return () => {
+    try {
+      Purchases.removeCustomerInfoUpdateListener(listener);
+    } catch {}
+  };
+}

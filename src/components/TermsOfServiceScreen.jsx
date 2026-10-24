@@ -9,7 +9,25 @@ const COLORS = {
 };
 
 function GoPremiumButton({ isPremium, setShowPaywall }) {
-  if (isPremium) return null;
+  if (isPremium) {
+    return (
+      <span
+        style={{
+          padding: "6px 11px",
+          borderRadius: 12,
+          border: "1.5px solid #BFE3C4",
+          background: "#F0FAF1",
+          color: "#2E7D3A",
+          fontSize: "0.72rem",
+          fontWeight: "bold",
+          fontFamily: "Georgia,serif",
+          whiteSpace: "nowrap",
+        }}
+      >
+        ⭐ Unlimited active
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -28,7 +46,7 @@ function GoPremiumButton({ isPremium, setShowPaywall }) {
         boxShadow: "0 2px 8px rgba(255,217,61,0.22)",
       }}
     >
-      ⭐ Go Premium
+      ⭐ Go Unlimited
     </button>
   );
 }
