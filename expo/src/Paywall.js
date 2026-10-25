@@ -132,6 +132,7 @@ export default function Paywall({ visible, onClose, onPurchased, reason }) {
                 onChangeText={setAnswer}
                 keyboardType="number-pad"
                 placeholder="Answer"
+                placeholderTextColor="#A8A29E"
                 style={s.input}
                 onSubmitEditing={checkAnswer}
                 maxLength={3}
@@ -190,6 +191,7 @@ const s = StyleSheet.create({
   input: {
     borderWidth: 2, borderColor: COLORS.border, borderRadius: 14, padding: 12, fontSize: 20,
     textAlign: "center", backgroundColor: "#fff", marginBottom: 12,
+    color: "#2D2D2D",
   },
   primary: { backgroundColor: COLORS.accent1, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
   primaryText: { color: "#fff", fontSize: 16, fontWeight: "700" },

@@ -698,16 +698,25 @@ function ContactScreen({ onNavigate }) {
         </View>
       ) : (
         <View>
-          {["name", "email", "reason", "message"].map((field) => (
-            <TextInput
-              key={field}
-              placeholder={field === "name" ? "Your name" : field === "email" ? "Email" : field === "reason" ? "Reason" : "Message"}
-              value={form[field]}
-              onChangeText={(t) => setForm((f) => ({ ...f, [field]: t }))}
-              style={styles.input}
-              multiline={field === "message"}
-              keyboardType={field === "email" ? "email-address" : "default"}
-            />
+          {[
+            ["name", "Your name", "e.g. Priya"],
+            ["email", "Your email", "so we can reply"],
+            ["reason", "Reason", "e.g. Question, feedback, a problem"],
+            ["message", "Message", "How can we help?"],
+          ].map(([field, label, hint]) => (
+            <View key={field}>
+              <Text style={styles.fieldLabel}>{label}</Text>
+              <TextInput
+                placeholder={hint}
+                placeholderTextColor="#A8A29E"
+                value={form[field]}
+                onChangeText={(t) => setForm((f) => ({ ...f, [field]: t }))}
+                style={[styles.input, field === "message" && styles.inputMultiline]}
+                multiline={field === "message"}
+                keyboardType={field === "email" ? "email-address" : "default"}
+                autoCapitalize={field === "email" ? "none" : "sentences"}
+              />
+            </View>
           ))}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Btn label={sending ? "Sending..." : "✉️ Send Message"} primary disabled={sending} onPress={submit} />
@@ -909,7 +918,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: "#fff",
     fontSize: 16,
+    color: COLORS.text,
   },
+  inputMultiline: { minHeight: 110, textAlignVertical: "top" },
+  fieldLabel: { fontSize: 14, fontWeight: "600", color: COLORS.text, marginBottom: 6 },
   aboutPara: { fontSize: 16, lineHeight: 24, color: COLORS.text, marginBottom: 16 },
   aboutTagline: { fontSize: 15, fontStyle: "italic", color: COLORS.muted, textAlign: "center", marginBottom: 20 },
   missionCard: { borderRadius: 20, padding: 20, marginBottom: 16 },
