@@ -135,17 +135,13 @@ function reportStory(title, text) {
         style: "destructive",
         onPress: async () => {
           try {
-            const res = await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Accept: "application/json" },
-              body: JSON.stringify({
-                _subject: "DoodleStories: story reported",
-                source: "Android app",
-                title: title || "",
-                story: (text || "").slice(0, 3000),
-              }),
+            // Goes through our server, which forwards it to the inbox (see api/send-message.js).
+            await apiPost("/api/send-message", {
+              type: "report",
+              source: "Android app",
+              title: title || "",
+              story: (text || "").slice(0, 3000),
             });
-            if (!res.ok) throw new Error(String(res.status));
             Alert.alert("Thank you", "We've received your report and will review this story.");
           } catch {
             Alert.alert("Couldn't send the report", "Please try again, or email doodlestoriesapp@gmail.com.");
@@ -681,14 +677,8 @@ function ContactScreen({ onNavigate }) {
     setSending(true);
     setError(null);
     try {
-      await fetch("https://formsubmit.co/ajax/doodlestoriesapp@gmail.com", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          ...form,
-          _subject: `DoodleStories Contact: ${form.reason}`,
-        }),
-      });
+      // Goes through our server, which forwards it to the inbox (see api/send-message.js).
+      await apiPost("/api/send-message", { type: "contact", ...form });
       setSubmitted(true);
     } catch {
       setError("Something went wrong. Email doodlestoriesapp@gmail.com");
