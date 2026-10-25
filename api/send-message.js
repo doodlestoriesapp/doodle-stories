@@ -37,6 +37,7 @@ export default async function handler(req, res) {
 
   let subject;
   let text;
+  let replyTo = null;
 
   if (body.type === "report") {
     const story = clip(body.story, 3000);
@@ -54,22 +55,39 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Please fill in all fields." });
     }
     subject = `DoodleStories Contact: ${reason}`;
+    // So that clicking Reply in Gmail answers the parent, not onboarding@resend.dev.
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) replyTo = email;
     text = `New message from the Android app's Contact form.\n\nName: ${name}\nEmail: ${email}\nReason: ${reason}\n\n${message}`;
   } else {
     return res.status(400).json({ error: "Unknown message type" });
   }
 
-  try {
-    const upstream = await fetch("https://api.resend.com/emails", {
+  const send = (withReplyTo) =>
+    fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "User-Agent": "doodlestories-server/1.0",
       },
-      body: JSON.stringify({ from: FROM, to: [INBOX], subject, text }),
+      body: JSON.stringify({
+        from: FROM,
+        to: [INBOX],
+        subject,
+        text,
+        ...(withReplyTo && replyTo ? { reply_to: replyTo } : {}),
+      }),
     });
-    const data = await upstream.json().catch(() => ({}));
+
+  try {
+    let upstream = await send(true);
+    let data = await upstream.json().catch(() => ({}));
+    // If Resend ever rejects the reply-to address, send without it rather than lose the message.
+    if (replyTo && upstream.status >= 400 && upstream.status < 500) {
+      console.warn("Resend rejected reply_to, retrying without it:", upstream.status, data.message);
+      upstream = await send(false);
+      data = await upstream.json().catch(() => ({}));
+    }
     if (!upstream.ok || !data.id) {
       console.error("Resend did not accept the message:", upstream.status, data.message || data.name);
       return res.status(502).json({ error: "Message could not be delivered", detail: `${upstream.status} ${data.message || ""}`.trim() });
